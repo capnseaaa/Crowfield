@@ -696,8 +696,8 @@ static void draw_sword(void) {
 }
 
 // ---------- dusk shop ----------
-#define SEED_PRICE 5   // first guesses (DESIGN.md): a crop sells for 8, a seed costs 5
-#define CROP_PRICE 8
+#define SEED_PRICE 1   // Caleb, 2026-10-22: 8 and 5 gave too much cash; a crop sells for 3, a seed costs 1
+#define CROP_PRICE 3
 static s32 shop_open, shop_cursor;
 enum { SHOP_SELL, SHOP_SEED, SHOP_NEXT, SHOP_ITEMS };
 #define SHOP_L 3       // window: text columns 3..26, rows 3..15

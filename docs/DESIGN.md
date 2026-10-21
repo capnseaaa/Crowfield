@@ -93,8 +93,11 @@ Crows get stronger and more numerous each day. First guess for wave size: `4 + 2
 and new types unlock on later days (Fast day 3, Armored day 5, Big day 7, Swarm day 9).
 
 ## Economy
-- Selling: each crop sells for a fixed price (first guess 8 coins). Sold at dusk: SELL CROPS sells the whole bag.
-- Seeds cost 5 coins each at dusk (first guess). BUY SEED buys one per press.
+- Selling: each crop sells for 3 coins (Caleb, 2026-10-22; the first guess of 8 gave too much cash).
+  Sold at dusk: SELL CROPS sells the whole bag.
+- Seeds cost 1 coin each at dusk (Caleb; was 5). BUY SEED buys one per press.
+- Upgrade prices from the concept (Sickle 120, Sword 150, Turret 100) were set against 8-coin crops.
+  They need rescaling before the upgrades are built.
 - Game over counts crops in the bag as the coins they sell for, so a full bag never ends the run.
 - Coins buy upgrades, seeds, and turrets. Crops in stock carry over.
 
