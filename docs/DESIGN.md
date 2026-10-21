@@ -77,9 +77,12 @@ capped at double its base HP). A fed crow is tinted red.
 **v0.2 crow numbers (first guesses, tune by play):** flight 6/16 px per frame (the old sparring crows
 flew 10); one bite every 2 s, so a ripe crop is gone after 4 bites; each crow goes for the nearest crop
 no other crow has picked; a crow pecks the farmer within 10 px (12 px while eating), then waits 1.5 s;
-a wave is `4 + 2 * day` crows, one every 0.75 s from a random screen edge; the next wave comes 3 s after
-the last crow dies (days arrive in v0.3). Seed price for the game-over check: 5 coins (placeholder until
-the shop). A crow that feeds for long is harder to kill, so the farmer
+day n brings `2 + n` crows (3 on day 1; v0.2 used `4 + 2 * day`, and Caleb found 6 too many), one
+every `160 - 10 * n` frames (2.5 s on day 1, never under 0.75 s), each from a random screen edge.
+
+**Days (v0.3.0).** A day starts with a `DAY n` banner; its first crow comes after 2 s. When all of the
+day's crows have come and died, "DAY n DONE!" shows for 2 s (the farmer can still harvest), then dusk:
+the shop window opens and the farm pauses (no crows, no growth). Leaving the shop starts the next day. A crow that feeds for long is harder to kill, so the farmer
 must stop crows fast. A fed crow should look different (bigger, or a palette change).
 
 Caleb's direction: early days have slower, weaker crows. Each day adds more crows and makes
@@ -90,7 +93,9 @@ Crows get stronger and more numerous each day. First guess for wave size: `4 + 2
 and new types unlock on later days (Fast day 3, Armored day 5, Big day 7, Swarm day 9).
 
 ## Economy
-- Selling: each crop sells for a fixed price (first guess 8 coins). Sold at dusk.
+- Selling: each crop sells for a fixed price (first guess 8 coins). Sold at dusk: SELL CROPS sells the whole bag.
+- Seeds cost 5 coins each at dusk (first guess). BUY SEED buys one per press.
+- Game over counts crops in the bag as the coins they sell for, so a full bag never ends the run.
 - Coins buy upgrades, seeds, and turrets. Crops in stock carry over.
 
 ## Look and feel

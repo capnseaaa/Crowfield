@@ -1,5 +1,5 @@
-# crows (v0.2): land on a crop, eat it stage by stage, grow tougher, re-target, chase the farmer
-# when no crops are left, game over, new run, waves.
+# crows (v0.2) and days (v0.3): land on a crop, eat it stage by stage, grow tougher, re-target, chase the
+# farmer when no crops are left, game over, new run, day 1, dusk shop, day 2.
 # Field bytes: SOIL=3 SPROUT=4 CROP=5 CROP_RIPE=6 CROP_YOUNG=14. Ripe crop at (10,3) = field index 55.
 1 0 !$spawning=0
 30 0
@@ -32,19 +32,50 @@
 1 0 !$crow_state+4=1,$crow_x+4=320,$crow_y+4=1792,$crow_hp+4=1,$crow_cool+4=999,$crow_target+4=55
 40 0
 1 0 @$crow_target+4,$crow_x+4,$game_over
-# D: no seeds and no crops: the farm is lost
-1 0 !$seeds=0
+# D: no seeds and no crops in the field, but 1 crop in the bag (sells for 8 at dusk): the run goes on
+1 0 !$seeds=0,$crops=1
+3 0
+1 0 @$game_over
+# nothing left at all: the farm is lost
+1 0 !$crops=0
 3 0 e6_lost.ppm
 1 0 @$game_over
-# START: a new run with 3 seeds and the field back
+# START: a new run with 3 seeds, the field back, day 1 with 3 crows to come
 2 8
 3 0 e7_newrun.ppm
-1 0 @$game_over,$seeds,$farm+52,$crow_state+4,$wave
-# E: waves. Wave 1 after 2 s (6 crows, 45 frames apart). Clear them; wave 2 comes 3 s later.
-125 0
-1 0 @$wave,$wave_left
-280 0 e8_wave1.ppm
-1 0 @$wave,$wave_left,$crow_state,$crow_state+20
-1 0 !$crow_state=0,$crow_state+4=0,$crow_state+8=0,$crow_state+12=0,$crow_state+16=0,$crow_state+20=0
-182 0
-1 0 @$wave,$wave_left
+1 0 @$game_over,$seeds,$farm+52,$crow_state+4,$day,$day_left
+# E: day 1. Crows at 2 s, then every 2.5 s. Give him 3 crops, clear the crows: "DAY 1 DONE!", then dusk.
+430 0 e8_day1.ppm
+1 0 @$day_left,$crow_state,$crow_state+4,$crow_state+8
+1 0 !$crow_state=0,$crow_state+4=0,$crow_state+8=0,$crops=3,$coins=0,$seeds=3,$hearts=3,$ko_timer=0
+3 0 e9_daydone.ppm
+1 0 @$day_done,$shop_open
+125 0 s1_shop.ppm
+1 0 @$shop_open,$shop_cursor,$grow+100
+# F: the shop. A sells all crops: 3 x 8 = 24 coins.
+1 1
+1 0 s2_sold.ppm
+1 0 @$coins,$crops
+# down to BUY SEED, buy 4 (24 -> 4 coins, 3 -> 7 seeds); a 5th is refused (4 < 5)
+1 128
+1 0
+1 1
+1 0
+1 1
+1 0
+1 1
+1 0
+1 1
+1 0
+1 1
+1 0 s3_bought.ppm
+1 0 @$coins,$seeds
+# the farm is paused while the shop is open: no growth (grow counter of tile 51 holds)
+60 0
+1 0 @$grow+100
+# down to NEXT DAY, A: day 2 with 4 crows to come, shop closed
+1 128
+1 0
+1 1
+3 0 s4_day2.ppm
+1 0 @$shop_open,$day,$day_left

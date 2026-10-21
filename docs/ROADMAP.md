@@ -46,10 +46,12 @@ numbers v0.1.0-v0.3.3 in commit subjects; those numbers are history only and hav
 - [x] `test/crows.txt`
 
 ## v0.3 — days and the shop
-- [ ] Day ends when all crows are dead, then dusk; `Day x` banner (test build caps at 20)
-- [ ] Sell crops for coins
-- [ ] Shop panel: Sickle Lv.2/3, Sword Lv.2/3, seeds
-- [ ] `test/shop.txt`
+- [x] v0.3.0: day ends when all of its crows are dead ("DAY n DONE!"), then dusk; `DAY n` banner
+- [x] v0.3.0: day 1 has 3 crows (Caleb: 6 was too many), +1 per day; 2.5 s apart on day 1, faster later
+- [x] v0.3.0: dusk shop window: sell crops for coins, buy seeds, next day (the farm is paused meanwhile)
+- [x] v0.3.0: shop and day checks in `test/crows.txt`
+- [ ] Shop: Sickle Lv.2/3, Sword Lv.2/3
+- [ ] Test build caps at Day 20
 
 ## v0.4 — scarecrow turrets
 - [ ] Buy a turret and place it on a soil tile (uses a crop slot)

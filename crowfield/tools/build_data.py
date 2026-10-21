@@ -79,13 +79,15 @@ FONT = {
     "'": "00100 00100 01000 00000 00000 00000 00000",
     " ": "00000 00000 00000 00000 00000 00000 00000",
 }
-# Icons: "*" heart, "$" coin, "&" crop, "^" seed.
+# Icons: "*" heart, "$" coin, "&" crop, "^" seed, ">" menu cursor.
 FONT["*"] = "00000 01010 11111 11111 01110 00100 00000"
 FONT["$"] = "00000 01110 11111 11011 11111 01110 00000"
 FONT["&"] = "00100 01110 00100 10101 01110 00100 00100"
 FONT["^"] = "00000 00100 01110 11111 11111 01110 00000"
-GLYPH_COLOR = {"*": 3, "$": 4, "&": 5, "^": 4}   # text palette: 1 cream, 3 red, 4 gold, 5 green
-FONT_CHARS = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789%:!.?'+/-,*$&^"
+FONT[">"] = "01000 00100 00010 00001 00010 00100 01000"   # menu cursor
+FONT["="] = "00000 00000 11111 00000 11111 00000 00000"
+GLYPH_COLOR = {"*": 3, "$": 4, "&": 5, "^": 4, ">": 4}   # text palette: 1 cream, 3 red, 4 gold, 5 green
+FONT_CHARS = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789%:!.?'+/-,*$&^>="
 
 
 def font_words():

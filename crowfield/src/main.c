@@ -1,10 +1,11 @@
-// Crowfield (GBA), v0.2: crows eat crops.
+// Crowfield (GBA), v0.3: days and the dusk shop.
 // One-screen farm. Crops grow on a timer. The farmer plants, harvests, and fights crows with a sword.
-// Crows come in waves, eat crops (and grow tougher), and peck the farmer. At 0 hearts he is knocked out for 3 s.
+// Each day crows fly in, eat crops (and grow tougher), and peck the farmer. At 0 hearts he is knocked out for 3 s.
+// When all of the day's crows are gone, dusk comes: sell crops and buy seeds, then the next day.
 // No crops, no seeds, and no coins for a seed: the farm is lost. START begins a new run.
 // D-pad: move   R: run   A: plant on empty soil / harvest a ripe crop (puts the sword away)
 // B: draw and swing the sword (it stays in hand until A)
-// Later: days, the shop, scarecrow turrets.
+// Later: shop upgrades (sickle, sword), scarecrow turrets.
 
 #include "data.h"
 #include "sound.h"
@@ -406,7 +407,7 @@ static void draw_farmer(void) {
 }
 
 // ---------- crows ----------
-// Crows come in waves from the screen edges. Each flies to the nearest free crop, lands, and eats it one
+// Each day, crows fly in one by one from the screen edges. Each flies to the nearest free crop, lands, and eats it one
 // stage per bite. Every bite makes it tougher (+1 HP up to double, red tint). With no crops left, crows go
 // for the farmer. Any crow pecks the farmer when he comes close.
 #define MAX_CROWS 24
@@ -416,15 +417,16 @@ static s32 crow_state[MAX_CROWS], crow_x[MAX_CROWS], crow_y[MAX_CROWS], crow_hp[
 static s32 crow_vx[MAX_CROWS], crow_vy[MAX_CROWS], crow_timer[MAX_CROWS];
 static s32 crow_flash[MAX_CROWS], crow_cool[MAX_CROWS], crow_hit_by[MAX_CROWS];
 static s32 crow_target[MAX_CROWS];   // field index of its crop, or -1: the farmer
-static s32 spawning;                 // 1: waves run (tests set 0 and place crows by hand)
-static s32 wave, wave_left, spawn_timer;
+static s32 spawning;                 // 1: days run (tests set 0 and place crows by hand)
+static s32 day_left, spawn_timer;    // crows still to come today; frames toward the next one
+static s32 day_done;                 // > 0: all of today's crows are gone; frames until dusk
 #define CROW_SPEED 6       // 1/16 px per frame. Day 1 crows are slow (Caleb); later days speed up.
 #define CROW_HP 1          // Normal crow: 1 hit (DESIGN.md)
 #define CROW_HP_FED (2 * CROW_HP)   // bites raise HP up to this
 #define PECK_COOL 90
 #define BITE_FRAMES 120    // 2 s per bite: a ripe crop is gone after 4 bites
-#define SPAWN_GAP 45       // frames between crows of a wave
-#define WAVE_GAP 180       // 3 s after the last crow dies, the next wave comes
+#define DAY_START_DELAY 120   // 2 s from a new day to its first crow
+#define DAY_DONE_FRAMES 120   // "DAY n DONE!" shows 2 s before dusk
 
 static s32 abs32(s32 v) { return v < 0 ? -v : v; }
 
@@ -519,20 +521,43 @@ static void bite(s32 i) {
     if (left == SOIL) { crow_state[i] = CROW_FLY; crow_target[i] = pick_target(i); }   // crop gone
 }
 
-static void update_waves(s32 alive) {
+static void open_shop(void);
+
+static s32 crows_today(void) { return 2 + day; }   // 3 on day 1 (Caleb: 6 was too many), +1 a day
+static s32 spawn_gap(void) {                        // frames between crows: 2.5 s on day 1, then faster
+    s32 g = 160 - 10 * day;
+    return g < 45 ? 45 : g;
+}
+
+static void start_day(void) {
+    char buf[12];
+    fmt_num(buf + copy_str(buf, "DAY "), day);
+    show_message(buf);
+    draw_hud();
+    day_left = crows_today();
+    spawn_timer = spawn_gap() - DAY_START_DELAY;    // first crow after 2 s
+    day_done = 0;
+}
+
+// A day ends when all of its crows have come and gone. Then dusk: the shop.
+static void update_days(s32 alive) {
     if (!spawning) return;
-    if (wave_left > 0) {
-        if (++spawn_timer >= SPAWN_GAP) { spawn_timer = 0; spawn_crow(); wave_left--; }
+    if (day_left > 0) {
+        if (++spawn_timer >= spawn_gap()) { spawn_timer = 0; spawn_crow(); day_left--; }
         return;
     }
-    if (alive) { spawn_timer = 0; return; }
-    if (++spawn_timer < WAVE_GAP) return;
-    char buf[12];
-    wave++;
-    fmt_num(buf + copy_str(buf, "WAVE "), wave);
-    show_message(buf);
-    wave_left = 4 + 2 * day;   // DESIGN.md first guess
-    spawn_timer = SPAWN_GAP;   // first crow right away
+    if (alive) return;
+    if (!day_done) {
+        char buf[16];
+        s32 n = copy_str(buf, "DAY ");
+        n += fmt_num(buf + n, day);
+        copy_str(buf + n, " DONE!");
+        show_message(buf);
+        day_done = DAY_DONE_FRAMES;
+        return;
+    }
+    if (ko_timer || --day_done > 0) return;   // wait until he is back on his feet
+    open_shop();
 }
 
 static void update_crows(void) {
@@ -576,7 +601,7 @@ static void update_crows(void) {
             crow_timer[i] = BITE_FRAMES;
         }
     }
-    update_waves(alive);
+    update_days(alive);
 }
 
 static void draw_crows(void) {
@@ -670,8 +695,86 @@ static void draw_sword(void) {
     put_sprite((px >> 4) + hand_x[pdir] - gx, (py >> 4) - bob + hand_y[pdir] - gy, cell, flags);
 }
 
+// ---------- dusk shop ----------
+#define SEED_PRICE 5   // first guesses (DESIGN.md): a crop sells for 8, a seed costs 5
+#define CROP_PRICE 8
+static s32 shop_open, shop_cursor;
+enum { SHOP_SELL, SHOP_SEED, SHOP_NEXT, SHOP_ITEMS };
+#define SHOP_L 3       // window: text columns 3..26, rows 3..15
+#define SHOP_T 3
+
+static void shop_line(s32 row, const char *s) {
+    put_text(SHOP_L, row, "                        ");
+    put_text(SHOP_L + 1, row, s);
+}
+static void draw_shop(void) {
+    char buf[26];
+    s32 n;
+    for (s32 r = SHOP_T; r <= SHOP_T + 12; r++) shop_line(r, "");
+    n = copy_str(buf, "DUSK. DAY ");
+    n += fmt_num(buf + n, day);
+    copy_str(buf + n, " IS OVER.");
+    shop_line(SHOP_T + 1, buf);
+    n = copy_str(buf, "  SELL CROPS  &");
+    n += fmt_num(buf + n, crops);
+    n += copy_str(buf + n, " = $");
+    fmt_num(buf + n, crops * CROP_PRICE);
+    shop_line(SHOP_T + 3, buf);
+    n = copy_str(buf, "  BUY SEED    ^1 = $");
+    fmt_num(buf + n, SEED_PRICE);
+    shop_line(SHOP_T + 5, buf);
+    shop_line(SHOP_T + 7, "  NEXT DAY");
+    put_text(SHOP_L + 1, SHOP_T + 3 + 2 * shop_cursor, ">");
+    n = copy_str(buf, "YOU HAVE  $");
+    n += fmt_num(buf + n, coins);
+    n += copy_str(buf + n, "  &");
+    n += fmt_num(buf + n, crops);
+    n += copy_str(buf + n, "  ^");
+    fmt_num(buf + n, seeds);
+    shop_line(SHOP_T + 9, buf);
+    shop_line(SHOP_T + 11, "UP/DOWN PICK  A CHOOSE");
+}
+
+static void open_shop(void) {
+    shop_open = 1;
+    shop_cursor = crops ? SHOP_SELL : SHOP_SEED;
+    swing = 0;
+    msg_timer = 0;
+    clear_row(19);
+    draw_shop();
+}
+
+static void close_shop(void) {
+    shop_open = 0;
+    for (s32 r = SHOP_T; r <= SHOP_T + 12; r++) clear_row(r);
+    day++;
+    start_day();
+}
+
+// While the shop is open the farm is paused: no crows, no growth.
+static void update_shop(void) {
+    if (HIT(KEY_UP) && shop_cursor > 0) { shop_cursor--; draw_shop(); }
+    if (HIT(KEY_DOWN) && shop_cursor < SHOP_ITEMS - 1) { shop_cursor++; draw_shop(); }
+    if (!HIT(KEY_A)) return;
+    if (shop_cursor == SHOP_SELL) {
+        if (!crops) { play(SND_NOSEEDS); return; }
+        coins += crops * CROP_PRICE;
+        crops = 0;
+        play(SND_HARVEST);
+    } else if (shop_cursor == SHOP_SEED) {
+        if (coins < SEED_PRICE) { play(SND_NOSEEDS); return; }
+        coins -= SEED_PRICE;
+        seeds++;
+        play(SND_PLANT);
+    } else {
+        close_shop();
+        return;
+    }
+    draw_hud();
+    draw_shop();
+}
+
 // ---------- run: start and game over ----------
-#define SEED_PRICE 5   // first guess; the shop (v0.3) sells seeds
 static s32 game_over;
 
 static void new_run(void) {
@@ -684,14 +787,15 @@ static void new_run(void) {
     pdir = DIR_UP;
     pvx = pvy = hurt_timer = ko_timer = swing = weapon_out = 0;
     day = 1; seeds = 3; crops = 0; coins = 0; hearts = max_hearts = 3;   // DESIGN.md first guesses
-    spawning = 1; wave = 0; wave_left = 0; spawn_timer = WAVE_GAP - 120;   // first wave after 2 s
+    spawning = 1; shop_open = 0;
     game_over = 0;
-    draw_hud();
+    start_day();
 }
 
-// Lose: no crops in the field, no seeds, and not enough coins for a seed (DESIGN.md).
+// Lose: no crops in the field, no seeds, and not enough coins for a seed (DESIGN.md). Crops in the bag
+// count as the coins they sell for at dusk.
 static void check_game_over(void) {
-    if (seeds > 0 || coins >= SEED_PRICE || field_has_crops()) return;
+    if (seeds > 0 || coins + crops * CROP_PRICE >= SEED_PRICE || field_has_crops()) return;
     char buf[24];
     fmt_num(buf + copy_str(buf, "YOU REACHED DAY "), day);
     game_over = 1;
@@ -750,6 +854,12 @@ int main(void) {
             if (HIT(KEY_START)) new_run();
             else if (((frame >> 5) & 1) != ((frame - 1) >> 5 & 1))   // blink PRESS START
                 put_text(9, 12, (frame >> 5) & 1 ? "           " : "PRESS START");
+            continue;
+        }
+        if (shop_open) {
+            update_shop();
+            oam_begin();   // sprites hidden so they do not cover the window
+            oam_end();
             continue;
         }
         update_farmer();
