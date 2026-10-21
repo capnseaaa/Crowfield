@@ -25,6 +25,7 @@ Every step adds or extends a script in `crowfield/test/`.
 - [x] Sparring crows fly at the farmer and peck him
 - [x] Farmer hearts, 1 s blink after a hit, knockout for 3 s at 0 hearts, then full hearts
 - [x] `test/combat.txt`
+- [x] v0.3.2: the sword shows in the farmer's hand (B draws and swings, A puts away); `test/sword.txt`
 
 ## v0.4 — crows
 - [ ] Crows pick a target crop, land, and eat one stage per bite; they still peck the farmer

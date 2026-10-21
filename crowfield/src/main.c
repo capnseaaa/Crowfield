@@ -1,7 +1,8 @@
 // Crowfield (GBA), v0.3: combat.
 // One-screen farm. Crops grow on a timer. The farmer plants, harvests, and fights crows with a sword.
 // Sparring crows fly at the farmer and peck him. At 0 hearts he is knocked out for 3 seconds.
-// D-pad: move   R: run   A: plant on empty soil / harvest a ripe crop   B: swing the sword
+// D-pad: move   R: run   A: plant on empty soil / harvest a ripe crop (puts the sword away)
+// B: draw and swing the sword (it stays in hand until A)
 // Later: crows that eat crops and get stronger, waves, days, shop, scarecrow turrets.
 
 #include "data.h"
@@ -53,7 +54,7 @@ enum { GRASS, GRASS_TUFT, DIRT, SOIL, SPROUT, CROP, CROP_RIPE, FENCE, BUSH,
 enum { DIR_DOWN, DIR_UP, DIR_LEFT, DIR_RIGHT };
 // Sprite cells in sprites.png (4 tiles each in OBJ VRAM)
 enum { SPR_FARMER_DOWN, SPR_FARMER_UP, SPR_FARMER_SIDE, SPR_CROW_A, SPR_CROW_B, SPR_MARKER,
-       SPR_SLASH_SIDE, SPR_SLASH_UP, SPR_PUFF_BIG, SPR_PUFF_SMALL, SPR_FARMER_KO };
+       SPR_SWORD_RIGHT, SPR_SWORD_UP, SPR_PUFF_BIG, SPR_PUFF_SMALL, SPR_FARMER_KO, SPR_SWORD_DIAG };
 // put_sprite flags
 #define HFLIP 1
 #define VFLIP 2
@@ -240,6 +241,7 @@ static s32 hearts, max_hearts;
 static s32 hurt_timer;           // > 0: just hit, cannot be hit again (blinks)
 static s32 ko_timer;             // > 0: knocked out, cannot act
 static s32 pvx, pvy;             // knockback velocity, 1/16 px per frame
+static s32 weapon_out;           // sword in hand: B draws it, A puts it away
 #define HURT_FRAMES 60
 #define KO_FRAMES 180            // 3 seconds (Caleb's call)
 
@@ -253,6 +255,7 @@ static void update_farmer(void) {
     if (hurt_timer) hurt_timer--;
     if (ko_timer) {
         if (--ko_timer == 0) { hearts = max_hearts; hurt_timer = HURT_FRAMES; }
+        weapon_out = 0;
         return;
     }
     s32 speed = HELD(KEY_R) ? 32 : 20;
@@ -286,10 +289,11 @@ static int is_field(u8 t) {
 
 static void draw_hud(void);
 
-static s32 swing;   // > 0: sword swing frames left
+static s32 swing;        // > 0: sword swing frames left
 
 static void farm_work(void) {
     if (!HIT(KEY_A) || ko_timer || swing) return;
+    weapon_out = 0;
     u8 t = tile_at(tx, ty);
     if (t == CROP_RIPE) {
         set_tile(tx, ty, SOIL);
@@ -439,6 +443,7 @@ static void update_sword(void) {
     if (swing_cool) swing_cool--;
     if (!swing && HIT(KEY_B) && !swing_cool && !ko_timer) {
         swing = SWING_FRAMES;
+        weapon_out = 1;
         swing_id++;
         chime(392, 9);
     }
@@ -469,11 +474,36 @@ static void update_sword(void) {
     if (--swing == 0) swing_cool = 6;
 }
 
-static void draw_slash(void) {
-    if (!swing) return;
-    u32 cell = pdir == DIR_LEFT || pdir == DIR_RIGHT ? SPR_SLASH_SIDE : SPR_SLASH_UP;
-    u32 flags = pdir == DIR_LEFT ? HFLIP : pdir == DIR_DOWN ? VFLIP : 0;
-    put_sprite(slash_x - 8, slash_y - 8, cell, flags);
+// Sword poses: which cell and flips point the blade each way.
+enum { P_U, P_D, P_L, P_R, P_UR, P_UL, P_DR, P_DL };
+static const u8 pose_cell[8] = { SPR_SWORD_UP, SPR_SWORD_UP, SPR_SWORD_RIGHT, SPR_SWORD_RIGHT,
+                                 SPR_SWORD_DIAG, SPR_SWORD_DIAG, SPR_SWORD_DIAG, SPR_SWORD_DIAG };
+static const u8 pose_flags[8] = { 0, VFLIP, HFLIP, 0, 0, HFLIP, VFLIP, HFLIP | VFLIP };
+// Where the hand grips each unflipped cell (px in the 16x16 cell): right, up, up-right.
+static s32 grip_x(u32 cell) { return cell == SPR_SWORD_RIGHT ? 2 : cell == SPR_SWORD_UP ? 8 : 3; }
+static s32 grip_y(u32 cell) { return cell == SPR_SWORD_RIGHT ? 8 : cell == SPR_SWORD_UP ? 13 : 12; }
+// Per facing (down, up, left, right): the swing's 3 poses, then the resting pose.
+static const u8 swing_pose[4][4] = {
+    { P_R, P_DR, P_D, P_DR },   // down
+    { P_L, P_UL, P_U, P_UL },   // up
+    { P_U, P_UL, P_L, P_DL },   // left
+    { P_U, P_UR, P_R, P_DR },   // right
+};
+// The farmer's hand, relative to his sprite's top-left, per facing.
+static const signed char hand_x[4] = { 12, 3, 3, 12 };
+static const signed char hand_y[4] = { 12, 9, 10, 10 };
+
+static void draw_sword(void) {
+    if (!weapon_out || ko_timer) return;
+    if (hurt_timer && (frame & 4)) return;   // blinks with the farmer
+    u32 step = swing ? (SWING_FRAMES - swing) * 3 / SWING_FRAMES : 3;
+    u32 pose = swing_pose[pdir][step];
+    u32 cell = pose_cell[pose], flags = pose_flags[pose];
+    s32 gx = grip_x(cell), gy = grip_y(cell);
+    if (flags & HFLIP) gx = 15 - gx;
+    if (flags & VFLIP) gy = 15 - gy;
+    s32 bob = (pstep >> 3) & 1;
+    put_sprite((px >> 4) + hand_x[pdir] - gx, (py >> 4) - bob + hand_y[pdir] - gy, cell, flags);
 }
 
 // ---------- main ----------
@@ -529,8 +559,9 @@ int main(void) {
         update_message();
 
         oam_begin();
-        draw_slash();
+        if (pdir != DIR_UP) draw_sword();   // in front of the farmer
         draw_farmer();
+        if (pdir == DIR_UP) draw_sword();   // behind him when he faces away
         draw_crows();
         draw_marker();
         oam_end();

@@ -32,8 +32,9 @@ Add new tiles at the end, and update all three lists together.
 
 ## Sprite cells
 `art/sprites.png`, 16x16 cells: farmer down, farmer up, farmer side (left = hflip), crow wings up,
-crow wings down, target marker, slash side, slash up, puff big, puff small,
-farmer knocked out. `put_sprite(x, y, cell, flags)` takes HFLIP, VFLIP, FLASH.
+crow wings down, target marker, sword right, sword up, puff big, puff small,
+farmer knocked out, sword up-right. Flips give the other sword directions; `swing_pose[]`
+in main.c lists each facing's 3 swing poses and its resting pose. `put_sprite(x, y, cell, flags)` takes HFLIP, VFLIP, FLASH.
 
 ## Sprite budget
 - Planned max on screen: 1 farmer + 1 sword swing + 8 turrets + 8 shots + 48 crows + HUD icons.

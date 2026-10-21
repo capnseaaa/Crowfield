@@ -40,6 +40,9 @@ Each soil tile moves through: empty soil -> sprout -> young -> grown -> ripe.
 - D-pad move, R run. A: farm the tile in front (sickle on a ripe crop, plant on empty soil).
   B: swing the sword. The sword has its own button because almost every field tile is soil,
   so a shared A button would plant seeds when you meant to swing.
+- The sword is visible. Before the first B press the farmer holds nothing. B draws the sword
+  and swings it through 3 poses (4 frames each); then it rests in his hand. A puts it away.
+  Later weapons (e.g. a scythe with a longer swing) can be shop upgrades.
 - Sword Lv.1 (first guess): 1 damage, hit box 28x28 px centered 14 px in front, 12-frame swing,
   6-frame cooldown. One hit per crow per swing. A hit crow flashes white and is knocked back.
 - A crow peck takes 1 heart and knocks the farmer back. He blinks for 1 s and cannot be hit.
@@ -70,6 +73,10 @@ All other numbers are open until playtests.
 capped at double its base HP). A crow that feeds for long is harder to kill, so the farmer
 must stop crows fast. A fed crow should look different (bigger, or a palette change).
 
+Caleb's direction: early days have slower, weaker crows. Each day adds more crows and makes
+them faster, stronger, and tougher, a little at a time. (The v0.3 sparring crows are only for
+testing combat; their speed is not the day 1 speed.)
+
 Crows get stronger and more numerous each day. First guess for wave size: `4 + 2 * day`,
 and new types unlock on later days (Fast day 3, Armored day 5, Big day 7, Swarm day 9).
 
@@ -80,9 +87,11 @@ and new types unlock on later days (Fast day 3, Armored day 5, Big day 7, Swarm 
 ## Look and feel
 - Palette from the concept: greens, browns, gray, sky blue, red, dark brown, near-black.
 - 16-bit inspired, cozy, clean outlines. See `crowfield/art/concept/concept_sheet.png`.
-- Sound: short PSG chimes like Rootflow (harvest, hit, coin, crow caw).
+- Sound: v0.3 uses square-wave chimes made by code (no audio files). Caleb does not like them.
+  How to replace them is an open question.
 
 ## Open questions for the owner
+- Sound: retune the square-wave chimes, or play real sound clips (.wav converted at build time)?
 1. Exact plot sizes and unlock days (first guesses above). Endless days means unlocks must stop
    when the screen is full; after that, growth could come from upgrades instead.
 

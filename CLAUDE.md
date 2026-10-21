@@ -90,8 +90,9 @@ Code rules: no external GBA libraries; plain freestanding C, `-O2 -mthumb`. No f
 
 ### Design direction
 - The whole farm is one screen with no scrolling, so every crow stays visible.
-- One action button (A) picks the tool by context: sickle, sword, or plant.
-- PSG chime sounds like Rootflow.
+- A farms the tile in front (plant or harvest). B draws and swings the sword; it stays in hand until A.
+- Early days: slow, weak crows. Each day adds more crows and more speed, strength, and health.
+- Sound: square-wave chimes made by code (no files). Caleb dislikes them; a fix is an open question.
 
 ### Decisions already made (do not reopen without reason)
 - Game over: no crops in the field and no seeds left.
@@ -107,12 +108,13 @@ Code rules: no external GBA libraries; plain freestanding C, `-O2 -mthumb`. No f
 - Platform GBA, devices R36 Ultra and phone. Version and commit scheme as in Rootflow (above).
 
 ### Open questions
+- Sound: retune the square-wave chimes, or switch to real sound clips (.wav converted at build time)?
 - Plot sizes and unlock days (first guess: 3x3 start, new plots on days 4, 8, 12, 16). What grows after the screen is full?
 
 ### Current state
-- Version: v0.3.0. Sword on B, run on R. Crows have HP, flash white, get knocked back, and die in a puff. Two sparring crows fly at the farmer and peck him (1 heart). At 0 hearts he is knocked out for 3 s. From v0.2: crops grow on a timer (sprout -> young -> grown -> ripe). A plants a seed on empty soil and harvests a ripe crop. A marker shows the target tile. HUD: day, coins, crops, seeds, hearts. Fences join up.
-- Branches: `main` is the real branch. Push to `main` (Caleb approved). The farm map shows. The farmer walks and runs; fences and bushes block him. One test crow circles. Art is a rough placeholder.
-- Tested: `test/boot.txt`, `test/crops.txt`, `test/combat.txt` in headless mGBA (screenshots and values checked). Caleb played v0.1.5 and liked it (asked for joined fences). Caleb played v0.2.0 (works). v0.3.0 not yet played on a device.
+- Version: v0.3.2. The sword is visible in the farmer's hand: B draws and swings it, it rests in hand, A puts it away. Sword on B, run on R. Crows have HP, flash white, get knocked back, and die in a puff. Two sparring crows fly at the farmer and peck him (1 heart). At 0 hearts he is knocked out for 3 s. From v0.2: crops grow on a timer (sprout -> young -> grown -> ripe). A plants a seed on empty soil and harvests a ripe crop. A marker shows the target tile. HUD: day, coins, crops, seeds, hearts. Fences join up.
+- Branches: `main` is the real branch. Push to `main` (Caleb approved). Art is a rough placeholder.
+- Tested: `test/boot.txt`, `test/crops.txt`, `test/combat.txt`, `test/sword.txt` in headless mGBA (screenshots and values checked). Caleb played v0.1.5 and liked it (asked for joined fences). Caleb played v0.2.0 (works). Caleb played v0.3.0: crows and knockout fine; the slash arc looked like wind (fixed in v0.3.2); he dislikes the sound. v0.3.2 not yet played.
 - Order Caleb set: combat (v0.3), then crows (v0.4), then the shop (v0.5).
 
 ### Gotchas

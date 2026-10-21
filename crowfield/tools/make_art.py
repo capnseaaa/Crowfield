@@ -141,9 +141,10 @@ def draw_terrain():
 
 def draw_sprites():
     """Cells: 0 farmer down, 1 farmer up, 2 farmer side (right uses hflip), 3 crow wings up, 4 crow wings down,
-    5 target marker, 6 sword slash right (left = hflip), 7 sword slash up (down = vflip),
-    8 puff big, 9 puff small, 10 farmer knocked out."""
-    px = blank(11)
+    5 target marker, 6 sword pointing right, 7 sword pointing up, 8 puff big, 9 puff small,
+    10 farmer knocked out, 11 sword pointing up-right. Flips give the other directions.
+    The hand grips the sword at (2, 8) right, (8, 13) up, (3, 12) up-right (main.c SWORD_GRIP)."""
+    px = blank(12)
 
     def farmer(o, face):
         rows = [
@@ -190,14 +191,40 @@ def draw_sprites():
             for x, y in ((i, 0), (0, i), (15 - i, 0), (15, i), (i, 15), (0, 15 - i), (15 - i, 15), (15, 15 - i)):
                 px[y][o + x] = 13
 
-    def slash(o, up):   # a white crescent, like the concept's sword swing
+    def sword_up(o):
+        for y in range(1, 11):   # blade: white left edge, gray right edge, dark outline
+            px[y][o + 6] = 1
+            px[y][o + 7] = 13
+            px[y][o + 8] = 12
+            px[y][o + 9] = 1
+        px[0][o + 7] = px[0][o + 8] = 1   # tip
+        for x in range(4, 12):            # guard
+            px[11][o + x] = 3
+        px[11][o + 4] = px[11][o + 11] = 4
+        for y in range(12, 15):           # grip
+            px[y][o + 7] = px[y][o + 8] = 15
+        px[15][o + 7] = px[15][o + 8] = 3   # pommel
+
+    def sword_right(o):   # sword_up turned a quarter clockwise
+        sword_up(o)
+        cell = [[px[y][o + x] for x in range(16)] for y in range(16)]
         for y in range(16):
             for x in range(16):
-                a, b = (y, x) if up else (x, y)   # a: distance along the swing direction
-                d = (a - 1) ** 2 + (b - 7.5) ** 2
-                if a >= 5 and 9 ** 2 <= d <= 13 ** 2:
-                    c = 13 if d < 11.5 ** 2 else 12
-                    px[(15 - a) if up else y][o + (x if up else a)] = c
+                px[y][o + x] = cell[15 - x][y]
+
+    def sword_diag(o):    # tip at the top right, grip at the bottom left
+        for t in range(10):
+            x, y = 5 + t, 10 - t
+            px[y][o + x] = 13
+            px[y + 1][o + x] = 12
+            px[y - 1][o + x] = 1
+            px[y + 1][o + x + 1] = 1
+        px[0][o + 15] = 1
+        for x, y in ((2, 9), (3, 10), (4, 11), (5, 12), (6, 13)):   # guard
+            px[y][o + x] = 3
+        for x, y in ((3, 12), (2, 13), (1, 14), (3, 13), (2, 14)):  # grip
+            px[y][o + x] = 15
+        px[15][o + 0] = 3   # pommel
 
     def puff(o, r):
         for y in range(16):
@@ -208,8 +235,9 @@ def draw_sprites():
 
     farmer(0, "down")
     marker(80)
-    slash(96, False)
-    slash(112, True)
+    sword_right(96)
+    sword_up(112)
+    sword_diag(176)
     puff(128, 7)
     puff(144, 4)
     for y in range(16):   # knocked out: the down-facing farmer turned on his side
