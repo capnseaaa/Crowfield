@@ -1,0 +1,7 @@
+crowfield/build/
+crowfield/*.gba
+crowfield/src/data.h
+crowfield/release/
+crowfield/test/harness
+crowfield/test/.resolved.txt
+crowfield/test/*.ppm

@@ -1,0 +1,9 @@
+# boot: the farm shows, farmer stands below the gate
+30 0 b1_start.ppm
+# walk up through the gate into the field
+40 64 b2_gate.ppm
+# walk left until the fence stops him
+60 32 b3_fence.ppm
+1 0 @$px,$py
+# run right
+40 18 b4_run.ppm
