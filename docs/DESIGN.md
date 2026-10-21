@@ -23,6 +23,9 @@ Nothing can grow, so the farm is dead. There is no win state; the score is the l
 - Top row (or bottom row) is the HUD: `Day 3`, coins, crops in stock, hearts.
 - A fenced plot in the middle holds the crop tiles. Bushes and trees ring the edge.
   Crows enter from the screen edges.
+- **The field grows by day.** The run starts with one small plot (first guess 3x3 soil).
+  New plots open on set days (first guess: day 4, 8, 12, 16). The screen keeps open grass
+  for them from the start, so nothing scrolls.
 
 ## Crops
 Each soil tile moves through: empty soil -> sprout -> young -> grown -> ripe.
@@ -74,16 +77,14 @@ and new types unlock on later days (Fast day 3, Armored day 5, Big day 7, Swarm 
 - Sound: short PSG chimes like Rootflow (harvest, hit, coin, crow caw).
 
 ## Open questions for the owner
-1. How does the field grow? Options: buy new plots in the shop (recommended: it competes with
-   upgrades for coins), or a new plot every few days for free.
-2. Where do new plots go on a one-screen farm? The current map has room for about two more
-   fenced plots; more than that needs a smaller layout or scrolling.
+1. Exact plot sizes and unlock days (first guesses above). Endless days means unlocks must stop
+   when the screen is full; after that, growth could come from upgrades instead.
 
 ## Decided
 - Lose: no crops, no seeds, and not enough coins for a seed.
 - 0 hearts: knocked out for 3 seconds, not game over.
 - No saves. Every run starts fresh.
-- The field grows during a run (more plots), like the "Finished Run" concept.
+- The field grows during a run: start with a small plot, new plots open on set days.
 - Fed crows snowballing is handled by balance (HP cap, numbers), not a new rule.
 - Crops eaten buff the crow. A day ends only when all crows die.
 - Days are endless; the test build ends at Day 20.

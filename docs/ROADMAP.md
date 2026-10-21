@@ -45,7 +45,8 @@ Every step adds or extends a script in `crowfield/test/`.
 - [ ] `test/turret.txt`
 
 ## v0.6b — field growth
-- [ ] New plots open during a run (how: open question in DESIGN.md)
+- [ ] Start map: one small plot, open grass reserved for later plots
+- [ ] New plots open on set days (first guess 4, 8, 12, 16)
 - [ ] `test/field.txt`
 
 ## v0.7 — crow types and scaling
