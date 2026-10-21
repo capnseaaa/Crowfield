@@ -97,7 +97,7 @@ static void vsync(void) {
 // Timer 0 runs at SND_RATE (224 samples per frame). DMA 1 feeds FIFO A from a double buffer.
 // Each frame, right after vsync, sound_vblank() restarts the DMA every other frame and
 // sound_mix() fills the half that plays next. A frame that runs long replays stale samples.
-enum { SND_SWING, SND_HIT, SND_CAW, SND_HURT, SND_PLANT, SND_HARVEST, SND_NOSEEDS };   // order of SOUNDS in make_sound.py
+enum { SND_SWING, SND_HIT, SND_CAW, SND_HURT, SND_PLANT, SND_HARVEST, SND_NOSEEDS, SND_DEATH, SND_KNOCKDOWN };   // order of SOUNDS in make_sound.py
 #define MIX_LEN  224
 #define MIX_CHANS 4
 static s8 mix_buf[2 * MIX_LEN] __attribute__((aligned(4)));
@@ -423,6 +423,7 @@ static void spawn_crow(void) {
         crow_state[i] = CROW_FLY;
         crow_hp[i] = CROW_HP;
         crow_flash[i] = 0; crow_cool[i] = 60; crow_vx[i] = crow_vy[i] = 0;
+        play(SND_CAW);
         return;
     }
 }
@@ -434,7 +435,7 @@ static void hurt_farmer(s32 from_x, s32 from_y) {
     pvx = dx > 0 ? 48 : dx < 0 ? -48 : 0;
     pvy = dy > 0 ? 48 : dy < 0 ? -48 : 0;
     play(SND_HURT);
-    if (hearts <= 0) { hearts = 0; ko_timer = KO_FRAMES; show_message("KNOCKED OUT!"); }
+    if (hearts <= 0) { hearts = 0; ko_timer = KO_FRAMES; show_message("KNOCKED OUT!"); play(SND_KNOCKDOWN); }
     else hurt_timer = HURT_FRAMES;
     draw_hud();
 }
@@ -496,7 +497,7 @@ static void draw_crows(void) {
 // ---------- sword ----------
 #define SWING_FRAMES 12
 static s32 swing_cool, swing_id;
-static s32 sword_damage = 1, sword_reach = 14;   // Lv.1; the shop raises these later
+static s32 sword_damage = 1, sword_reach = 10;   // Lv.1; the shop raises these later
 static s32 slash_x, slash_y;                     // center of the hit box, screen px
 
 static void update_sword(void) {
@@ -522,7 +523,7 @@ static void update_sword(void) {
         if (crow_hp[i] <= 0) {
             crow_state[i] = CROW_DEAD;
             crow_timer[i] = 16;
-            play(SND_CAW);
+            play(SND_DEATH);
             continue;
         }
         crow_state[i] = CROW_HURT;   // knockback away from the farmer
@@ -540,8 +541,8 @@ static const u8 pose_cell[8] = { SPR_SWORD_UP, SPR_SWORD_UP, SPR_SWORD_RIGHT, SP
                                  SPR_SWORD_DIAG, SPR_SWORD_DIAG, SPR_SWORD_DIAG, SPR_SWORD_DIAG };
 static const u8 pose_flags[8] = { 0, VFLIP, HFLIP, 0, 0, HFLIP, VFLIP, HFLIP | VFLIP };
 // Where the hand grips each unflipped cell (px in the 16x16 cell): right, up, up-right.
-static s32 grip_x(u32 cell) { return cell == SPR_SWORD_RIGHT ? 2 : cell == SPR_SWORD_UP ? 8 : 3; }
-static s32 grip_y(u32 cell) { return cell == SPR_SWORD_RIGHT ? 8 : cell == SPR_SWORD_UP ? 13 : 12; }
+static s32 grip_x(u32 cell) { return cell == SPR_SWORD_RIGHT ? 2 : cell == SPR_SWORD_UP ? 8 : 4; }
+static s32 grip_y(u32 cell) { return cell == SPR_SWORD_RIGHT ? 8 : 13; }
 // Per facing (down, up, left, right): the swing's 3 poses, then the resting pose.
 static const u8 swing_pose[4][4] = {
     { P_R, P_DR, P_D, P_DR },   // down

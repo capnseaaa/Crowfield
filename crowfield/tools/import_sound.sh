@@ -13,6 +13,8 @@ clip swing     $S/rpg/Audio/knifeSlice.ogg
 clip hit       $S/impact/Audio/impactPunch_medium_000.ogg
 clip caw       $S/crow/crow_caw.wav
 clip hurt      $S/impact/Audio/impactPunch_heavy_000.ogg
-clip plant     $S/impact/Audio/impactSoft_medium_000.ogg
+clip plant     $S/impact/Audio/footstep_snow_001.ogg
 clip harvest   $S/interface/Audio/pluck_002.ogg
 clip noseeds   $S/interface/Audio/error_004.ogg
+clip death     $S/impact/Audio/impactSoft_heavy_000.ogg
+clip knockdown $S/rpg/Audio/dropLeather.ogg

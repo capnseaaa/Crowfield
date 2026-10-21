@@ -143,7 +143,7 @@ def draw_sprites():
     """Cells: 0 farmer down, 1 farmer up, 2 farmer side (right uses hflip), 3 crow wings up, 4 crow wings down,
     5 target marker, 6 sword pointing right, 7 sword pointing up, 8 puff big, 9 puff small,
     10 farmer knocked out, 11 sword pointing up-right. Flips give the other directions.
-    The hand grips the sword at (2, 8) right, (8, 13) up, (3, 12) up-right (main.c SWORD_GRIP)."""
+    The hand grips the sword at (2, 8) right, (8, 13) up, (4, 13) up-right (main.c grip_x/grip_y)."""
     px = blank(12)
 
     def farmer(o, face):
@@ -191,19 +191,36 @@ def draw_sprites():
             for x, y in ((i, 0), (0, i), (15 - i, 0), (15, i), (i, 15), (0, 15 - i), (15 - i, 15), (15, 15 - i)):
                 px[y][o + x] = 13
 
+    # Short wooden sword (a training sword in the spirit of A Link to the Past's): light wood blade with a
+    # rounded tip, outlined crossguard, blue-wrapped grip, round pommel. Colors: 1 outline, 3 wood,
+    # 4 wood shade, 5 blue grip. The black outline keeps the hilt visible on brown soil.
+    SWORD_UP = [
+        "................",
+        "................",
+        "................",
+        ".......11.......",
+        "......1331......",
+        "......1341......",
+        "......1341......",
+        "......1341......",
+        "......1341......",
+        "......1341......",
+        "....11134111....",
+        "...1444444441...",
+        "....11155111....",
+        "......1551......",
+        "......1441......",
+        ".......11.......",
+    ]
+
+    def draw_grid(o, grid):
+        for y, row in enumerate(grid):
+            for x, c in enumerate(row):
+                if c != ".":
+                    px[y][o + x] = int(c, 16)
+
     def sword_up(o):
-        for y in range(1, 11):   # blade: white left edge, gray right edge, dark outline
-            px[y][o + 6] = 1
-            px[y][o + 7] = 13
-            px[y][o + 8] = 12
-            px[y][o + 9] = 1
-        px[0][o + 7] = px[0][o + 8] = 1   # tip
-        for x in range(4, 12):            # guard
-            px[11][o + x] = 3
-        px[11][o + 4] = px[11][o + 11] = 4
-        for y in range(12, 15):           # grip
-            px[y][o + 7] = px[y][o + 8] = 15
-        px[15][o + 7] = px[15][o + 8] = 3   # pommel
+        draw_grid(o, SWORD_UP)
 
     def sword_right(o):   # sword_up turned a quarter clockwise
         sword_up(o)
@@ -212,19 +229,27 @@ def draw_sprites():
             for x in range(16):
                 px[y][o + x] = cell[15 - x][y]
 
-    def sword_diag(o):    # tip at the top right, grip at the bottom left
-        for t in range(10):
-            x, y = 5 + t, 10 - t
-            px[y][o + x] = 13
-            px[y + 1][o + x] = 12
-            px[y - 1][o + x] = 1
-            px[y + 1][o + x + 1] = 1
-        px[0][o + 15] = 1
-        for x, y in ((2, 9), (3, 10), (4, 11), (5, 12), (6, 13)):   # guard
-            px[y][o + x] = 3
-        for x, y in ((3, 12), (2, 13), (1, 14), (3, 13), (2, 14)):  # grip
-            px[y][o + x] = 15
-        px[15][o + 0] = 3   # pommel
+    SWORD_DIAG = [        # SWORD_UP leaned 45 degrees: tip at the top right, grip at the bottom left
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "...........11...",
+        "..........1341..",
+        ".........1341...",
+        "...1....1341....",
+        "....41.1341.....",
+        "....141341......",
+        ".....141........",
+        "....15141.......",
+        "...151.141......",
+        "..151...11......",
+        ".141............",
+    ]
+
+    def sword_diag(o):
+        draw_grid(o, SWORD_DIAG)
 
     def puff(o, r):
         for y in range(16):

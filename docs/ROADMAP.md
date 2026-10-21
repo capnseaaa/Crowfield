@@ -33,7 +33,8 @@ numbers v0.1.0-v0.3.3 in commit subjects; those numbers are history only and hav
 - [x] The sword shows in the farmer's hand (B draws and swings, A puts away); `test/sword.txt`
 
 ### sound
-- [x] Sound effects: CC0 clips for swing, hit, caw, hurt, plant, harvest, no seeds
+- [x] Sound effects: CC0 clips for swing, hit, crow death, crow caw on spawn, hurt, knockdown, plant, harvest, no seeds
+- [x] v0.1.1: short wooden sword; crow death, spawn caw, seed and knockdown sounds
 
 ## v0.2 — crows
 - [ ] Crows pick a target crop, land, and eat one stage per bite; they still peck the farmer

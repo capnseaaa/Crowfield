@@ -17,6 +17,8 @@ SOUNDS = [            # name, peak (of 127): loudness relative to the others
     ("plant", 80),
     ("harvest", 90),
     ("noseeds", 80),
+    ("death", 110),
+    ("knockdown", 120),
 ]
 ROOT = os.path.join(os.path.dirname(__file__), "..")
 

@@ -53,7 +53,9 @@ None. Caleb decided Crowfield has no saves; every run starts fresh.
   downloaded packs in `sound/source/` (not committed; needs ffmpeg). Sources and licenses: `sound/CREDITS.md`.
 - `tools/make_sound.py` (run by build.sh, stdlib only) -> `src/sound.h`: signed 8-bit at 13379 Hz, silence
   trimmed, normalized to a per-clip peak, 10 ms fade-out. `--preview DIR` writes the 8-bit clips as WAV.
-  Its SOUNDS list order = the `SND_*` enum in main.c. 7 clips = 22 KB of ROM.
+  Its SOUNDS list order = the `SND_*` enum in main.c. 9 clips = 30 KB of ROM.
+- Events: swing, hit (crow hit), death (crow killed), caw (crow spawns), hurt (peck), knockdown (0 hearts,
+  layered on hurt), plant, harvest, noseeds.
 - Playback: Direct Sound A. Timer 0 at 1254 cycles per sample = 224 samples per frame. DMA 1 feeds FIFO A
   from a 2x224-byte double buffer (DMA 1 registers start at 0x040000BC). Right after vsync,
   `sound_vblank()` restarts the DMA every other frame; `sound_mix()` sums up to 4 channels into the half

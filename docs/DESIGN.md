@@ -43,7 +43,9 @@ Each soil tile moves through: empty soil -> sprout -> young -> grown -> ripe.
 - The sword is visible. Before the first B press the farmer holds nothing. B draws the sword
   and swings it through 3 poses (4 frames each); then it rests in his hand. A puts it away.
   Later weapons (e.g. a scythe with a longer swing) can be shop upgrades.
-- Sword Lv.1 (first guess): 1 damage, hit box 28x28 px centered 14 px in front, 12-frame swing,
+- The Lv.1 sword is a short wooden sword (Caleb, 2026-10-22: the old steel one was far too long; he wants a
+  wooden sword like the one in A Link to the Past). About 13 px long; the farmer is 16 px tall.
+- Sword Lv.1 (first guess): 1 damage, hit box 28x28 px centered 10 px in front (14 before the short sword), 12-frame swing,
   6-frame cooldown. One hit per crow per swing. A hit crow flashes white and is knocked back.
 - A crow peck takes 1 heart and knocks the farmer back. He blinks for 1 s and cannot be hit.
 - Hearts: the concept art shows 3 to 5 hearts. Crows peck the farmer. This is PvE, not only
