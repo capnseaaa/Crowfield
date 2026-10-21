@@ -54,7 +54,7 @@ OBJ_PAL = [
 
 # Metatile order. Must match build_data.py and the enum in main.c.
 META = ["GRASS", "GRASS_TUFT", "DIRT", "SOIL", "SPROUT", "CROP", "CROP_RIPE", "FENCE", "BUSH",
-        "FENCE_V", "FENCE_TL", "FENCE_TR", "FENCE_BL", "FENCE_BR"]
+        "FENCE_V", "FENCE_TL", "FENCE_TR", "FENCE_BL", "FENCE_BR", "CROP_YOUNG"]
 # Fence pieces by which neighbors they join: up, down, left, right. FENCE is the horizontal piece.
 FENCE_JOIN = {"FENCE": "lr", "FENCE_V": "ud", "FENCE_TL": "rd", "FENCE_TR": "ld", "FENCE_BL": "ru", "FENCE_BR": "lu"}
 
@@ -112,6 +112,12 @@ def draw_terrain():
         if name == "SPROUT":
             for x, y in ((7, 10), (8, 10), (7, 9), (6, 8), (9, 8)):
                 px[y][o + x] = 2
+        if name == "CROP_YOUNG":
+            for y in range(7, 13):
+                px[y][o + 7] = 13
+                px[y][o + 8] = 1
+            for x, y in ((5, 8), (6, 8), (9, 9), (10, 9), (6, 11), (9, 7)):
+                px[y][o + x] = 2
         if name in ("CROP", "CROP_RIPE"):
             for y in range(3, 14):
                 px[y][o + 7] = 13
@@ -134,8 +140,9 @@ def draw_terrain():
 
 
 def draw_sprites():
-    """Cells: 0 farmer down, 1 farmer up, 2 farmer side (right uses hflip), 3 crow wings up, 4 crow wings down."""
-    px = blank(5)
+    """Cells: 0 farmer down, 1 farmer up, 2 farmer side (right uses hflip), 3 crow wings up, 4 crow wings down,
+    5 target marker."""
+    px = blank(6)
 
     def farmer(o, face):
         rows = [
@@ -177,7 +184,13 @@ def draw_sprites():
         px[9][o + 13] = 11
         px[8][o + 10] = 13
 
+    def marker(o):   # four corner brackets around a tile
+        for i in range(4):
+            for x, y in ((i, 0), (0, i), (15 - i, 0), (15, i), (i, 15), (0, 15 - i), (15 - i, 15), (15, 15 - i)):
+                px[y][o + x] = 13
+
     farmer(0, "down")
+    marker(80)
     farmer(16, "up")
     farmer(32, "side")
     crow(48, True)

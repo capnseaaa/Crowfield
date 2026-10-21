@@ -1,0 +1,34 @@
+# crops: plant, grow, harvest, run out of seeds
+30 0
+# stand on tile (8,5) facing up; tile (8,4) is empty soil
+1 0 !$px=2048,$py=1280,$pdir=1
+10 0 c1_before.ppm
+1 0 @$seeds,$crops
+# A plants: seeds 3 -> 2, tile (8,4) becomes a sprout
+2 1
+10 0 c2_planted.ppm
+1 0 @$seeds,$crops,$farm+68
+# A on a sprout does nothing
+2 0
+2 1
+1 0 @$seeds,$crops
+# 3 stages x 480 frames -> ripe
+1450 0 c3_ripe.ppm
+1 0 @$farm+68
+# A harvests: crops 0 -> 1, tile back to soil (3)
+2 1
+10 0 c4_harvested.ppm
+1 0 @$seeds,$crops,$farm+68
+# use the last 2 seeds on (7,4), then (8,4)
+1 0 !$px=1792,$py=1280,$pdir=1
+2 1
+2 0
+1 0 !$px=2048,$py=1280,$pdir=1
+2 1
+2 0
+1 0 @$seeds
+# tile (9,5) is empty soil; facing right from (8,5). No seeds left: message
+1 0 !$px=2048,$py=1280,$pdir=3
+2 1
+10 0 c5_noseeds.ppm
+1 0 @$seeds

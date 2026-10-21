@@ -11,12 +11,13 @@ Every step adds or extends a script in `crowfield/test/`.
 - [x] One test crow circles the field
 - [x] `test/boot.txt`
 
-## v0.2 — crops
-- [ ] Crop growth timer per soil tile (soil -> sprout -> young -> grown -> ripe)
-- [ ] A on ripe crop: harvest, add to stock
-- [ ] A on empty soil: plant a seed
-- [ ] 5x7 font from Rootflow, HUD row: day, coins, crops, hearts
-- [ ] `test/crops.txt`
+## v0.2 — crops (done)
+- [x] Crop growth timer per soil tile (soil -> sprout -> young -> grown -> ripe)
+- [x] A on ripe crop: harvest, add to stock
+- [x] A on empty soil: plant a seed
+- [x] 5x7 font from Rootflow, HUD row: day, coins, crops, seeds, hearts
+- [x] Target marker on the tile in front of the farmer
+- [x] `test/crops.txt`
 
 ## v0.3 — crows
 - [ ] Crow pool (fixed array, no malloc). States: fly in, land, eat, flee, dead

@@ -13,7 +13,8 @@
 |---|---|
 | BG tiles (terrain metatiles) | charblock 0 |
 | Farm map | BG1, screenblock 28, 32x32 tiles, priority 2 |
-| HUD text (planned) | BG0, font in charblock 1, screenblock 26, priority 0 |
+| HUD text | BG0, font in charblock 1, screenblock 26, priority 0. Row 0 = HUD, row 19 = messages |
+| BG palette bank 1 | text: 1 cream, 2 dark slate background, 3 heart red, 4 coin gold, 5 crop green |
 | Sprite tiles | 0x06010000, 1D mapping, 4 tiles per 16x16 cell |
 | BG palette bank 0 | field palette (`BG_PAL` in make_art.py) |
 | OBJ palette bank 0 | farmer + normal crow (`OBJ_PAL`) |
@@ -23,12 +24,14 @@ Crow types should share sprite cells and differ by palette where they can.
 
 ## Metatiles
 16x16 cells in `art/terrain.png`, in this order (make_art.py `META`, build_data.py, main.c enum):
-`GRASS, GRASS_TUFT, DIRT, SOIL, SPROUT, CROP, CROP_RIPE, FENCE, BUSH`.
+`GRASS, GRASS_TUFT, DIRT, SOIL, SPROUT, CROP, CROP_RIPE, FENCE, BUSH,
+FENCE_V, FENCE_TL, FENCE_TR, FENCE_BL, FENCE_BR, CROP_YOUNG`.
+The map stores every fence as `FENCE`; `look_at()` in main.c picks the joined piece to draw.
 Add new tiles at the end, and update all three lists together.
 
 ## Sprite cells
 `art/sprites.png`, 16x16 cells: farmer down, farmer up, farmer side (left = hflip), crow wings up,
-crow wings down.
+crow wings down, target marker.
 
 ## Sprite budget
 - Planned max on screen: 1 farmer + 1 sword swing + 8 turrets + 8 shots + 48 crows + HUD icons.

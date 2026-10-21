@@ -32,7 +32,9 @@ Each soil tile moves through: empty soil -> sprout -> young -> grown -> ripe.
 - Ripe crops stay ripe until harvested or eaten.
 - A crow on a crop tile eats one stage at a time. Eaten to empty soil = lost.
 - Planting: stand on empty soil, press A with seeds in stock.
-- First guess: 1 stage per 8 seconds. Tune by play.
+- First guess: 1 stage per 8 seconds (480 frames), so sprout to ripe takes 24 s. Tune by play.
+- The farmer works the tile in front of his feet. A white marker shows it.
+- Start of a run (first guess): 3 seeds, 0 crops, 0 coins, 3 hearts.
 
 ## Farmer
 - D-pad move, B run. A: use the tool that fits the tile (sickle on a ripe crop, sword on a crow,

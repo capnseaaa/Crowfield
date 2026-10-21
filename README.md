@@ -13,7 +13,7 @@ The crows are hungry. Grow your crops, sell your harvest, and upgrade your gear 
 
 ## Controls
 - D-pad: move, B: run
-- A: harvest, plant, or swing (planned)
+- A: plant a seed on empty soil, harvest a ripe crop (swing the sword: planned)
 
 ## Build
 Needs `arm-none-eabi-gcc` and Python 3 with Pillow.

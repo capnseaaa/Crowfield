@@ -1,7 +1,8 @@
-// Crowfield (GBA), v0.1 skeleton.
-// One-screen farm. The farmer walks the field; one test crow circles overhead.
-// D-pad: move   B: run
-// Later: rounds (days), crops, crows that eat them, sickle/sword, scarecrow turrets, shop.
+// Crowfield (GBA), v0.2: crops.
+// One-screen farm. Crops grow on a timer. The farmer plants seeds and harvests ripe crops.
+// One test crow circles overhead (it does nothing yet).
+// D-pad: move   B: run   A: plant on empty soil / harvest a ripe crop
+// Later: days, crows that eat crops, sickle/sword, scarecrow turrets, shop.
 
 #include "data.h"
 
@@ -14,8 +15,15 @@ typedef signed int     s32;
 #define REG16(a) (*(volatile u16*)(a))
 #define REG_DISPCNT   REG16(0x04000000)
 #define REG_VCOUNT    REG16(0x04000006)
+#define REG_BG0CNT    REG16(0x04000008)
 #define REG_BG1CNT    REG16(0x0400000A)
 #define REG_KEYINPUT  REG16(0x04000130)
+#define REG_SND1SWEEP REG16(0x04000060)
+#define REG_SND1CNT   REG16(0x04000062)
+#define REG_SND1FREQ  REG16(0x04000064)
+#define REG_SNDCNT_L  REG16(0x04000080)
+#define REG_SNDCNT_H  REG16(0x04000082)
+#define REG_SNDCNT_X  REG16(0x04000084)
 
 #define PAL_BG   ((volatile u16*)0x05000000)
 #define PAL_OBJ  ((volatile u16*)0x05000200)
@@ -37,13 +45,14 @@ typedef signed int     s32;
 
 #define SCREEN_W 240
 #define SCREEN_H 160
+#define TEXT_SB  26
 #define MAP_SB   28
 
 enum { GRASS, GRASS_TUFT, DIRT, SOIL, SPROUT, CROP, CROP_RIPE, FENCE, BUSH,
-       FENCE_V, FENCE_TL, FENCE_TR, FENCE_BL, FENCE_BR };   // FENCE_V.. are looks only; the map stores FENCE
+       FENCE_V, FENCE_TL, FENCE_TR, FENCE_BL, FENCE_BR, CROP_YOUNG };   // FENCE_V.. are looks only; the map stores FENCE
 enum { DIR_DOWN, DIR_UP, DIR_LEFT, DIR_RIGHT };
 // Sprite cells in sprites.png (4 tiles each in OBJ VRAM)
-enum { SPR_FARMER_DOWN, SPR_FARMER_UP, SPR_FARMER_SIDE, SPR_CROW_A, SPR_CROW_B };
+enum { SPR_FARMER_DOWN, SPR_FARMER_UP, SPR_FARMER_SIDE, SPR_CROW_A, SPR_CROW_B, SPR_MARKER };
 
 // ---------- small helpers ----------
 static void copy32(volatile u32 *dst, const u32 *src, u32 words) {
@@ -67,6 +76,56 @@ static void poll_keys(void) {
 static void vsync(void) {
     while (REG_VCOUNT >= 160);
     while (REG_VCOUNT < 160);
+    // Reload globals from memory each frame, so test scripts that poke variables take effect.
+    __asm__ volatile("" ::: "memory");
+}
+
+// ---------- sound: short chimes on channel 1 ----------
+static void sound_init(void) {
+    REG_SNDCNT_X = 0x0080;   // master on
+    REG_SNDCNT_L = 0x1177;   // channel 1 on both sides, full volume
+    REG_SNDCNT_H = 0x0002;   // PSG at 100%
+    REG_SND1SWEEP = 0x0008;  // sweep off
+}
+static void chime(u32 hz, u32 vol) {
+    REG_SND1CNT = (vol << 12) | (2 << 8) | (2 << 6);      // decaying envelope, 50% duty
+    REG_SND1FREQ = (u16)((2048 - 131072 / hz) | 0x8000);  // restart
+}
+
+// ---------- text (BG0) ----------
+static u16 glyph_entry(char c) {
+    for (u32 i = 0; FONT_CHARS[i]; i++)
+        if (FONT_CHARS[i] == c) return (1 + i) | (1 << 12);   // palette bank 1
+    return 1 | (1 << 12);
+}
+static void put_text(s32 col, s32 row, const char *s) {
+    for (; *s && col < 30; s++, col++) SCREENBLOCK(TEXT_SB)[row * 32 + col] = glyph_entry(*s);
+}
+static void clear_row(s32 row) {
+    for (s32 c = 0; c < 32; c++) SCREENBLOCK(TEXT_SB)[row * 32 + c] = 0;
+}
+// Writes n (0..99999) into buf, left-aligned. Returns the length.
+static s32 fmt_num(char *buf, u32 n) {
+    char tmp[6];
+    s32 len = 0;
+    do { tmp[len++] = '0' + n % 10; n /= 10; } while (n && len < 5);
+    for (s32 i = 0; i < len; i++) buf[i] = tmp[len - 1 - i];
+    buf[len] = 0;
+    return len;
+}
+
+static u32 msg_timer;
+static void show_message(const char *s) {
+    clear_row(19);
+    s32 n = 0; while (s[n]) n++;
+    s32 col = (30 - n - 2) / 2;
+    put_text(col, 19, " ");
+    put_text(col + 1, 19, s);
+    put_text(col + 1 + n, 19, " ");
+    msg_timer = 120;
+}
+static void update_message(void) {
+    if (msg_timer && --msg_timer == 0) clear_row(19);
 }
 
 // sin table, 64 steps per turn, scaled by 256
@@ -112,8 +171,6 @@ static const u8 fence_piece[16] = {
     FENCE, FENCE_BL, FENCE_TL, FENCE_V, FENCE, FENCE, FENCE, FENCE,
 };
 
-static u8 tile_at(s32 mx, s32 my);
-
 static u8 look_at(s32 mx, s32 my) {
     u8 t = tile_at(mx, my);
     if (t != FENCE) return t;
@@ -132,8 +189,32 @@ static int is_solid(u8 t) {
     return t == FENCE || t == BUSH;
 }
 
+static void set_tile(s32 mx, s32 my, u8 t) {
+    farm[my * MAP_W + mx] = t;
+    draw_meta(mx, my);
+}
+
+// ---------- crops ----------
+// Stages: SOIL (empty) -> SPROUT -> CROP_YOUNG -> CROP -> CROP_RIPE. Ripe crops wait to be harvested.
+#define GROW_FRAMES 480   // frames per stage (8 s at 60 fps). DESIGN.md first guess.
+static u16 grow[MAP_W * MAP_H];   // frames since the tile's last stage change
+
+static u8 next_stage(u8 t) {
+    return t == SPROUT ? CROP_YOUNG : t == CROP_YOUNG ? CROP : t == CROP ? CROP_RIPE : t;
+}
+
+static void update_crops(void) {
+    for (s32 i = 0; i < MAP_W * MAP_H; i++) {
+        u8 t = farm[i];
+        if (t != SPROUT && t != CROP_YOUNG && t != CROP) continue;
+        if (++grow[i] < GROW_FRAMES) continue;
+        grow[i] = 0;
+        set_tile(i % MAP_W, i / MAP_W, next_stage(t));
+    }
+}
+
 static void reset_farm(void) {
-    for (u32 i = 0; i < MAP_W * MAP_H; i++) farm[i] = farm_start[i];
+    for (u32 i = 0; i < MAP_W * MAP_H; i++) { farm[i] = farm_start[i]; grow[i] = 0; }
     for (s32 y = 0; y < MAP_H; y++)
         for (s32 x = 0; x < MAP_W; x++) draw_meta(x, y);
 }
@@ -161,6 +242,60 @@ static void update_farmer(void) {
     if (dx || dy) pstep++;
 }
 
+// ---------- farm work (A button) ----------
+static s32 seeds, crops, coins, day, hearts;
+static s32 tx, ty;   // the tile the farmer works on: just in front of his feet
+
+static void update_target(void) {
+    s32 fx = (px >> 4) + 8, fy = (py >> 4) + 12;   // feet center
+    if (pdir == DIR_UP) fy -= 14;
+    else if (pdir == DIR_DOWN) fy += 14;
+    else if (pdir == DIR_LEFT) fx -= 14;
+    else fx += 14;
+    tx = fx >> 4;
+    ty = fy >> 4;
+}
+
+static int is_field(u8 t) {
+    return t == SOIL || t == SPROUT || t == CROP_YOUNG || t == CROP || t == CROP_RIPE;
+}
+
+static void draw_hud(void);
+
+static void farm_work(void) {
+    if (!HIT(KEY_A)) return;
+    u8 t = tile_at(tx, ty);
+    if (t == CROP_RIPE) {
+        set_tile(tx, ty, SOIL);
+        crops++;
+        chime(1047, 12);
+        draw_hud();
+    } else if (t == SOIL) {
+        if (seeds <= 0) { show_message("NO SEEDS!"); chime(220, 8); return; }
+        seeds--;
+        grow[ty * MAP_W + tx] = 0;
+        set_tile(tx, ty, SPROUT);
+        chime(659, 10);
+        draw_hud();
+    }
+}
+
+static void draw_marker(void) {
+    if (is_field(tile_at(tx, ty))) put_sprite(tx * 16, ty * 16, SPR_MARKER, 0);
+}
+
+// Top row: day, coins, crops, seeds, hearts. Row 0 of the map is bushes, so nothing is hidden.
+static void draw_hud(void) {
+    char buf[8];
+    put_text(0, 0, "                              ");
+    put_text(1, 0, "DAY");
+    fmt_num(buf, day);    put_text(5, 0, buf);
+    put_text(9, 0, "$");  fmt_num(buf, coins); put_text(10, 0, buf);
+    put_text(15, 0, "&"); fmt_num(buf, crops); put_text(16, 0, buf);
+    put_text(20, 0, "^"); fmt_num(buf, seeds); put_text(21, 0, buf);
+    for (s32 i = 0; i < hearts && i < 5; i++) put_text(25 + i, 0, "*");
+}
+
 static void draw_farmer(void) {
     u32 cell = pdir == DIR_DOWN ? SPR_FARMER_DOWN : pdir == DIR_UP ? SPR_FARMER_UP : SPR_FARMER_SIDE;
     s32 bob = (pstep >> 3) & 1;   // 1 px walk bob
@@ -185,19 +320,30 @@ int main(void) {
         PAL_BG[i] = bg_pal[i];
         PAL_OBJ[i] = obj_pal[i];
     }
+    PAL_BG[16 + 1] = (29) | (28 << 5) | (22 << 10);   // text: cream
+    PAL_BG[16 + 2] = (3) | (4 << 5) | (6 << 10);      // text background: dark slate
+    PAL_BG[16 + 3] = (28) | (8 << 5) | (6 << 10);     // heart red
+    PAL_BG[16 + 4] = (29) | (25 << 5) | (10 << 10);   // coin gold
+    PAL_BG[16 + 5] = (13) | (21 << 5) | (9 << 10);    // crop green
     copy32(CHARBLOCK(0), terrain_tiles, sizeof(terrain_tiles) / 4);
+    copy32(CHARBLOCK(1), font_tiles, sizeof(font_tiles) / 4);
     copy32(OBJ_TILES, sprite_tiles, sizeof(sprite_tiles) / 4);
 
     for (u32 i = 0; i < 128; i++) oam_shadow[i * 4] = 0x0200;
     oam_flush();
 
-    REG_BG1CNT = 2 | (0 << 2) | (MAP_SB << 8);   // map: priority 2, 32x32 tiles
+    for (u32 i = 0; i < 32 * 32; i++) SCREENBLOCK(TEXT_SB)[i] = 0;
+    REG_BG0CNT = 0 | (1 << 2) | (TEXT_SB << 8);   // text: priority 0
+    REG_BG1CNT = 2 | (0 << 2) | (MAP_SB << 8);    // map: priority 2, 32x32 tiles
+    sound_init();
     reset_farm();
     px = PLAYER_START_X * 16 * 16;
     py = PLAYER_START_Y * 16 * 16;
     pdir = DIR_UP;
+    day = 1; seeds = 3; crops = 0; coins = 0; hearts = 3;   // DESIGN.md first guesses
+    draw_hud();
 
-    REG_DISPCNT = 0x0000 | (1 << 6) | (1 << 9) | (1 << 12);   // mode 0, 1D OBJ, BG1, OBJ
+    REG_DISPCNT = 0x0000 | (1 << 6) | (1 << 8) | (1 << 9) | (1 << 12);   // mode 0, 1D OBJ, BG0, BG1, OBJ
 
     for (;;) {
         vsync();
@@ -209,9 +355,14 @@ int main(void) {
         (void)rng;
 
         update_farmer();
+        update_target();
+        farm_work();
+        update_crops();
+        update_message();
 
         oam_begin();
         draw_farmer();
+        draw_marker();
         draw_crow();
         oam_end();
     }

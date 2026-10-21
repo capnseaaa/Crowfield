@@ -110,11 +110,12 @@ Code rules: no external GBA libraries; plain freestanding C, `-O2 -mthumb`. No f
 - Plot sizes and unlock days (first guess: 3x3 start, new plots on days 4, 8, 12, 16). What grows after the screen is full?
 
 ### Current state
-- Version: v0.1.5 (docs only since v0.1.0).
+- Version: v0.2.0. Crops grow on a timer (sprout -> young -> grown -> ripe). A plants a seed on empty soil and harvests a ripe crop. A marker shows the target tile. HUD: day, coins, crops, seeds, hearts. Fences join up. One test crow circles (does nothing).
 - Branches: `main` is the real branch. Push to `main` (Caleb approved). The farm map shows. The farmer walks and runs; fences and bushes block him. One test crow circles. Art is a rough placeholder.
-- Tested: `test/boot.txt` in headless mGBA (screenshots checked, position values read). Not tested on the R36 or a phone.
+- Tested: `test/boot.txt` and `test/crops.txt` in headless mGBA (screenshots and values checked). Caleb played v0.1.5 and liked it (asked for joined fences). v0.2.0 not yet played on a device.
 
 ### Gotchas
 - `@`, `!` lines in test scripts need the `<frames> <keys>` prefix (e.g. `1 0 @$px,$py`); a bare `@...` line is skipped silently.
+- `vsync()` has a compiler memory barrier. Without it, GCC keeps globals in registers and test `!` pokes do nothing. Keep it.
 - Cloud sessions cannot push tags or create GitHub Releases (tag push is dropped; no release tool). Send the ROM to Caleb directly; he makes the Release on GitHub.
 - Commit v0.1.0 used `setup:`, which is not in the type list. Later commits follow the list.
