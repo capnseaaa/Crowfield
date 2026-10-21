@@ -59,7 +59,7 @@ Every step adds or extends a script in `crowfield/test/`.
 
 ## v0.8 — polish
 - [ ] Title screen ("Grow. Defend. Survive.")
-- [ ] Sound effects
+- [x] Sound effects (v0.3.3: clips for swing, hit, caw, hurt, plant, harvest, no seeds)
 - [ ] Day 20 end screen for the test build ("A peaceful farm... for now.")
 
 ## v1.0 — release

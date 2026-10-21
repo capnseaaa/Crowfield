@@ -48,6 +48,22 @@ in main.c lists each facing's 3 swing poses and its resting pose. `put_sprite(x,
 ## Save
 None. Caleb decided Crowfield has no saves; every run starts fresh.
 
+## Sound (v0.3.3)
+- Clips: `sound/*.wav` (mono 16-bit 22050 Hz, committed). `tools/import_sound.sh` cut them from the
+  downloaded packs in `sound/source/` (not committed; needs ffmpeg). Sources and licenses: `sound/CREDITS.md`.
+- `tools/make_sound.py` (run by build.sh, stdlib only) -> `src/sound.h`: signed 8-bit at 13379 Hz, silence
+  trimmed, normalized to a per-clip peak, 10 ms fade-out. `--preview DIR` writes the 8-bit clips as WAV.
+  Its SOUNDS list order = the `SND_*` enum in main.c. 7 clips = 22 KB of ROM.
+- Playback: Direct Sound A. Timer 0 at 1254 cycles per sample = 224 samples per frame. DMA 1 feeds FIFO A
+  from a 2x224-byte double buffer (DMA 1 registers start at 0x040000BC). Right after vsync,
+  `sound_vblank()` restarts the DMA every other frame; `sound_mix()` sums up to 4 channels into the half
+  that plays next, with clamping. PSG channels are off.
+- `play(SND_x)`: the same clip restarts on its own channel; else a free channel; else the oldest.
+- A game loop longer than one frame replays stale samples. Measured 2026-10-21: 601 loops in 602 frames
+  with crows and sound, so no dropped frames now.
+- Test: `HARNESS_WAV=/abs/path.wav sh test/run.sh test/x.txt` records the game's audio (stereo 32768 Hz).
+  Use an absolute path: run.sh changes folder first, and a relative path crashes the harness.
+
 ## Test harness
 `test/harness.c` runs the ROM in libmgba with no window. It reads a script, presses keys,
 saves `.ppm` screenshots, prints memory (`@`), writes memory (`!`), and power-cycles (`^`).

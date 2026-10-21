@@ -5,3 +5,5 @@ crowfield/release/
 crowfield/test/harness
 crowfield/test/.resolved.txt
 crowfield/test/*.ppm
+crowfield/src/sound.h
+crowfield/test/*.wav

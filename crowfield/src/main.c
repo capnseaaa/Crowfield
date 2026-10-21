@@ -6,10 +6,13 @@
 // Later: crows that eat crops and get stronger, waves, days, shop, scarecrow turrets.
 
 #include "data.h"
+#include "sound.h"
 
 typedef unsigned char  u8;
 typedef unsigned short u16;
 typedef unsigned int   u32;
+typedef signed char    s8;
+typedef signed short   s16;
 typedef signed int     s32;
 
 // ---------- hardware ----------
@@ -19,12 +22,16 @@ typedef signed int     s32;
 #define REG_BG0CNT    REG16(0x04000008)
 #define REG_BG1CNT    REG16(0x0400000A)
 #define REG_KEYINPUT  REG16(0x04000130)
-#define REG_SND1SWEEP REG16(0x04000060)
-#define REG_SND1CNT   REG16(0x04000062)
-#define REG_SND1FREQ  REG16(0x04000064)
+#define REG32(a) (*(volatile u32*)(a))
 #define REG_SNDCNT_L  REG16(0x04000080)
 #define REG_SNDCNT_H  REG16(0x04000082)
 #define REG_SNDCNT_X  REG16(0x04000084)
+#define REG_FIFO_A    0x040000A0
+#define REG_DMA1SAD   REG32(0x040000BC)
+#define REG_DMA1DAD   REG32(0x040000C0)
+#define REG_DMA1CNT_H REG16(0x040000C6)
+#define REG_TM0CNT_L  REG16(0x04000100)
+#define REG_TM0CNT_H  REG16(0x04000102)
 
 #define PAL_BG   ((volatile u16*)0x05000000)
 #define PAL_OBJ  ((volatile u16*)0x05000200)
@@ -86,16 +93,69 @@ static void vsync(void) {
     __asm__ volatile("" ::: "memory");
 }
 
-// ---------- sound: short chimes on channel 1 ----------
+// ---------- sound: sample clips (sound/*.wav -> sound.h) on Direct Sound A ----------
+// Timer 0 runs at SND_RATE (224 samples per frame). DMA 1 feeds FIFO A from a double buffer.
+// Each frame, right after vsync, sound_vblank() restarts the DMA every other frame and
+// sound_mix() fills the half that plays next. A frame that runs long replays stale samples.
+enum { SND_SWING, SND_HIT, SND_CAW, SND_HURT, SND_PLANT, SND_HARVEST, SND_NOSEEDS };   // order of SOUNDS in make_sound.py
+#define MIX_LEN  224
+#define MIX_CHANS 4
+static s8 mix_buf[2 * MIX_LEN] __attribute__((aligned(4)));
+static u32 mix_playing;                     // half the DMA plays this frame
+static const s8 *ch_data[MIX_CHANS];        // 0 = channel free
+static u32 ch_pos[MIX_CHANS], ch_len[MIX_CHANS], ch_snd[MIX_CHANS], ch_age[MIX_CHANS];
+static u32 snd_count;                       // sounds started; tests read it
+
 static void sound_init(void) {
     REG_SNDCNT_X = 0x0080;   // master on
-    REG_SNDCNT_L = 0x1177;   // channel 1 on both sides, full volume
-    REG_SNDCNT_H = 0x0002;   // PSG at 100%
-    REG_SND1SWEEP = 0x0008;  // sweep off
+    REG_SNDCNT_L = 0;        // PSG channels off
+    REG_SNDCNT_H = 0x0B04 | 0x0002;   // DMA A 100%, left + right, timer 0, FIFO reset; PSG 100%
+    REG_TM0CNT_L = (u16)(65536 - 1254);   // 1254 cycles per sample = 280896 per frame / MIX_LEN
+    REG_TM0CNT_H = 0x0080;
 }
-static void chime(u32 hz, u32 vol) {
-    REG_SND1CNT = (vol << 12) | (2 << 8) | (2 << 6);      // decaying envelope, 50% duty
-    REG_SND1FREQ = (u16)((2048 - 131072 / hz) | 0x8000);  // restart
+static void sound_vblank(void) {
+    if (mix_playing == 0) {   // the DMA ran through both halves: restart at the first
+        REG_DMA1CNT_H = 0;
+        REG_DMA1SAD = (u32)mix_buf;
+        REG_DMA1DAD = REG_FIFO_A;
+        REG_DMA1CNT_H = 0xB640;   // enable, sound FIFO timing, 32-bit, repeat, fixed destination
+    }
+}
+static void sound_mix(void) {
+    static s16 acc[MIX_LEN];
+    s8 *out = mix_buf + (mix_playing ^ 1) * MIX_LEN;
+    for (u32 i = 0; i < MIX_LEN; i++) acc[i] = 0;
+    for (u32 c = 0; c < MIX_CHANS; c++) {
+        if (!ch_data[c]) continue;
+        u32 n = ch_len[c] - ch_pos[c];
+        if (n > MIX_LEN) n = MIX_LEN;
+        const s8 *src = ch_data[c] + ch_pos[c];
+        for (u32 i = 0; i < n; i++) acc[i] += src[i];
+        ch_pos[c] += n;
+        if (ch_pos[c] >= ch_len[c]) ch_data[c] = 0;
+    }
+    for (u32 i = 0; i < MIX_LEN; i++) {
+        s32 v = acc[i];
+        out[i] = (s8)(v > 127 ? 127 : v < -128 ? -128 : v);
+    }
+    mix_playing ^= 1;
+}
+// Start a clip. The same clip restarts on its own channel; else a free channel; else the oldest.
+static void play(u32 snd) {
+    u32 c, pick = 0;
+    for (c = 0; c < MIX_CHANS; c++) if (ch_data[c] && ch_snd[c] == snd) break;
+    if (c == MIX_CHANS) {
+        for (c = 0; c < MIX_CHANS; c++) if (!ch_data[c]) break;
+        if (c == MIX_CHANS) {
+            for (c = 1; c < MIX_CHANS; c++) if (ch_age[c] < ch_age[pick]) pick = c;
+            c = pick;
+        }
+    }
+    ch_data[c] = snd_data[snd];
+    ch_len[c] = snd_len[snd];
+    ch_pos[c] = 0;
+    ch_snd[c] = snd;
+    ch_age[c] = ++snd_count;
 }
 
 // ---------- text (BG0) ----------
@@ -298,14 +358,14 @@ static void farm_work(void) {
     if (t == CROP_RIPE) {
         set_tile(tx, ty, SOIL);
         crops++;
-        chime(1047, 12);
+        play(SND_HARVEST);
         draw_hud();
     } else if (t == SOIL) {
-        if (seeds <= 0) { show_message("NO SEEDS!"); chime(220, 8); return; }
+        if (seeds <= 0) { show_message("NO SEEDS!"); play(SND_NOSEEDS); return; }
         seeds--;
         grow[ty * MAP_W + tx] = 0;
         set_tile(tx, ty, SPROUT);
-        chime(659, 10);
+        play(SND_PLANT);
         draw_hud();
     }
 }
@@ -373,7 +433,7 @@ static void hurt_farmer(s32 from_x, s32 from_y) {
     s32 dx = px - from_x, dy = py - from_y;
     pvx = dx > 0 ? 48 : dx < 0 ? -48 : 0;
     pvy = dy > 0 ? 48 : dy < 0 ? -48 : 0;
-    chime(196, 12);
+    play(SND_HURT);
     if (hearts <= 0) { hearts = 0; ko_timer = KO_FRAMES; show_message("KNOCKED OUT!"); }
     else hurt_timer = HURT_FRAMES;
     draw_hud();
@@ -445,7 +505,7 @@ static void update_sword(void) {
         swing = SWING_FRAMES;
         weapon_out = 1;
         swing_id++;
-        chime(392, 9);
+        play(SND_SWING);
     }
     if (!swing) return;
     s32 cx = (px >> 4) + 8, cy = (py >> 4) + 8;
@@ -462,14 +522,14 @@ static void update_sword(void) {
         if (crow_hp[i] <= 0) {
             crow_state[i] = CROW_DEAD;
             crow_timer[i] = 16;
-            chime(1319, 10);
+            play(SND_CAW);
             continue;
         }
         crow_state[i] = CROW_HURT;   // knockback away from the farmer
         crow_timer[i] = 14;
         crow_vx[i] = pdir == DIR_RIGHT ? 64 : pdir == DIR_LEFT ? -64 : 0;
         crow_vy[i] = pdir == DIR_DOWN ? 64 : pdir == DIR_UP ? -64 : 0;
-        chime(880, 10);
+        play(SND_HIT);
     }
     if (--swing == 0) swing_cool = 6;
 }
@@ -543,7 +603,9 @@ int main(void) {
 
     for (;;) {
         vsync();
+        sound_vblank();
         oam_flush();
+        sound_mix();
 
         poll_keys();
         frame++;

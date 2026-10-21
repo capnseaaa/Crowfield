@@ -87,11 +87,10 @@ and new types unlock on later days (Fast day 3, Armored day 5, Big day 7, Swarm 
 ## Look and feel
 - Palette from the concept: greens, browns, gray, sky blue, red, dark brown, near-black.
 - 16-bit inspired, cozy, clean outlines. See `crowfield/art/concept/concept_sheet.png`.
-- Sound: v0.3 uses square-wave chimes made by code (no audio files). Caleb does not like them.
-  How to replace them is an open question.
+- Sound: real sound clips since v0.3.3 (Caleb's pick over retuned chimes). Free CC0 clips from Kenney
+  and OpenGameArt; see `crowfield/sound/CREDITS.md`.
 
 ## Open questions for the owner
-- Sound: retune the square-wave chimes, or play real sound clips (.wav converted at build time)?
 1. Exact plot sizes and unlock days (first guesses above). Endless days means unlocks must stop
    when the screen is full; after that, growth could come from upgrades instead.
 
