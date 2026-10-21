@@ -116,4 +116,5 @@ Code rules: no external GBA libraries; plain freestanding C, `-O2 -mthumb`. No f
 
 ### Gotchas
 - `@`, `!` lines in test scripts need the `<frames> <keys>` prefix (e.g. `1 0 @$px,$py`); a bare `@...` line is skipped silently.
+- Cloud sessions cannot push tags or create GitHub Releases (tag push is dropped; no release tool). Send the ROM to Caleb directly; he makes the Release on GitHub.
 - Commit v0.1.0 used `setup:`, which is not in the type list. Later commits follow the list.
