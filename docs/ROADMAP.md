@@ -28,8 +28,8 @@ Every step adds or extends a script in `crowfield/test/`.
 ## v0.4 — combat
 - [ ] Sword swing: hitbox in front of the farmer, swing sprite, knockback
 - [ ] Crow HP, hit flash, death puff
-- [ ] Farmer hearts, crow peck
-- [ ] Game over when no crops and no seeds remain
+- [ ] Farmer hearts, crow peck, knockout at 0 hearts
+- [ ] Game over when no crops, no seeds, and not enough coins for a seed
 - [ ] `test/combat.txt`
 
 ## v0.5 — days and the shop

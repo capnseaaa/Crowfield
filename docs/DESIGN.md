@@ -14,8 +14,8 @@ Days keep going with no set end. The test build stops at Day 20. Each day has tw
 2. **Dusk (shop).** The waves stop. The farmer sells crops and buys upgrades, seeds, and turrets.
    The next day starts when the player leaves the shop.
 
-**Game over:** the farmer has no crops in the field and no seeds left. Nothing can grow, so the
-farm is dead. There is no win state; the score is the last day reached. (Test build: Day 20 ends it.)
+**Game over:** the farmer has no crops in the field, no seeds, and not enough coins to buy a seed.
+Nothing can grow, so the farm is dead. There is no win state; the score is the last day reached. (Test build: Day 20 ends it.)
 
 ## The field
 - One screen, no scrolling: 15 x 10 metatiles of 16x16 px. This keeps every crow on screen,
@@ -35,7 +35,8 @@ Each soil tile moves through: empty soil -> sprout -> young -> grown -> ripe.
 - D-pad move, B run. A: use the tool that fits the tile (sickle on a ripe crop, sword on a crow,
   plant on empty soil). One button keeps it simple on the R36.
 - Hearts: the concept art shows 3 to 5 hearts. Crows peck the farmer. This is PvE, not only
-  crop defense. What happens at 0 hearts is not decided yet (see Open questions).
+  crop defense. At 0 hearts the farmer is knocked out for a few seconds
+  while crows eat freely, then gets up with full hearts (length: first guess 3 seconds).
 
 ## Tools and upgrades (3 levels each)
 | Item | Lv.1 | Lv.2 | Lv.3 | Notes |
@@ -73,15 +74,14 @@ and new types unlock on later days (Fast day 3, Armored day 5, Big day 7, Swarm 
 - Sound: short PSG chimes like Rootflow (harvest, hit, coin, crow caw).
 
 ## Open questions for the owner
-1. What happens when the farmer hits 0 hearts? Options: game over, lose the day's crops, or
-   knocked out for a few seconds while crows eat freely.
-2. Can coins buy seeds at dusk? If yes, game over must also check "not enough coins for a seed",
-   or a player with 0 seeds and 50 coins is dead for no reason.
-3. Is a save needed mid-run, or only best-run stats?
-4. Should the field grow (more plots) as the run goes on, like the "Finished Run" concept?
+1. Is a save needed mid-run, or only best-run stats?
+2. Should the field grow (more plots) as the run goes on, like the "Finished Run" concept?
 
 ## Decided
-- Lose: no crops and no seeds. Crops eaten buff the crow. A day ends only when all crows die.
+- Lose: no crops, no seeds, and not enough coins for a seed.
+- 0 hearts: knocked out for a few seconds, not game over.
+- Fed crows snowballing is handled by balance (HP cap, numbers), not a new rule.
+- Crops eaten buff the crow. A day ends only when all crows die.
 - Days are endless; the test build ends at Day 20.
 - Crows hurt the farmer and eat crops.
 - Turrets go on soil tiles and cost a crop slot.

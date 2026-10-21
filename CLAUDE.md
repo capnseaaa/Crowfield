@@ -26,13 +26,11 @@ instead of guessing. Remove anything that turns out wrong.
 
 ## Versions, commits, releases
 
-(Caleb agreed to this scheme on Rootflow. Not yet confirmed for Crowfield — ask, then keep it.)
-
 - Version: `v0.MINOR.PATCH`. MINOR = a feature version. PATCH = a tweak or fix.
 - Commit subject: `vX.Y.Z <type>: <summary>`; type is feat, fix, art, test, docs, or chore. The body says what and why.
 - Tag: an annotated `vX.Y.Z` tag on the last commit of a version.
 - Release: one GitHub Release per version Caleb will play, titled `Crowfield vX.Y.Z — <name>`, with the playable build attached. Notes: What's new / Fixes / Known issues.
-- Agent and handoff files (like this one) stay out of the public repo unless Caleb says otherwise.
+- Agent and handoff files stay out of the public repo unless Caleb says otherwise. For Crowfield he said otherwise: this CLAUDE.md is committed, so he can clone it onto his laptop.
 
 ## Lessons from Rootflow that may apply
 
@@ -57,8 +55,8 @@ Favorite games: Pokémon Emerald, Minecraft, Zelda BotW/TotK, Animal Crossing NH
 - Concept art: `crowfield/art/concept/concept_sheet.png` (Caleb's). Match its mood and palette.
 
 ### Platform and devices
-- Platform: Game Boy Advance ROM, 240x160, played in emulators. Caleb asked for the same style as Rootflow.
-- Devices: R36 Ultra handheld (assumed from Rootflow; not confirmed for Crowfield) and his phone.
+- Platform: Game Boy Advance ROM, 240x160, played in emulators. Caleb chose GBA.
+- Devices: R36 Ultra handheld (main) and sometimes his phone.
 - Performance limits: ARM7TDMI ~16.78 MHz, no FPU, no hardware divide; 32 KB IWRAM; 128 OAM sprites, plus a per-scanline sprite limit. A full crow swarm may flicker; see `docs/TECH.md`.
 
 ### Build and run
@@ -101,19 +99,19 @@ Code rules: no external GBA libraries; plain freestanding C, `-O2 -mthumb`. No f
 - Days are endless. The test build stops at Day 20.
 - Crows hurt the farmer (PvE) and eat crops.
 - Turrets go on soil tiles and use up a crop slot.
+- At 0 hearts the farmer is knocked out for a few seconds while crows eat freely. Not game over.
+- With no crops and no seeds but enough coins to buy a seed, the run goes on.
+- The "fed crows snowball" risk is a balance problem; fix it with numbers in playtests.
+- Platform GBA, devices R36 Ultra and phone. Version and commit scheme as in Rootflow (above).
 
 ### Open questions
-- What happens at 0 hearts? Options: game over, lose crops, or knocked out for a few seconds (recommended).
-- If coins buy seeds, should game over also need "not enough coins for a seed"? (Recommended: yes.)
 - Mid-run save, or only best-day stats?
 - Does the field grow during a run (like the "Finished Run" concept)?
-- Does Caleb want the Rootflow version/commit/release scheme?
-- This file is committed to the repo. Should it stay there (see the handoff-files rule)?
 
 ### Current state
-- Version: v0.1.1. The farm map shows. The farmer walks and runs; fences and bushes block him. One test crow circles. Art is a rough placeholder.
+- Version: v0.1.3 (docs only since v0.1.0). The farm map shows. The farmer walks and runs; fences and bushes block him. One test crow circles. Art is a rough placeholder.
 - Tested: `test/boot.txt` in headless mGBA (screenshots checked, position values read). Not tested on the R36 or a phone.
 
 ### Gotchas
 - `@`, `!` lines in test scripts need the `<frames> <keys>` prefix (e.g. `1 0 @$px,$py`); a bare `@...` line is skipped silently.
-- Commits v0.1.0 and v0.1.1 used `setup:` and `docs:` before the type list above was known.
+- Commit v0.1.0 used `setup:`, which is not in the type list. Later commits follow the list.
