@@ -96,8 +96,14 @@ and new types unlock on later days (Fast day 3, Armored day 5, Big day 7, Swarm 
 - Selling: each crop sells for 3 coins (Caleb, 2026-10-22; the first guess of 8 gave too much cash).
   Sold at dusk: SELL CROPS sells the whole bag.
 - Seeds cost 1 coin each at dusk (Caleb; was 5). BUY SEED buys one per press.
-- Upgrade prices from the concept (Sickle 120, Sword 150, Turret 100) were set against 8-coin crops.
-  They need rescaling before the upgrades are built.
+- Upgrade prices (v0.3.1), rescaled from the concept's Sickle 120 / Sword 150 (set against 8-coin crops) to
+  about the same number of crops at 3 coins: Sickle Lv.2 45, Lv.3 90; Sword Lv.2 60, Lv.3 120.
+  The concept's Turret 100 would be about 38 at this scale (not built yet).
+- What the levels do (v0.3.1). Harvesting is instant, so the table's "faster swing" for Sickle Lv.2 has
+  no effect in this game; Lv.2 instead harvests the 3-tile arc, and Lv.3 adds +1 crop per tile.
+  Sickle Lv.2: the tile in front plus the two beside it (the marker shows all three). Lv.3: the same arc,
+  2 crops per tile. Sword Lv.2: 2 damage (a fed crow dies in one hit). Lv.3: 2 damage, hit box 16 px in
+  front instead of 10 (the sword sprite keeps its size).
 - Game over counts crops in the bag as the coins they sell for, so a full bag never ends the run.
 - Coins buy upgrades, seeds, and turrets. Crops in stock carry over.
 

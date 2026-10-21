@@ -50,7 +50,7 @@ numbers v0.1.0-v0.3.3 in commit subjects; those numbers are history only and hav
 - [x] v0.3.0: day 1 has 3 crows (Caleb: 6 was too many), +1 per day; 2.5 s apart on day 1, faster later
 - [x] v0.3.0: dusk shop window: sell crops for coins, buy seeds, next day (the farm is paused meanwhile)
 - [x] v0.3.0: shop and day checks in `test/crows.txt`
-- [ ] Shop: Sickle Lv.2/3, Sword Lv.2/3
+- [x] v0.3.1: shop sells Sickle Lv.2/3 and Sword Lv.2/3; `test/shop.txt`
 - [ ] Test build caps at Day 20
 
 ## v0.4 — scarecrow turrets

@@ -5,7 +5,7 @@
 // No crops, no seeds, and no coins for a seed: the farm is lost. START begins a new run.
 // D-pad: move   R: run   A: plant on empty soil / harvest a ripe crop (puts the sword away)
 // B: draw and swing the sword (it stays in hand until A)
-// Later: shop upgrades (sickle, sword), scarecrow turrets.
+// The shop also sells sickle and sword upgrades. Later: scarecrow turrets.
 
 #include "data.h"
 #include "sound.h"
@@ -360,14 +360,30 @@ static int is_field(u8 t) {
 static void draw_hud(void);
 
 static s32 swing;        // > 0: sword swing frames left
+static s32 sickle_lv = 1;   // 1: one tile. 2: a 3-tile arc. 3: the arc, +1 crop per tile (shop)
+
+// The sickle's arc: the tile in front, plus the two beside it from Lv.2. Returns the count (1 or 3).
+static s32 sickle_tiles(s32 *xs, s32 *ys) {
+    xs[0] = tx; ys[0] = ty;
+    if (sickle_lv < 2) return 1;
+    s32 side_x = pdir == DIR_UP || pdir == DIR_DOWN;   // facing up/down: the arc runs left-right
+    xs[1] = tx - side_x; ys[1] = ty - !side_x;
+    xs[2] = tx + side_x; ys[2] = ty + !side_x;
+    return 3;
+}
 
 static void farm_work(void) {
     if (!HIT(KEY_A) || ko_timer || swing) return;
     weapon_out = 0;
+    s32 xs[3], ys[3], n = sickle_tiles(xs, ys), got = 0;
+    for (s32 k = 0; k < n; k++) {
+        if (tile_at(xs[k], ys[k]) != CROP_RIPE) continue;
+        set_tile(xs[k], ys[k], SOIL);
+        crops += sickle_lv >= 3 ? 2 : 1;
+        got = 1;
+    }
     u8 t = tile_at(tx, ty);
-    if (t == CROP_RIPE) {
-        set_tile(tx, ty, SOIL);
-        crops++;
+    if (got) {
         play(SND_HARVEST);
         draw_hud();
     } else if (t == SOIL) {
@@ -381,7 +397,9 @@ static void farm_work(void) {
 }
 
 static void draw_marker(void) {
-    if (is_field(tile_at(tx, ty))) put_sprite(tx * 16, ty * 16, SPR_MARKER, 0);
+    s32 xs[3], ys[3], n = sickle_tiles(xs, ys);
+    for (s32 k = 0; k < n; k++)
+        if (is_field(tile_at(xs[k], ys[k]))) put_sprite(xs[k] * 16, ys[k] * 16, SPR_MARKER, 0);
 }
 
 // Top row: day, coins, crops, seeds, hearts. Row 0 of the map is bushes, so nothing is hidden.
@@ -625,7 +643,13 @@ static void draw_crows(void) {
 // ---------- sword ----------
 #define SWING_FRAMES 12
 static s32 swing_cool, swing_id;
-static s32 sword_damage = 1, sword_reach = 10;   // Lv.1; the shop raises these later
+static s32 sword_lv = 1;                         // 1, 2: more damage, 3: longer reach (shop)
+static s32 sword_damage = 1, sword_reach = 10;   // set by set_sword_lv
+static void set_sword_lv(s32 lv) {
+    sword_lv = lv;
+    sword_damage = lv >= 2 ? 2 : 1;
+    sword_reach = lv >= 3 ? 16 : 10;
+}
 static s32 slash_x, slash_y;                     // center of the hit box, screen px
 
 static void update_sword(void) {
@@ -698,19 +722,36 @@ static void draw_sword(void) {
 // ---------- dusk shop ----------
 #define SEED_PRICE 1   // Caleb, 2026-10-22: 8 and 5 gave too much cash; a crop sells for 3, a seed costs 1
 #define CROP_PRICE 3
+// Upgrade prices for Lv.2 and Lv.3: about as many crops as the concept's 120 / 150 at 8 coins a crop.
+static const s32 sickle_price[2] = { 45, 90 };
+static const s32 sword_price[2] = { 60, 120 };
 static s32 shop_open, shop_cursor;
-enum { SHOP_SELL, SHOP_SEED, SHOP_NEXT, SHOP_ITEMS };
-#define SHOP_L 3       // window: text columns 3..26, rows 3..15
-#define SHOP_T 3
+enum { SHOP_SELL, SHOP_SEED, SHOP_SICKLE, SHOP_SWORD, SHOP_NEXT, SHOP_ITEMS };
+#define SHOP_L 3       // window: text columns 3..26, rows 2..18
+#define SHOP_T 2
+#define SHOP_ROWS 17
 
 static void shop_line(s32 row, const char *s) {
     put_text(SHOP_L, row, "                        ");
     put_text(SHOP_L + 1, row, s);
 }
+// "SICKLE LV2   = $45", or "SICKLE LV3   MAX" when bought out.
+static void shop_tool(s32 row, const char *name, s32 lv, const s32 *price) {
+    char buf[26];
+    s32 n = copy_str(buf, name);
+    if (lv >= 3) { n += fmt_num(buf + n, 3); copy_str(buf + n, "    MAX"); }
+    else {
+        n += fmt_num(buf + n, lv + 1);
+        n += copy_str(buf + n, "     = $");
+        fmt_num(buf + n, price[lv - 1]);
+    }
+    shop_line(row, buf);
+}
+
 static void draw_shop(void) {
     char buf[26];
     s32 n;
-    for (s32 r = SHOP_T; r <= SHOP_T + 12; r++) shop_line(r, "");
+    for (s32 r = SHOP_T; r < SHOP_T + SHOP_ROWS; r++) shop_line(r, "");
     n = copy_str(buf, "DUSK. DAY ");
     n += fmt_num(buf + n, day);
     copy_str(buf + n, " IS OVER.");
@@ -723,7 +764,9 @@ static void draw_shop(void) {
     n = copy_str(buf, "  BUY SEED    ^1 = $");
     fmt_num(buf + n, SEED_PRICE);
     shop_line(SHOP_T + 5, buf);
-    shop_line(SHOP_T + 7, "  NEXT DAY");
+    shop_tool(SHOP_T + 7, "  SICKLE LV", sickle_lv, sickle_price);
+    shop_tool(SHOP_T + 9, "  SWORD  LV", sword_lv, sword_price);
+    shop_line(SHOP_T + 11, "  NEXT DAY");
     put_text(SHOP_L + 1, SHOP_T + 3 + 2 * shop_cursor, ">");
     n = copy_str(buf, "YOU HAVE  $");
     n += fmt_num(buf + n, coins);
@@ -731,8 +774,8 @@ static void draw_shop(void) {
     n += fmt_num(buf + n, crops);
     n += copy_str(buf + n, "  ^");
     fmt_num(buf + n, seeds);
-    shop_line(SHOP_T + 9, buf);
-    shop_line(SHOP_T + 11, "UP/DOWN PICK  A CHOOSE");
+    shop_line(SHOP_T + 13, buf);
+    shop_line(SHOP_T + 15, "UP/DOWN PICK  A CHOOSE");
 }
 
 static void open_shop(void) {
@@ -746,7 +789,7 @@ static void open_shop(void) {
 
 static void close_shop(void) {
     shop_open = 0;
-    for (s32 r = SHOP_T; r <= SHOP_T + 12; r++) clear_row(r);
+    for (s32 r = SHOP_T; r < SHOP_T + SHOP_ROWS; r++) clear_row(r);
     day++;
     start_day();
 }
@@ -766,6 +809,14 @@ static void update_shop(void) {
         coins -= SEED_PRICE;
         seeds++;
         play(SND_PLANT);
+    } else if (shop_cursor == SHOP_SICKLE || shop_cursor == SHOP_SWORD) {
+        s32 sickle = shop_cursor == SHOP_SICKLE;
+        s32 lv = sickle ? sickle_lv : sword_lv;
+        s32 cost = lv < 3 ? (sickle ? sickle_price : sword_price)[lv - 1] : 0;
+        if (lv >= 3 || coins < cost) { play(SND_NOSEEDS); return; }
+        coins -= cost;
+        if (sickle) sickle_lv++; else set_sword_lv(sword_lv + 1);
+        play(SND_HARVEST);
     } else {
         close_shop();
         return;
@@ -787,6 +838,8 @@ static void new_run(void) {
     pdir = DIR_UP;
     pvx = pvy = hurt_timer = ko_timer = swing = weapon_out = 0;
     day = 1; seeds = 3; crops = 0; coins = 0; hearts = max_hearts = 3;   // DESIGN.md first guesses
+    sickle_lv = 1;
+    set_sword_lv(1);
     spawning = 1; shop_open = 0;
     game_over = 0;
     start_day();

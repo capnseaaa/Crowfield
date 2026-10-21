@@ -1,0 +1,55 @@
+# shop upgrades (v0.3.1): buy sickle and sword levels, refuse when broke or maxed; then the sickle arc,
+# the Lv.3 bonus crop, and the sword's damage and reach.
+# Skip day 1's crows: with none to come and none alive, the day ends and the shop opens.
+1 0
+1 0 !$day_left=0,$coins=200
+130 0
+1 0 @$shop_open,$shop_cursor
+# cursor starts on BUY SEED (no crops). Down to SICKLE: Lv.2 for 45, Lv.3 for 90, then MAX (refused)
+1 128
+1 0
+1 1
+1 0 @$coins,$sickle_lv
+1 1
+1 0 @$coins,$sickle_lv
+1 1
+1 0 u1_sickle_max.ppm
+1 0 @$coins,$sickle_lv
+# down to SWORD: Lv.2 for 60 (65 -> 5); Lv.3 costs 120: refused
+1 128
+1 0
+1 1
+1 0 @$coins,$sword_lv,$sword_damage,$sword_reach
+1 1
+1 0 @$coins,$sword_lv
+1 0 !$coins=120
+1 1
+1 0 u2_sword_max.ppm
+1 0 @$coins,$sword_lv,$sword_damage,$sword_reach
+# NEXT DAY, then stop the crows for exact tests
+1 128
+1 0
+1 1
+1 0 !$spawning=0
+3 0
+1 0 @$shop_open,$day
+# sickle Lv.3 arc: tiles 52, 53, 54 (row 3, x 7-9) ripe; farmer below tile 53, facing up. One A harvests
+# all three at 2 crops each: 6.
+1 0 !$farm+52=101058054,$px=2048,$py=896,$pdir=1,$crops=0
+2 0 u3_arc.ppm
+1 1
+2 0 u4_harvested.ppm
+1 0 @$crops,$farm+52
+# sword Lv.3 (2 damage, reach 16): a fed crow (2 HP) 28 px to the right dies in one swing.
+# At Lv.1 (reach 10) the hit box ends 24 px out, so this crow would be out of reach.
+1 0 !$pdir=3,$crow_state=1,$crow_x=2496,$crow_y=896,$crow_hp=2,$crow_cool=999,$crow_target=-1
+1 2
+4 0 u5_reach.ppm
+1 0 @$crow_state,$crow_hp
+# the same crow at Lv.1: no hit
+1 0 !$sword_lv=1,$sword_damage=1,$sword_reach=10
+20 0
+1 0 !$crow_state=1,$crow_x=2496,$crow_y=896,$crow_hp=2,$crow_cool=999,$crow_target=-1
+1 2
+4 0
+1 0 @$crow_state,$crow_hp
