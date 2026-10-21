@@ -97,7 +97,7 @@ static void vsync(void) {
 // Timer 0 runs at SND_RATE (224 samples per frame). DMA 1 feeds FIFO A from a double buffer.
 // Each frame, right after vsync, sound_vblank() restarts the DMA every other frame and
 // sound_mix() fills the half that plays next. A frame that runs long replays stale samples.
-enum { SND_SWING, SND_HIT, SND_CAW, SND_HURT, SND_PLANT, SND_HARVEST, SND_NOSEEDS, SND_DEATH, SND_KNOCKDOWN };   // order of SOUNDS in make_sound.py
+enum { SND_WHOOSH, SND_HIT, SND_CAW, SND_HURT, SND_PLANT, SND_HARVEST, SND_NOSEEDS, SND_POOF, SND_KNOCKDOWN };   // order of SOUNDS in make_sound.py
 #define MIX_LEN  224
 #define MIX_CHANS 4
 static s8 mix_buf[2 * MIX_LEN] __attribute__((aligned(4)));
@@ -506,7 +506,7 @@ static void update_sword(void) {
         swing = SWING_FRAMES;
         weapon_out = 1;
         swing_id++;
-        play(SND_SWING);
+        play(SND_WHOOSH);
     }
     if (!swing) return;
     s32 cx = (px >> 4) + 8, cy = (py >> 4) + 8;
@@ -523,7 +523,7 @@ static void update_sword(void) {
         if (crow_hp[i] <= 0) {
             crow_state[i] = CROW_DEAD;
             crow_timer[i] = 16;
-            play(SND_DEATH);
+            play(SND_POOF);
             continue;
         }
         crow_state[i] = CROW_HURT;   // knockback away from the farmer

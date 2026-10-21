@@ -10,14 +10,14 @@ import os, sys, wave, struct
 
 RATE = 13379          # 224 samples per frame: 280896 cycles / 1254 cycles per sample (timer 0)
 SOUNDS = [            # name, peak (of 127): loudness relative to the others
-    ("swing", 70),
+    ("whoosh", 80),
     ("hit", 110),
     ("caw", 110),
     ("hurt", 120),
     ("plant", 80),
     ("harvest", 90),
     ("noseeds", 80),
-    ("death", 110),
+    ("poof", 110),
     ("knockdown", 120),
 ]
 ROOT = os.path.join(os.path.dirname(__file__), "..")
