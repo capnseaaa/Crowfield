@@ -84,7 +84,7 @@ crowfield/
   test/*.txt          scripted input runs
 docs/DESIGN.md        rules, numbers, crow types, upgrades
 docs/ROADMAP.md       versions and task checkboxes; pick the next unchecked task
-docs/TECH.md          VRAM layout, palettes, sprite budget, save plan
+docs/TECH.md          VRAM layout, palettes, sprite budget
 ```
 Code rules: no external GBA libraries; plain freestanding C, `-O2 -mthumb`. No floats, no division in hot loops; positions are 1/16 pixel; `sin64[]` for angles. Game state in plain static globals so tests can find it by name. Metatile order must match in `make_art.py` META, `build_data.py`, and the `main.c` enum.
 
@@ -99,17 +99,18 @@ Code rules: no external GBA libraries; plain freestanding C, `-O2 -mthumb`. No f
 - Days are endless. The test build stops at Day 20.
 - Crows hurt the farmer (PvE) and eat crops.
 - Turrets go on soil tiles and use up a crop slot.
-- At 0 hearts the farmer is knocked out for a few seconds while crows eat freely. Not game over.
+- At 0 hearts the farmer is knocked out for 3 seconds while crows eat freely. Not game over.
+- No saves. Every run starts fresh.
+- The field grows during a run (more plots).
 - With no crops and no seeds but enough coins to buy a seed, the run goes on.
 - The "fed crows snowball" risk is a balance problem; fix it with numbers in playtests.
 - Platform GBA, devices R36 Ultra and phone. Version and commit scheme as in Rootflow (above).
 
 ### Open questions
-- Mid-run save, or only best-day stats?
-- Does the field grow during a run (like the "Finished Run" concept)?
+- How does the field grow (buy plots in the shop, or free every few days), and where do new plots fit on one screen?
 
 ### Current state
-- Version: v0.1.3 (docs only since v0.1.0). The farm map shows. The farmer walks and runs; fences and bushes block him. One test crow circles. Art is a rough placeholder.
+- Version: v0.1.4 (docs only since v0.1.0). The farm map shows. The farmer walks and runs; fences and bushes block him. One test crow circles. Art is a rough placeholder.
 - Tested: `test/boot.txt` in headless mGBA (screenshots checked, position values read). Not tested on the R36 or a phone.
 
 ### Gotchas

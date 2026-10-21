@@ -39,9 +39,8 @@ crow wings down.
 - Positions: 1/16 pixel (`px >> 4` is the screen pixel).
 - Angles: 64 steps per turn, `sin64[]` scaled by 256.
 
-## Save (planned, v0.8)
-SRAM at 0x0E000000, byte access only, 8 wait states (Rootflow's `REG_WAITCNT` setting).
-Store a magic word, version, and best run stats.
+## Save
+None. Caleb decided Crowfield has no saves; every run starts fresh.
 
 ## Test harness
 `test/harness.c` runs the ROM in libmgba with no window. It reads a script, presses keys,

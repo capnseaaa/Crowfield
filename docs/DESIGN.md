@@ -36,7 +36,7 @@ Each soil tile moves through: empty soil -> sprout -> young -> grown -> ripe.
   plant on empty soil). One button keeps it simple on the R36.
 - Hearts: the concept art shows 3 to 5 hearts. Crows peck the farmer. This is PvE, not only
   crop defense. At 0 hearts the farmer is knocked out for a few seconds
-  while crows eat freely, then gets up with full hearts (length: first guess 3 seconds).
+  while crows eat freely, then gets up with full hearts (3 seconds).
 
 ## Tools and upgrades (3 levels each)
 | Item | Lv.1 | Lv.2 | Lv.3 | Notes |
@@ -74,12 +74,16 @@ and new types unlock on later days (Fast day 3, Armored day 5, Big day 7, Swarm 
 - Sound: short PSG chimes like Rootflow (harvest, hit, coin, crow caw).
 
 ## Open questions for the owner
-1. Is a save needed mid-run, or only best-run stats?
-2. Should the field grow (more plots) as the run goes on, like the "Finished Run" concept?
+1. How does the field grow? Options: buy new plots in the shop (recommended: it competes with
+   upgrades for coins), or a new plot every few days for free.
+2. Where do new plots go on a one-screen farm? The current map has room for about two more
+   fenced plots; more than that needs a smaller layout or scrolling.
 
 ## Decided
 - Lose: no crops, no seeds, and not enough coins for a seed.
-- 0 hearts: knocked out for a few seconds, not game over.
+- 0 hearts: knocked out for 3 seconds, not game over.
+- No saves. Every run starts fresh.
+- The field grows during a run (more plots), like the "Finished Run" concept.
 - Fed crows snowballing is handled by balance (HP cap, numbers), not a new rule.
 - Crops eaten buff the crow. A day ends only when all crows die.
 - Days are endless; the test build ends at Day 20.

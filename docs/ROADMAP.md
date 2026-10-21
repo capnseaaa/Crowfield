@@ -44,6 +44,10 @@ Every step adds or extends a script in `crowfield/test/`.
 - [ ] Turret levels
 - [ ] `test/turret.txt`
 
+## v0.6b — field growth
+- [ ] New plots open during a run (how: open question in DESIGN.md)
+- [ ] `test/field.txt`
+
 ## v0.7 — crow types and scaling
 - [ ] Fast, Armored, Big, Swarm crows with their own palettes and sprites
 - [ ] Wave table per day
@@ -53,7 +57,6 @@ Every step adds or extends a script in `crowfield/test/`.
 - [ ] Title screen ("Grow. Defend. Survive.")
 - [ ] Sound effects
 - [ ] Day 20 end screen for the test build ("A peaceful farm... for now.")
-- [ ] Save best day reached to SRAM
 
 ## v1.0 — release
 - [ ] Cover art (`tools/make_cover.py`) and `tools/package.sh` for the R36 SD card
