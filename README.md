@@ -8,7 +8,8 @@ The crows are hungry. Grow your crops, sell your harvest, and upgrade your gear 
 ## How it plays
 - Each day, crows come in waves to eat your crops. Fight them off and harvest what is ripe.
 - At dusk, sell crops and buy upgrades: a better sickle, a better sword, and scarecrow turrets.
-- Every day the crows come back stronger and in bigger numbers. Survive the last day to win.
+- Every day the crows come back stronger and in bigger numbers. Crows that eat get tougher, and they fight back.
+- Run out of crops and seeds, and the farm is lost. How many days can you last?
 
 ## Controls
 - D-pad: move, B: run
