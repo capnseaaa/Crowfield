@@ -53,7 +53,10 @@ OBJ_PAL = [
 ]
 
 # Metatile order. Must match build_data.py and the enum in main.c.
-META = ["GRASS", "GRASS_TUFT", "DIRT", "SOIL", "SPROUT", "CROP", "CROP_RIPE", "FENCE", "BUSH"]
+META = ["GRASS", "GRASS_TUFT", "DIRT", "SOIL", "SPROUT", "CROP", "CROP_RIPE", "FENCE", "BUSH",
+        "FENCE_V", "FENCE_TL", "FENCE_TR", "FENCE_BL", "FENCE_BR"]
+# Fence pieces by which neighbors they join: up, down, left, right. FENCE is the horizontal piece.
+FENCE_JOIN = {"FENCE": "lr", "FENCE_V": "ud", "FENCE_TL": "rd", "FENCE_TR": "ld", "FENCE_BL": "ru", "FENCE_BR": "lu"}
 
 
 def blank(n_tiles_w, n_tiles_h=1):
@@ -68,12 +71,34 @@ def speckle(px, ox, colors, base, rnd, n=18):
         px[rnd.randrange(16)][ox + rnd.randrange(16)] = rnd.choice(colors)
 
 
+def draw_fence(px, o, join):
+    """A post in the middle, with rails out to each joined side so neighbors connect."""
+    if "l" in join or "r" in join:
+        x0 = 0 if "l" in join else 8
+        x1 = 16 if "r" in join else 8
+        for y in (6, 7, 11, 12):
+            for x in range(x0, x1):
+                px[y][o + x] = 8 if y in (6, 11) else 7
+    if "u" in join or "d" in join:
+        y0 = 0 if "u" in join else 8
+        y1 = 16 if "d" in join else 8
+        for y in range(y0, y1):
+            for x in (4, 5, 10, 11):
+                px[y][o + x] = 8 if x in (4, 10) else 7
+    for y in range(3, 15):   # post
+        for x in range(6, 10):
+            px[y][o + x] = 8 if x < 8 else 7
+    for x in range(6, 10):   # post top
+        px[3][o + x] = 6
+        px[14][o + x] = 15
+
+
 def draw_terrain():
     rnd = random.Random(7)
     px = blank(len(META))
     for i, name in enumerate(META):
         o = i * 16
-        if name in ("GRASS", "GRASS_TUFT", "BUSH", "FENCE"):
+        if name in ("GRASS", "GRASS_TUFT", "BUSH") or name in FENCE_JOIN:
             speckle(px, o, [1, 3], 2, rnd)
         elif name == "DIRT":
             speckle(px, o, [4, 6], 5, rnd)
@@ -98,13 +123,8 @@ def draw_terrain():
                 for y in range(2, 6):
                     px[y][o + 7] = 12
                     px[y][o + 8] = 12
-        if name == "FENCE":
-            for y in range(4, 15):
-                for x in (2, 3, 12, 13):
-                    px[y][o + x] = 8 if x in (2, 12) else 7
-            for y in (6, 7, 11, 12):
-                for x in range(16):
-                    px[y][o + x] = 8 if y in (6, 11) else 7
+        if name in FENCE_JOIN:
+            draw_fence(px, o, FENCE_JOIN[name])
         if name == "BUSH":
             for y in range(2, 15):
                 for x in range(2, 14):

@@ -39,7 +39,8 @@ typedef signed int     s32;
 #define SCREEN_H 160
 #define MAP_SB   28
 
-enum { GRASS, GRASS_TUFT, DIRT, SOIL, SPROUT, CROP, CROP_RIPE, FENCE, BUSH };
+enum { GRASS, GRASS_TUFT, DIRT, SOIL, SPROUT, CROP, CROP_RIPE, FENCE, BUSH,
+       FENCE_V, FENCE_TL, FENCE_TR, FENCE_BL, FENCE_BR };   // FENCE_V.. are looks only; the map stores FENCE
 enum { DIR_DOWN, DIR_UP, DIR_LEFT, DIR_RIGHT };
 // Sprite cells in sprites.png (4 tiles each in OBJ VRAM)
 enum { SPR_FARMER_DOWN, SPR_FARMER_UP, SPR_FARMER_SIDE, SPR_CROW_A, SPR_CROW_B };
@@ -104,8 +105,25 @@ static u8 tile_at(s32 mx, s32 my) {
     return farm[my * MAP_W + mx];
 }
 
+// The map stores every fence as FENCE. Pick the piece that joins its fence neighbors.
+// Index: up=1, down=2, left=4, right=8.
+static const u8 fence_piece[16] = {
+    FENCE, FENCE_V, FENCE_V, FENCE_V, FENCE, FENCE_BR, FENCE_TR, FENCE_V,
+    FENCE, FENCE_BL, FENCE_TL, FENCE_V, FENCE, FENCE, FENCE, FENCE,
+};
+
+static u8 tile_at(s32 mx, s32 my);
+
+static u8 look_at(s32 mx, s32 my) {
+    u8 t = tile_at(mx, my);
+    if (t != FENCE) return t;
+    u32 m = (tile_at(mx, my - 1) == FENCE) | (tile_at(mx, my + 1) == FENCE) << 1 |
+            (tile_at(mx - 1, my) == FENCE) << 2 | (tile_at(mx + 1, my) == FENCE) << 3;
+    return fence_piece[m];
+}
+
 static void draw_meta(s32 mx, s32 my) {
-    u16 base = farm[my * MAP_W + mx] * 4;
+    u16 base = look_at(mx, my) * 4;
     for (s32 k = 0; k < 4; k++)
         SCREENBLOCK(MAP_SB)[(my * 2 + (k >> 1)) * 32 + mx * 2 + (k & 1)] = base + k;
 }

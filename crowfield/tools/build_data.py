@@ -7,7 +7,8 @@ ART = os.path.join(ROOT, "art")
 OUT = os.path.join(ROOT, "src", "data.h")
 
 # Metatile indices (must match make_art.py META and main.c enum)
-GRASS, GRASS_TUFT, DIRT, SOIL, SPROUT, CROP, CROP_RIPE, FENCE, BUSH = range(9)
+(GRASS, GRASS_TUFT, DIRT, SOIL, SPROUT, CROP, CROP_RIPE, FENCE, BUSH,
+ FENCE_V, FENCE_TL, FENCE_TR, FENCE_BL, FENCE_BR) = range(14)
 
 # The whole farm is one screen: 15 x 10 metatiles of 16x16 = 240 x 160.
 MAP_W, MAP_H = 15, 10
