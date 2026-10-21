@@ -8,7 +8,7 @@
 - OAM holds 128 sprites. The per-scanline sprite limit is in render cycles, not count
   (GBATEK). A full crow swarm must be tested in the emulator; see the budget below.
 
-## Video layout (v0.1)
+## Video layout
 | Item | Where |
 |---|---|
 | BG tiles (terrain metatiles) | charblock 0 |
@@ -48,7 +48,7 @@ in main.c lists each facing's 3 swing poses and its resting pose. `put_sprite(x,
 ## Save
 None. Caleb decided Crowfield has no saves; every run starts fresh.
 
-## Sound (v0.3.3)
+## Sound (v0.1.0)
 - Clips: `sound/*.wav` (mono 16-bit 22050 Hz, committed). `tools/import_sound.sh` cut them from the
   downloaded packs in `sound/source/` (not committed; needs ffmpeg). Sources and licenses: `sound/CREDITS.md`.
 - `tools/make_sound.py` (run by build.sh, stdlib only) -> `src/sound.h`: signed 8-bit at 13379 Hz, silence

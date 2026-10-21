@@ -3,7 +3,12 @@
 Each version is one playable step. Check boxes in the same commit as the code.
 Every step adds or extends a script in `crowfield/test/`.
 
-## v0.1 — skeleton (done)
+Numbering: v0.1.0 is the first published release (2026-10-22). Work before it carried pre-release
+numbers v0.1.0-v0.3.3 in commit subjects; those numbers are history only and have no tags.
+
+## v0.1.0 — first release (done)
+
+### skeleton
 - [x] Build pipeline copied from Rootflow (crt0, linker script, header fix, harness)
 - [x] Procedural art: terrain metatiles and farmer/crow sprites
 - [x] One-screen farm map with fence, soil, sprouts, bushes
@@ -11,7 +16,7 @@ Every step adds or extends a script in `crowfield/test/`.
 - [x] One test crow circles the field
 - [x] `test/boot.txt`
 
-## v0.2 — crops (done)
+### crops
 - [x] Crop growth timer per soil tile (soil -> sprout -> young -> grown -> ripe)
 - [x] A on ripe crop: harvest, add to stock
 - [x] A on empty soil: plant a seed
@@ -19,15 +24,18 @@ Every step adds or extends a script in `crowfield/test/`.
 - [x] Target marker on the tile in front of the farmer
 - [x] `test/crops.txt`
 
-## v0.3 — combat (done)
+### combat
 - [x] Sword on B (run moved to R): hit box in front of the farmer, slash sprite, knockback
 - [x] Crow pool (fixed arrays), crow HP, white hit flash, death puff
 - [x] Sparring crows fly at the farmer and peck him
 - [x] Farmer hearts, 1 s blink after a hit, knockout for 3 s at 0 hearts, then full hearts
 - [x] `test/combat.txt`
-- [x] v0.3.2: the sword shows in the farmer's hand (B draws and swings, A puts away); `test/sword.txt`
+- [x] The sword shows in the farmer's hand (B draws and swings, A puts away); `test/sword.txt`
 
-## v0.4 — crows
+### sound
+- [x] Sound effects: CC0 clips for swing, hit, caw, hurt, plant, harvest, no seeds
+
+## v0.2 — crows
 - [ ] Crows pick a target crop, land, and eat one stage per bite; they still peck the farmer
 - [ ] Each bite buffs the crow's HP (fed crows look different)
 - [ ] When no crops are left, crows go after the farmer
@@ -35,31 +43,30 @@ Every step adds or extends a script in `crowfield/test/`.
 - [ ] Game over when no crops, no seeds, and not enough coins for a seed
 - [ ] `test/crows.txt`
 
-## v0.5 — days and the shop
+## v0.3 — days and the shop
 - [ ] Day ends when all crows are dead, then dusk; `Day x` banner (test build caps at 20)
 - [ ] Sell crops for coins
 - [ ] Shop panel: Sickle Lv.2/3, Sword Lv.2/3, seeds
 - [ ] `test/shop.txt`
 
-## v0.6 — scarecrow turrets
+## v0.4 — scarecrow turrets
 - [ ] Buy a turret and place it on a soil tile (uses a crop slot)
 - [ ] Turret aims at the nearest crow and fires a projectile
 - [ ] Turret levels
 - [ ] `test/turret.txt`
 
-## v0.6b — field growth
+## v0.4b — field growth
 - [ ] Start map: one small plot, open grass reserved for later plots
 - [ ] New plots open on set days (first guess 4, 8, 12, 16)
 - [ ] `test/field.txt`
 
-## v0.7 — crow types and scaling
+## v0.5 — crow types and scaling
 - [ ] Fast, Armored, Big, Swarm crows with their own palettes and sprites
 - [ ] Wave table per day
 - [ ] Sprite budget check with a full swarm (see TECH.md)
 
-## v0.8 — polish
+## v0.6 — polish
 - [ ] Title screen ("Grow. Defend. Survive.")
-- [x] Sound effects (v0.3.3: clips for swing, hit, caw, hurt, plant, harvest, no seeds)
 - [ ] Day 20 end screen for the test build ("A peaceful farm... for now.")
 
 ## v1.0 — release

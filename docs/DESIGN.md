@@ -74,7 +74,7 @@ capped at double its base HP). A crow that feeds for long is harder to kill, so 
 must stop crows fast. A fed crow should look different (bigger, or a palette change).
 
 Caleb's direction: early days have slower, weaker crows. Each day adds more crows and makes
-them faster, stronger, and tougher, a little at a time. (The v0.3 sparring crows are only for
+them faster, stronger, and tougher, a little at a time. (The v0.1 sparring crows are only for
 testing combat; their speed is not the day 1 speed.)
 
 Crows get stronger and more numerous each day. First guess for wave size: `4 + 2 * day`,
@@ -87,7 +87,7 @@ and new types unlock on later days (Fast day 3, Armored day 5, Big day 7, Swarm 
 ## Look and feel
 - Palette from the concept: greens, browns, gray, sky blue, red, dark brown, near-black.
 - 16-bit inspired, cozy, clean outlines. See `crowfield/art/concept/concept_sheet.png`.
-- Sound: real sound clips since v0.3.3 (Caleb's pick over retuned chimes). Free CC0 clips from Kenney
+- Sound: real sound clips since v0.1.0 (Caleb's pick over retuned chimes). Free CC0 clips from Kenney
   and OpenGameArt; see `crowfield/sound/CREDITS.md`.
 
 ## Open questions for the owner

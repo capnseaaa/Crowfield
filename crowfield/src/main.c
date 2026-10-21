@@ -1,4 +1,4 @@
-// Crowfield (GBA), v0.3: combat.
+// Crowfield (GBA), v0.1.0: first release (farming, sword combat, sound clips).
 // One-screen farm. Crops grow on a timer. The farmer plants, harvests, and fights crows with a sword.
 // Sparring crows fly at the farmer and peck him. At 0 hearts he is knocked out for 3 seconds.
 // D-pad: move   R: run   A: plant on empty soil / harvest a ripe crop (puts the sword away)
@@ -397,8 +397,8 @@ static void draw_farmer(void) {
 }
 
 // ---------- crows ----------
-// v0.3 crows are sparring partners: they fly at the farmer and peck him.
-// v0.4 adds crop eating, growing stronger, and waves.
+// v0.1 crows are sparring partners: they fly at the farmer and peck him.
+// v0.2 adds crop eating, growing stronger, and waves.
 #define MAX_CROWS 24
 enum { CROW_NONE, CROW_FLY, CROW_HURT, CROW_DEAD };
 // Separate arrays (not structs) so tests can poke $crow_hp+4 etc. Positions in 1/16 px, sprite top-left.
