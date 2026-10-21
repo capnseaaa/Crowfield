@@ -1,5 +1,5 @@
 # crops: plant, grow, harvest, run out of seeds
-1 0 !$sparring=0
+1 0 !$spawning=0
 30 0
 # stand on tile (8,5) facing up; tile (8,4) is empty soil
 1 0 !$px=2048,$py=1280,$pdir=1

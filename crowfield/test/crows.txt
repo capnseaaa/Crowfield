@@ -1,0 +1,50 @@
+# crows (v0.2): land on a crop, eat it stage by stage, grow tougher, re-target, chase the farmer
+# when no crops are left, game over, new run, waves.
+# Field bytes: SOIL=3 SPROUT=4 CROP=5 CROP_RIPE=6 CROP_YOUNG=14. Ripe crop at (10,3) = field index 55.
+1 0 !$spawning=0
+30 0
+# A: crow 0 flies 10 px down onto the ripe crop and starts eating (state EAT=4)
+1 0 !$crow_state=1,$crow_x=2560,$crow_y=544,$crow_hp=1,$crow_cool=999,$crow_target=55
+40 0 e1_landed.ppm
+1 0 @$crow_state,$crow_x,$crow_y,$farm+52
+# one bite (2 s): ripe -> grown, HP 1 -> 2 (red tint)
+120 0 e2_bite1.ppm
+1 0 @$crow_hp,$farm+52
+# three more bites: grown -> young -> sprout -> soil; HP stays at 2; it flies to the next crop (70)
+360 0 e3_eaten.ppm
+1 0 @$crow_hp,$farm+52,$crow_state,$crow_target
+# B: a fed crow takes 2 hits. Farmer stands left of it, facing right.
+60 0
+1 0 @$crow_state,$crow_x,$crow_y
+1 0 !$crow_cool=999
+1 0 !$px=2304,$py=1088,$pdir=3
+2 2
+20 0 e4_hit1.ppm
+1 0 @$crow_hp,$crow_state
+1 0 !$crow_x=2560,$crow_y=1088,$crow_state=1
+2 2
+4 0 e5_kill.ppm
+1 0 @$crow_hp,$crow_state
+30 0
+# C: no crops left: clear the field to soil (fence and grass bytes kept), a new crow goes for the farmer
+1 0 !$farm+48=50529031,$farm+52=50529027,$farm+64=50529027,$farm+68=117637891,$farm+80=50529027,$farm+84=459523
+1 0 !$px=1792,$py=1792
+1 0 !$crow_state+4=1,$crow_x+4=320,$crow_y+4=1792,$crow_hp+4=1,$crow_cool+4=999,$crow_target+4=55
+40 0
+1 0 @$crow_target+4,$crow_x+4,$game_over
+# D: no seeds and no crops: the farm is lost
+1 0 !$seeds=0
+3 0 e6_lost.ppm
+1 0 @$game_over
+# START: a new run with 3 seeds and the field back
+2 8
+3 0 e7_newrun.ppm
+1 0 @$game_over,$seeds,$farm+52,$crow_state+4,$wave
+# E: waves. Wave 1 after 2 s (6 crows, 45 frames apart). Clear them; wave 2 comes 3 s later.
+125 0
+1 0 @$wave,$wave_left
+280 0 e8_wave1.ppm
+1 0 @$wave,$wave_left,$crow_state,$crow_state+20
+1 0 !$crow_state=0,$crow_state+4=0,$crow_state+8=0,$crow_state+12=0,$crow_state+16=0,$crow_state+20=0
+182 0
+1 0 @$wave,$wave_left

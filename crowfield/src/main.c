@@ -1,9 +1,10 @@
-// Crowfield (GBA), v0.1.0: first release (farming, sword combat, sound clips).
+// Crowfield (GBA), v0.2: crows eat crops.
 // One-screen farm. Crops grow on a timer. The farmer plants, harvests, and fights crows with a sword.
-// Sparring crows fly at the farmer and peck him. At 0 hearts he is knocked out for 3 seconds.
+// Crows come in waves, eat crops (and grow tougher), and peck the farmer. At 0 hearts he is knocked out for 3 s.
+// No crops, no seeds, and no coins for a seed: the farm is lost. START begins a new run.
 // D-pad: move   R: run   A: plant on empty soil / harvest a ripe crop (puts the sword away)
 // B: draw and swing the sword (it stays in hand until A)
-// Later: crows that eat crops and get stronger, waves, days, shop, scarecrow turrets.
+// Later: days, the shop, scarecrow turrets.
 
 #include "data.h"
 #include "sound.h"
@@ -66,6 +67,7 @@ enum { SPR_FARMER_DOWN, SPR_FARMER_UP, SPR_FARMER_SIDE, SPR_CROW_A, SPR_CROW_B, 
 #define HFLIP 1
 #define VFLIP 2
 #define FLASH 0x10   // OBJ palette bank 1: all white
+#define FED   0x20   // OBJ palette bank 2: a crow that has eaten (red tint)
 
 // ---------- small helpers ----------
 static void copy32(volatile u32 *dst, const u32 *src, u32 words) {
@@ -170,6 +172,13 @@ static void put_text(s32 col, s32 row, const char *s) {
 static void clear_row(s32 row) {
     for (s32 c = 0; c < 32; c++) SCREENBLOCK(TEXT_SB)[row * 32 + c] = 0;
 }
+// Copies s into buf (no libc). Returns the length. Use instead of char buf[n] = "..." (that calls memset).
+static s32 copy_str(char *buf, const char *s) {
+    s32 n = 0;
+    while (s[n]) { buf[n] = s[n]; n++; }
+    buf[n] = 0;
+    return n;
+}
 // Writes n (0..99999) into buf, left-aligned. Returns the length.
 static s32 fmt_num(char *buf, u32 n) {
     char tmp[6];
@@ -223,7 +232,7 @@ static void put_sprite(s32 x, s32 y, u32 cell, u32 flags) {
 }
 
 // ---------- farm ----------
-static u8 farm[MAP_W * MAP_H];
+static u8 farm[MAP_W * MAP_H] __attribute__((aligned(4)));   // aligned: tests poke it 4 bytes at a time
 
 static u8 tile_at(s32 mx, s32 my) {
     if (mx < 0 || my < 0 || mx >= MAP_W || my >= MAP_H) return BUSH;
@@ -397,21 +406,57 @@ static void draw_farmer(void) {
 }
 
 // ---------- crows ----------
-// v0.1 crows are sparring partners: they fly at the farmer and peck him.
-// v0.2 adds crop eating, growing stronger, and waves.
+// Crows come in waves from the screen edges. Each flies to the nearest free crop, lands, and eats it one
+// stage per bite. Every bite makes it tougher (+1 HP up to double, red tint). With no crops left, crows go
+// for the farmer. Any crow pecks the farmer when he comes close.
 #define MAX_CROWS 24
-enum { CROW_NONE, CROW_FLY, CROW_HURT, CROW_DEAD };
+enum { CROW_NONE, CROW_FLY, CROW_HURT, CROW_DEAD, CROW_EAT };
 // Separate arrays (not structs) so tests can poke $crow_hp+4 etc. Positions in 1/16 px, sprite top-left.
 static s32 crow_state[MAX_CROWS], crow_x[MAX_CROWS], crow_y[MAX_CROWS], crow_hp[MAX_CROWS];
 static s32 crow_vx[MAX_CROWS], crow_vy[MAX_CROWS], crow_timer[MAX_CROWS];
 static s32 crow_flash[MAX_CROWS], crow_cool[MAX_CROWS], crow_hit_by[MAX_CROWS];
-static s32 sparring;       // how many crows to keep alive (tests set 0 and place crows by hand)
-static s32 spawn_timer;
-#define CROW_SPEED 10      // 1/16 px per frame
+static s32 crow_target[MAX_CROWS];   // field index of its crop, or -1: the farmer
+static s32 spawning;                 // 1: waves run (tests set 0 and place crows by hand)
+static s32 wave, wave_left, spawn_timer;
+#define CROW_SPEED 6       // 1/16 px per frame. Day 1 crows are slow (Caleb); later days speed up.
 #define CROW_HP 1          // Normal crow: 1 hit (DESIGN.md)
+#define CROW_HP_FED (2 * CROW_HP)   // bites raise HP up to this
 #define PECK_COOL 90
+#define BITE_FRAMES 120    // 2 s per bite: a ripe crop is gone after 4 bites
+#define SPAWN_GAP 45       // frames between crows of a wave
+#define WAVE_GAP 180       // 3 s after the last crow dies, the next wave comes
 
 static s32 abs32(s32 v) { return v < 0 ? -v : v; }
+
+static int is_crop(u8 t) {
+    return t == SPROUT || t == CROP_YOUNG || t == CROP || t == CROP_RIPE;
+}
+static u8 eaten_stage(u8 t) {   // one bite takes a crop down one stage
+    return t == CROP_RIPE ? CROP : t == CROP ? CROP_YOUNG : t == CROP_YOUNG ? SPROUT : SOIL;
+}
+static int field_has_crops(void) {
+    for (s32 i = 0; i < MAP_W * MAP_H; i++) if (is_crop(farm[i])) return 1;
+    return 0;
+}
+
+// Nearest crop no other crow is after; else the nearest crop; else -1 (go for the farmer).
+static s32 pick_target(s32 c) {
+    s32 best = -1, best_d = 0x7FFFFFFF, shared = -1, shared_d = 0x7FFFFFFF;
+    s32 cx = crow_x[c] >> 4, cy = crow_y[c] >> 4;
+    for (s32 y = 0; y < MAP_H; y++)
+        for (s32 x = 0; x < MAP_W; x++) {
+            s32 t = y * MAP_W + x;
+            if (!is_crop(farm[t])) continue;
+            s32 d = abs32(x * 16 - cx) + abs32(y * 16 - cy);
+            s32 taken = 0;
+            for (s32 o = 0; o < MAX_CROWS; o++)
+                if (o != c && (crow_state[o] == CROW_FLY || crow_state[o] == CROW_EAT || crow_state[o] == CROW_HURT)
+                    && crow_target[o] == t) taken = 1;
+            if (!taken && d < best_d) { best = t; best_d = d; }
+            if (d < shared_d) { shared = t; shared_d = d; }
+        }
+    return best >= 0 ? best : shared;
+}
 
 static void spawn_crow(void) {
     for (s32 i = 0; i < MAX_CROWS; i++) {
@@ -423,6 +468,7 @@ static void spawn_crow(void) {
         crow_state[i] = CROW_FLY;
         crow_hp[i] = CROW_HP;
         crow_flash[i] = 0; crow_cool[i] = 60; crow_vx[i] = crow_vy[i] = 0;
+        crow_target[i] = pick_target(i);
         play(SND_CAW);
         return;
     }
@@ -438,6 +484,55 @@ static void hurt_farmer(s32 from_x, s32 from_y) {
     if (hearts <= 0) { hearts = 0; ko_timer = KO_FRAMES; show_message("KNOCKED OUT!"); play(SND_KNOCKDOWN); }
     else hurt_timer = HURT_FRAMES;
     draw_hud();
+}
+
+// Peck the farmer if he is within reach px. Returns 1 if the crow pecked.
+static int try_peck(s32 i, s32 reach) {
+    s32 dx = px - crow_x[i], dy = py - crow_y[i];
+    if (crow_cool[i] || abs32(dx) >= reach * 16 || abs32(dy) >= reach * 16) return 0;
+    hurt_farmer(crow_x[i], crow_y[i]);
+    crow_cool[i] = PECK_COOL;
+    crow_state[i] = CROW_HURT;   // bounce back after the peck
+    crow_timer[i] = 12;
+    crow_vx[i] = dx > 0 ? -40 : 40;
+    crow_vy[i] = dy > 0 ? -40 : 40;
+    return 1;
+}
+
+// Move crow i toward (x, y) in 1/16 px. Returns 1 on arrival.
+static int fly_to(s32 i, s32 x, s32 y) {
+    s32 dx = x - crow_x[i], dy = y - crow_y[i];
+    s32 ax = abs32(dx), ay = abs32(dy);
+    s32 sx = ax >= ay / 2 ? CROW_SPEED : 0, sy = ay >= ax / 2 ? CROW_SPEED : 0;
+    if (ax > sx) crow_x[i] += dx > 0 ? sx : -sx; else crow_x[i] = x;
+    if (ay > sy) crow_y[i] += dy > 0 ? sy : -sy; else crow_y[i] = y;
+    if (dx) crow_vx[i] = dx;   // remembered for facing
+    return crow_x[i] == x && crow_y[i] == y;
+}
+
+static void bite(s32 i) {
+    s32 t = crow_target[i];
+    u8 left = eaten_stage(farm[t]);
+    grow[t] = 0;
+    set_tile(t % MAP_W, t / MAP_W, left);
+    if (crow_hp[i] < CROW_HP_FED) crow_hp[i]++;
+    if (left == SOIL) { crow_state[i] = CROW_FLY; crow_target[i] = pick_target(i); }   // crop gone
+}
+
+static void update_waves(s32 alive) {
+    if (!spawning) return;
+    if (wave_left > 0) {
+        if (++spawn_timer >= SPAWN_GAP) { spawn_timer = 0; spawn_crow(); wave_left--; }
+        return;
+    }
+    if (alive) { spawn_timer = 0; return; }
+    if (++spawn_timer < WAVE_GAP) return;
+    char buf[12];
+    wave++;
+    fmt_num(buf + copy_str(buf, "WAVE "), wave);
+    show_message(buf);
+    wave_left = 4 + 2 * day;   // DESIGN.md first guess
+    spawn_timer = SPAWN_GAP;   // first crow right away
 }
 
 static void update_crows(void) {
@@ -460,24 +555,28 @@ static void update_crows(void) {
             if (--crow_timer[i] <= 0) crow_state[i] = CROW_FLY;
             continue;
         }
-        // Fly toward the farmer. Hover in place while he is knocked out.
-        s32 dx = px - crow_x[i], dy = py - crow_y[i];
-        if (ko_timer) continue;
-        s32 ax = abs32(dx), ay = abs32(dy);
-        s32 sx = ax >= ay / 2 ? CROW_SPEED : 0, sy = ay >= ax / 2 ? CROW_SPEED : 0;
-        if (ax > sx) crow_x[i] += dx > 0 ? sx : -sx; else crow_x[i] = px;
-        if (ay > sy) crow_y[i] += dy > 0 ? sy : -sy; else crow_y[i] = py;
-        crow_vx[i] = dx;   // remembered for facing
-        if (ax < 10 * 16 && ay < 10 * 16 && !crow_cool[i]) {   // close enough: peck
-            hurt_farmer(crow_x[i], crow_y[i]);
-            crow_cool[i] = PECK_COOL;
-            crow_state[i] = CROW_HURT;   // bounce back after the peck
-            crow_timer[i] = 12;
-            crow_vx[i] = dx > 0 ? -40 : 40;
-            crow_vy[i] = dy > 0 ? -40 : 40;
+        s32 t = crow_target[i];
+        if (st == CROW_EAT) {    // crows eat freely while the farmer is knocked out
+            if (!is_crop(farm[t])) { crow_state[i] = CROW_FLY; crow_target[i] = pick_target(i); continue; }   // harvested
+            if (!ko_timer && try_peck(i, 12)) continue;
+            if (--crow_timer[i] <= 0) { crow_timer[i] = BITE_FRAMES; bite(i); }
+            continue;
+        }
+        // Flying. Check the target: the crop may be gone, or a crow after the farmer may see new crops.
+        if (t >= 0 ? !is_crop(farm[t]) : ((frame + i) & 31) == 0) t = crow_target[i] = pick_target(i);
+        if (t < 0) {             // no crops: go for the farmer; hover while he is knocked out
+            if (ko_timer) continue;
+            fly_to(i, px, py);
+            try_peck(i, 10);
+            continue;
+        }
+        if (!ko_timer && try_peck(i, 10)) continue;
+        if (fly_to(i, (t % MAP_W) * 256, (t / MAP_W) * 256 - 4 * 16)) {   // land on the crop, standing a bit high
+            crow_state[i] = CROW_EAT;
+            crow_timer[i] = BITE_FRAMES;
         }
     }
-    if (alive < sparring && ++spawn_timer >= 90) { spawn_timer = 0; spawn_crow(); }
+    update_waves(alive);
 }
 
 static void draw_crows(void) {
@@ -489,7 +588,11 @@ static void draw_crows(void) {
             put_sprite(x, y, crow_timer[i] > 8 ? SPR_PUFF_SMALL : SPR_PUFF_BIG, 0);
             continue;
         }
-        u32 flags = (crow_vx[i] < 0 ? HFLIP : 0) | (crow_flash[i] ? FLASH : 0);
+        u32 flags = (crow_vx[i] < 0 ? HFLIP : 0) | (crow_flash[i] ? FLASH : crow_hp[i] > CROW_HP ? FED : 0);
+        if (st == CROW_EAT) {    // wings folded; dips its head for the last few frames before a bite
+            put_sprite(x, y + (crow_timer[i] < 10), SPR_CROW_B, flags);
+            continue;
+        }
         put_sprite(x, y, ((frame + i * 3) >> 3) & 1 ? SPR_CROW_A : SPR_CROW_B, flags);
     }
 }
@@ -513,7 +616,7 @@ static void update_sword(void) {
     slash_x = cx + (pdir == DIR_RIGHT ? sword_reach : pdir == DIR_LEFT ? -sword_reach : 0);
     slash_y = cy + (pdir == DIR_DOWN ? sword_reach : pdir == DIR_UP ? -sword_reach : 0);
     for (s32 i = 0; i < MAX_CROWS; i++) {
-        if (crow_state[i] != CROW_FLY && crow_state[i] != CROW_HURT) continue;
+        if (crow_state[i] != CROW_FLY && crow_state[i] != CROW_HURT && crow_state[i] != CROW_EAT) continue;
         if (crow_hit_by[i] == swing_id) continue;   // one hit per swing
         s32 ex = (crow_x[i] >> 4) + 8 - slash_x, ey = (crow_y[i] >> 4) + 8 - slash_y;
         if (abs32(ex) > 14 || abs32(ey) > 14) continue;
@@ -567,6 +670,38 @@ static void draw_sword(void) {
     put_sprite((px >> 4) + hand_x[pdir] - gx, (py >> 4) - bob + hand_y[pdir] - gy, cell, flags);
 }
 
+// ---------- run: start and game over ----------
+#define SEED_PRICE 5   // first guess; the shop (v0.3) sells seeds
+static s32 game_over;
+
+static void new_run(void) {
+    reset_farm();
+    for (s32 i = 0; i < MAX_CROWS; i++) crow_state[i] = CROW_NONE;
+    for (s32 r = 1; r < 20; r++) clear_row(r);
+    msg_timer = 0;
+    px = PLAYER_START_X * 16 * 16;
+    py = PLAYER_START_Y * 16 * 16;
+    pdir = DIR_UP;
+    pvx = pvy = hurt_timer = ko_timer = swing = weapon_out = 0;
+    day = 1; seeds = 3; crops = 0; coins = 0; hearts = max_hearts = 3;   // DESIGN.md first guesses
+    spawning = 1; wave = 0; wave_left = 0; spawn_timer = WAVE_GAP - 120;   // first wave after 2 s
+    game_over = 0;
+    draw_hud();
+}
+
+// Lose: no crops in the field, no seeds, and not enough coins for a seed (DESIGN.md).
+static void check_game_over(void) {
+    if (seeds > 0 || coins >= SEED_PRICE || field_has_crops()) return;
+    char buf[24];
+    fmt_num(buf + copy_str(buf, "YOU REACHED DAY "), day);
+    game_over = 1;
+    msg_timer = 0;
+    for (s32 r = 7; r <= 13; r++) clear_row(r);
+    put_text(7, 8, "THE FARM IS LOST");
+    put_text(7, 10, buf);
+    put_text(9, 12, "PRESS START");
+}
+
 // ---------- main ----------
 int main(void) {
     REG_DISPCNT = 0x0080;   // forced blank while loading
@@ -575,7 +710,11 @@ int main(void) {
         PAL_BG[i] = bg_pal[i];
         PAL_OBJ[i] = obj_pal[i];
         PAL_OBJ[16 + i] = 0x7FFF;   // bank 1: hit flash, all white
+        PAL_OBJ[32 + i] = obj_pal[i];   // bank 2: fed crow, crow colors tinted red below
     }
+    PAL_OBJ[32 + 1] = (9) | (3 << 5) | (3 << 10);      // body: dark red-black
+    PAL_OBJ[32 + 9] = (17) | (5 << 5) | (5 << 10);     // wing: deep red
+    PAL_OBJ[32 + 10] = (24) | (9 << 5) | (8 << 10);    // sheen: red
     PAL_BG[16 + 1] = (29) | (28 << 5) | (22 << 10);   // text: cream
     PAL_BG[16 + 2] = (3) | (4 << 5) | (6 << 10);      // text background: dark slate
     PAL_BG[16 + 3] = (28) | (8 << 5) | (6 << 10);     // heart red
@@ -592,13 +731,7 @@ int main(void) {
     REG_BG0CNT = 0 | (1 << 2) | (TEXT_SB << 8);   // text: priority 0
     REG_BG1CNT = 2 | (0 << 2) | (MAP_SB << 8);    // map: priority 2, 32x32 tiles
     sound_init();
-    reset_farm();
-    px = PLAYER_START_X * 16 * 16;
-    py = PLAYER_START_Y * 16 * 16;
-    pdir = DIR_UP;
-    day = 1; seeds = 3; crops = 0; coins = 0; hearts = max_hearts = 3;   // DESIGN.md first guesses
-    sparring = 2;
-    draw_hud();
+    new_run();
 
     REG_DISPCNT = 0x0000 | (1 << 6) | (1 << 8) | (1 << 9) | (1 << 12);   // mode 0, 1D OBJ, BG0, BG1, OBJ
 
@@ -613,6 +746,12 @@ int main(void) {
         rng_state += keys_now;
         (void)rng;
 
+        if (game_over) {
+            if (HIT(KEY_START)) new_run();
+            else if (((frame >> 5) & 1) != ((frame - 1) >> 5 & 1))   // blink PRESS START
+                put_text(9, 12, (frame >> 5) & 1 ? "           " : "PRESS START");
+            continue;
+        }
         update_farmer();
         update_target();
         farm_work();
@@ -620,6 +759,7 @@ int main(void) {
         update_crows();
         update_crops();
         update_message();
+        check_game_over();
 
         oam_begin();
         if (pdir != DIR_UP) draw_sword();   // in front of the farmer

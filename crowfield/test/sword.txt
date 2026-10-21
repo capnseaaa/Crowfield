@@ -1,5 +1,5 @@
 # sword: hidden at start, drawn by B, stays in hand, put away by A
-1 0 !$sparring=0
+1 0 !$spawning=0
 30 0
 1 0 !$px=1792,$py=1792,$pdir=3
 1 0 @$weapon_out

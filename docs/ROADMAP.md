@@ -37,13 +37,13 @@ numbers v0.1.0-v0.3.3 in commit subjects; those numbers are history only and hav
 - [x] v0.1.1: short wooden sword; crow death, spawn caw, seed and knockdown sounds
 - [x] v0.1.2: synthesized whoosh for the swing and a sparkly poof for a crow kill (Caleb found the old ones unclear)
 
-## v0.2 — crows
-- [ ] Crows pick a target crop, land, and eat one stage per bite; they still peck the farmer
-- [ ] Each bite buffs the crow's HP (fed crows look different)
-- [ ] When no crops are left, crows go after the farmer
-- [ ] Wave spawner from the screen edges (replaces sparring crows)
-- [ ] Game over when no crops, no seeds, and not enough coins for a seed
-- [ ] `test/crows.txt`
+## v0.2 — crows (done)
+- [x] Crows pick a target crop, land, and eat one stage per bite; they still peck the farmer
+- [x] Each bite buffs the crow's HP (fed crows look different: red tint)
+- [x] When no crops are left, crows go after the farmer
+- [x] Wave spawner from the screen edges (replaces sparring crows)
+- [x] Game over when no crops, no seeds, and not enough coins for a seed; START starts a new run
+- [x] `test/crows.txt`
 
 ## v0.3 — days and the shop
 - [ ] Day ends when all crows are dead, then dusk; `Day x` banner (test build caps at 20)

@@ -72,7 +72,14 @@ All other numbers are open until playtests.
 | Swarm | flock of tiny crows | many weak crows that come as one group. |
 
 **Eating buffs crows.** Each crop stage a crow eats gives it more HP (first guess +1 HP per bite,
-capped at double its base HP). A crow that feeds for long is harder to kill, so the farmer
+capped at double its base HP). A fed crow is tinted red.
+
+**v0.2 crow numbers (first guesses, tune by play):** flight 6/16 px per frame (the old sparring crows
+flew 10); one bite every 2 s, so a ripe crop is gone after 4 bites; each crow goes for the nearest crop
+no other crow has picked; a crow pecks the farmer within 10 px (12 px while eating), then waits 1.5 s;
+a wave is `4 + 2 * day` crows, one every 0.75 s from a random screen edge; the next wave comes 3 s after
+the last crow dies (days arrive in v0.3). Seed price for the game-over check: 5 coins (placeholder until
+the shop). A crow that feeds for long is harder to kill, so the farmer
 must stop crows fast. A fed crow should look different (bigger, or a palette change).
 
 Caleb's direction: early days have slower, weaker crows. Each day adds more crows and makes

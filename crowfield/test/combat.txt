@@ -1,6 +1,6 @@
 # combat: sword hits, knockback, kill, peck, knockout
 # no random crows; place them by hand. Crow 0 sits 24 px right of the farmer.
-1 0 !$sparring=0
+1 0 !$spawning=0
 30 0
 1 0 !$px=1792,$py=1792,$pdir=3
 1 0 !$crow_state=1,$crow_x=2176,$crow_y=1792,$crow_hp=2,$crow_cool=999
@@ -25,10 +25,11 @@
 1 0 !$crow_state+8=1,$crow_x+8=1800,$crow_y+8=1792,$crow_hp+8=1,$crow_cool+8=0
 3 0
 1 0 @$hearts
-# clear crows, set 1 heart, peck again: knocked out
+# clear crows, set 1 heart, put the farmer back (the last peck knocked him away; crows now go for crops,
+# so they only peck within 10 px), peck again: knocked out
 1 0 !$crow_state=0,$crow_state+4=0,$crow_state+8=0
 70 0
-1 0 !$hearts=1,$crow_state+12=1,$crow_x+12=1800,$crow_y+12=1792,$crow_hp+12=1,$crow_cool+12=0
+1 0 !$hearts=1,$px=1792,$py=1792,$crow_state+12=1,$crow_x+12=1800,$crow_y+12=1792,$crow_hp+12=1,$crow_cool+12=0
 3 0 k5_ko.ppm
 1 0 @$hearts,$ko_timer
 # B does nothing while knocked out
