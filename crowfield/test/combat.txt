@@ -1,0 +1,39 @@
+# combat: sword hits, knockback, kill, peck, knockout
+# no random crows; place them by hand. Crow 0 sits 24 px right of the farmer.
+1 0 !$sparring=0
+30 0
+1 0 !$px=1792,$py=1792,$pdir=3
+1 0 !$crow_state=1,$crow_x=2176,$crow_y=1792,$crow_hp=2,$crow_cool=999
+# swing right: hp 2 -> 1, crow knocked back (state HURT=2, x grows)
+2 2
+3 0 k1_swing.ppm
+1 0 @$crow_hp,$crow_state,$crow_x
+20 0 k2_knocked.ppm
+1 0 @$crow_x
+# put it back in reach and swing again: dies (state DEAD=3), then gone (0)
+1 0 !$crow_x=2176,$crow_y=1792,$crow_state=1
+2 2
+4 0 k3_kill.ppm
+1 0 @$crow_hp,$crow_state
+30 0
+1 0 @$crow_state
+# peck: crow 1 right on the farmer, ready to peck. hearts 3 -> 2
+1 0 !$crow_state+4=1,$crow_x+4=1800,$crow_y+4=1792,$crow_hp+4=1,$crow_cool+4=0
+3 0 k4_peck.ppm
+1 0 @$hearts,$hurt_timer
+# a second crow right away: farmer is still blinking, no damage
+1 0 !$crow_state+8=1,$crow_x+8=1800,$crow_y+8=1792,$crow_hp+8=1,$crow_cool+8=0
+3 0
+1 0 @$hearts
+# clear crows, set 1 heart, peck again: knocked out
+1 0 !$crow_state=0,$crow_state+4=0,$crow_state+8=0
+70 0
+1 0 !$hearts=1,$crow_state+12=1,$crow_x+12=1800,$crow_y+12=1792,$crow_hp+12=1,$crow_cool+12=0
+3 0 k5_ko.ppm
+1 0 @$hearts,$ko_timer
+# B does nothing while knocked out
+2 2
+1 0 @$swing
+# after 3 s he gets up with full hearts
+180 0 k6_up.ppm
+1 0 @$hearts,$ko_timer

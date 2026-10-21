@@ -1,8 +1,8 @@
-// Crowfield (GBA), v0.2: crops.
-// One-screen farm. Crops grow on a timer. The farmer plants seeds and harvests ripe crops.
-// One test crow circles overhead (it does nothing yet).
-// D-pad: move   B: run   A: plant on empty soil / harvest a ripe crop
-// Later: days, crows that eat crops, sickle/sword, scarecrow turrets, shop.
+// Crowfield (GBA), v0.3: combat.
+// One-screen farm. Crops grow on a timer. The farmer plants, harvests, and fights crows with a sword.
+// Sparring crows fly at the farmer and peck him. At 0 hearts he is knocked out for 3 seconds.
+// D-pad: move   R: run   A: plant on empty soil / harvest a ripe crop   B: swing the sword
+// Later: crows that eat crops and get stronger, waves, days, shop, scarecrow turrets.
 
 #include "data.h"
 
@@ -52,7 +52,12 @@ enum { GRASS, GRASS_TUFT, DIRT, SOIL, SPROUT, CROP, CROP_RIPE, FENCE, BUSH,
        FENCE_V, FENCE_TL, FENCE_TR, FENCE_BL, FENCE_BR, CROP_YOUNG };   // FENCE_V.. are looks only; the map stores FENCE
 enum { DIR_DOWN, DIR_UP, DIR_LEFT, DIR_RIGHT };
 // Sprite cells in sprites.png (4 tiles each in OBJ VRAM)
-enum { SPR_FARMER_DOWN, SPR_FARMER_UP, SPR_FARMER_SIDE, SPR_CROW_A, SPR_CROW_B, SPR_MARKER };
+enum { SPR_FARMER_DOWN, SPR_FARMER_UP, SPR_FARMER_SIDE, SPR_CROW_A, SPR_CROW_B, SPR_MARKER,
+       SPR_SLASH_SIDE, SPR_SLASH_UP, SPR_PUFF_BIG, SPR_PUFF_SMALL, SPR_FARMER_KO };
+// put_sprite flags
+#define HFLIP 1
+#define VFLIP 2
+#define FLASH 0x10   // OBJ palette bank 1: all white
 
 // ---------- small helpers ----------
 static void copy32(volatile u32 *dst, const u32 *src, u32 words) {
@@ -129,7 +134,7 @@ static void update_message(void) {
 }
 
 // sin table, 64 steps per turn, scaled by 256
-static const signed short sin64[64] = {
+static const signed short sin64[64] __attribute__((unused)) = {
     0, 25, 50, 74, 98, 121, 142, 162, 181, 198, 213, 226, 237, 245, 251, 255,
     256, 255, 251, 245, 237, 226, 213, 198, 181, 162, 142, 121, 98, 74, 50, 25,
     0, -25, -50, -74, -98, -121, -142, -162, -181, -198, -213, -226, -237, -245, -251, -255,
@@ -147,13 +152,13 @@ static void oam_begin(void) { oam_used = 0; }
 static void oam_end(void) {
     for (u32 i = oam_used; i < 128; i++) oam_shadow[i * 4] = 0x0200;   // hidden
 }
-// 16x16 sprite at screen (x, y), cell from sprites.png
-static void put_sprite(s32 x, s32 y, u32 cell, u32 hflip) {
+// 16x16 sprite at screen (x, y), cell from sprites.png. flags: HFLIP, VFLIP, FLASH.
+static void put_sprite(s32 x, s32 y, u32 cell, u32 flags) {
     if (oam_used >= 128) return;
     u16 *o = &oam_shadow[oam_used++ * 4];
-    o[0] = (y & 0xFF);                                    // square shape
-    o[1] = (x & 0x1FF) | (1 << 14) | (hflip << 12);       // 16x16
-    o[2] = cell * 4;                                      // tile index, priority 0, palette 0
+    o[0] = (y & 0xFF);                                            // square shape
+    o[1] = (x & 0x1FF) | (1 << 14) | ((flags & 3) << 12);         // 16x16, flips
+    o[2] = cell * 4 | ((flags >> 4) << 12);                       // tile index, priority 0, palette bank
 }
 
 // ---------- farm ----------
@@ -230,8 +235,27 @@ static int blocked(s32 x, s32 y) {
            is_solid(tile_at(l >> 4, b >> 4)) || is_solid(tile_at(r >> 4, b >> 4));
 }
 
+// Combat state for the farmer (used by update_farmer, so declared here)
+static s32 hearts, max_hearts;
+static s32 hurt_timer;           // > 0: just hit, cannot be hit again (blinks)
+static s32 ko_timer;             // > 0: knocked out, cannot act
+static s32 pvx, pvy;             // knockback velocity, 1/16 px per frame
+#define HURT_FRAMES 60
+#define KO_FRAMES 180            // 3 seconds (Caleb's call)
+
 static void update_farmer(void) {
-    s32 speed = HELD(KEY_B) ? 32 : 20;
+    if (pvx || pvy) {            // knockback slide, stopped by fences and bushes
+        if (!blocked(px + pvx, py)) px += pvx;
+        if (!blocked(px, py + pvy)) py += pvy;
+        pvx -= pvx / 4 + (pvx > 0) - (pvx < 0);
+        pvy -= pvy / 4 + (pvy > 0) - (pvy < 0);
+    }
+    if (hurt_timer) hurt_timer--;
+    if (ko_timer) {
+        if (--ko_timer == 0) { hearts = max_hearts; hurt_timer = HURT_FRAMES; }
+        return;
+    }
+    s32 speed = HELD(KEY_R) ? 32 : 20;
     s32 dx = 0, dy = 0;
     if (HELD(KEY_LEFT))  { dx = -speed; pdir = DIR_LEFT; }
     if (HELD(KEY_RIGHT)) { dx = speed;  pdir = DIR_RIGHT; }
@@ -243,7 +267,7 @@ static void update_farmer(void) {
 }
 
 // ---------- farm work (A button) ----------
-static s32 seeds, crops, coins, day, hearts;
+static s32 seeds, crops, coins, day;
 static s32 tx, ty;   // the tile the farmer works on: just in front of his feet
 
 static void update_target(void) {
@@ -262,8 +286,10 @@ static int is_field(u8 t) {
 
 static void draw_hud(void);
 
+static s32 swing;   // > 0: sword swing frames left
+
 static void farm_work(void) {
-    if (!HIT(KEY_A)) return;
+    if (!HIT(KEY_A) || ko_timer || swing) return;
     u8 t = tile_at(tx, ty);
     if (t == CROP_RIPE) {
         set_tile(tx, ty, SOIL);
@@ -296,20 +322,158 @@ static void draw_hud(void) {
     for (s32 i = 0; i < hearts && i < 5; i++) put_text(25 + i, 0, "*");
 }
 
-static void draw_farmer(void) {
-    u32 cell = pdir == DIR_DOWN ? SPR_FARMER_DOWN : pdir == DIR_UP ? SPR_FARMER_UP : SPR_FARMER_SIDE;
-    s32 bob = (pstep >> 3) & 1;   // 1 px walk bob
-    put_sprite(px >> 4, (py >> 4) - bob, cell, pdir == DIR_LEFT);
-}
-
-// ---------- test crow ----------
 static u32 frame;   // game loop counter; the test harness steps by it
 
-static void draw_crow(void) {
-    u32 a = (frame >> 1) & 63;
-    s32 x = 112 + (sin64[a] * 72 >> 8);
-    s32 y = 56 + (sin64[(a + 16) & 63] * 32 >> 8);
-    put_sprite(x, y, (frame >> 3) & 1 ? SPR_CROW_A : SPR_CROW_B, a < 32);
+static void draw_farmer(void) {
+    if (ko_timer) { put_sprite(px >> 4, py >> 4, SPR_FARMER_KO, 0); return; }
+    if (hurt_timer && (frame & 4)) return;   // blink while hurt
+    u32 cell = pdir == DIR_DOWN ? SPR_FARMER_DOWN : pdir == DIR_UP ? SPR_FARMER_UP : SPR_FARMER_SIDE;
+    s32 bob = (pstep >> 3) & 1;   // 1 px walk bob
+    put_sprite(px >> 4, (py >> 4) - bob, cell, pdir == DIR_LEFT ? HFLIP : 0);
+}
+
+// ---------- crows ----------
+// v0.3 crows are sparring partners: they fly at the farmer and peck him.
+// v0.4 adds crop eating, growing stronger, and waves.
+#define MAX_CROWS 24
+enum { CROW_NONE, CROW_FLY, CROW_HURT, CROW_DEAD };
+// Separate arrays (not structs) so tests can poke $crow_hp+4 etc. Positions in 1/16 px, sprite top-left.
+static s32 crow_state[MAX_CROWS], crow_x[MAX_CROWS], crow_y[MAX_CROWS], crow_hp[MAX_CROWS];
+static s32 crow_vx[MAX_CROWS], crow_vy[MAX_CROWS], crow_timer[MAX_CROWS];
+static s32 crow_flash[MAX_CROWS], crow_cool[MAX_CROWS], crow_hit_by[MAX_CROWS];
+static s32 sparring;       // how many crows to keep alive (tests set 0 and place crows by hand)
+static s32 spawn_timer;
+#define CROW_SPEED 10      // 1/16 px per frame
+#define CROW_HP 1          // Normal crow: 1 hit (DESIGN.md)
+#define PECK_COOL 90
+
+static s32 abs32(s32 v) { return v < 0 ? -v : v; }
+
+static void spawn_crow(void) {
+    for (s32 i = 0; i < MAX_CROWS; i++) {
+        if (crow_state[i] != CROW_NONE) continue;
+        u32 side = rng() & 3, along = rng();
+        s32 x = side == 0 ? -16 : side == 1 ? 240 : 16 + along % 208;
+        s32 y = side == 2 ? -16 : side == 3 ? 160 : 24 + along % 112;
+        crow_x[i] = x * 16; crow_y[i] = y * 16;
+        crow_state[i] = CROW_FLY;
+        crow_hp[i] = CROW_HP;
+        crow_flash[i] = 0; crow_cool[i] = 60; crow_vx[i] = crow_vy[i] = 0;
+        return;
+    }
+}
+
+static void hurt_farmer(s32 from_x, s32 from_y) {
+    if (hurt_timer || ko_timer) return;
+    hearts--;
+    s32 dx = px - from_x, dy = py - from_y;
+    pvx = dx > 0 ? 48 : dx < 0 ? -48 : 0;
+    pvy = dy > 0 ? 48 : dy < 0 ? -48 : 0;
+    chime(196, 12);
+    if (hearts <= 0) { hearts = 0; ko_timer = KO_FRAMES; show_message("KNOCKED OUT!"); }
+    else hurt_timer = HURT_FRAMES;
+    draw_hud();
+}
+
+static void update_crows(void) {
+    s32 alive = 0;
+    for (s32 i = 0; i < MAX_CROWS; i++) {
+        s32 st = crow_state[i];
+        if (st == CROW_NONE) continue;
+        if (crow_flash[i]) crow_flash[i]--;
+        if (crow_cool[i]) crow_cool[i]--;
+        if (st == CROW_DEAD) {
+            if (--crow_timer[i] <= 0) crow_state[i] = CROW_NONE;
+            continue;
+        }
+        alive++;
+        if (st == CROW_HURT) {   // knocked back, sliding to a stop
+            crow_x[i] += crow_vx[i];
+            crow_y[i] += crow_vy[i];
+            crow_vx[i] -= crow_vx[i] / 4;
+            crow_vy[i] -= crow_vy[i] / 4;
+            if (--crow_timer[i] <= 0) crow_state[i] = CROW_FLY;
+            continue;
+        }
+        // Fly toward the farmer. Hover in place while he is knocked out.
+        s32 dx = px - crow_x[i], dy = py - crow_y[i];
+        if (ko_timer) continue;
+        s32 ax = abs32(dx), ay = abs32(dy);
+        s32 sx = ax >= ay / 2 ? CROW_SPEED : 0, sy = ay >= ax / 2 ? CROW_SPEED : 0;
+        if (ax > sx) crow_x[i] += dx > 0 ? sx : -sx; else crow_x[i] = px;
+        if (ay > sy) crow_y[i] += dy > 0 ? sy : -sy; else crow_y[i] = py;
+        crow_vx[i] = dx;   // remembered for facing
+        if (ax < 10 * 16 && ay < 10 * 16 && !crow_cool[i]) {   // close enough: peck
+            hurt_farmer(crow_x[i], crow_y[i]);
+            crow_cool[i] = PECK_COOL;
+            crow_state[i] = CROW_HURT;   // bounce back after the peck
+            crow_timer[i] = 12;
+            crow_vx[i] = dx > 0 ? -40 : 40;
+            crow_vy[i] = dy > 0 ? -40 : 40;
+        }
+    }
+    if (alive < sparring && ++spawn_timer >= 90) { spawn_timer = 0; spawn_crow(); }
+}
+
+static void draw_crows(void) {
+    for (s32 i = 0; i < MAX_CROWS; i++) {
+        s32 st = crow_state[i];
+        if (st == CROW_NONE) continue;
+        s32 x = crow_x[i] >> 4, y = crow_y[i] >> 4;
+        if (st == CROW_DEAD) {
+            put_sprite(x, y, crow_timer[i] > 8 ? SPR_PUFF_SMALL : SPR_PUFF_BIG, 0);
+            continue;
+        }
+        u32 flags = (crow_vx[i] < 0 ? HFLIP : 0) | (crow_flash[i] ? FLASH : 0);
+        put_sprite(x, y, ((frame + i * 3) >> 3) & 1 ? SPR_CROW_A : SPR_CROW_B, flags);
+    }
+}
+
+// ---------- sword ----------
+#define SWING_FRAMES 12
+static s32 swing_cool, swing_id;
+static s32 sword_damage = 1, sword_reach = 14;   // Lv.1; the shop raises these later
+static s32 slash_x, slash_y;                     // center of the hit box, screen px
+
+static void update_sword(void) {
+    if (swing_cool) swing_cool--;
+    if (!swing && HIT(KEY_B) && !swing_cool && !ko_timer) {
+        swing = SWING_FRAMES;
+        swing_id++;
+        chime(392, 9);
+    }
+    if (!swing) return;
+    s32 cx = (px >> 4) + 8, cy = (py >> 4) + 8;
+    slash_x = cx + (pdir == DIR_RIGHT ? sword_reach : pdir == DIR_LEFT ? -sword_reach : 0);
+    slash_y = cy + (pdir == DIR_DOWN ? sword_reach : pdir == DIR_UP ? -sword_reach : 0);
+    for (s32 i = 0; i < MAX_CROWS; i++) {
+        if (crow_state[i] != CROW_FLY && crow_state[i] != CROW_HURT) continue;
+        if (crow_hit_by[i] == swing_id) continue;   // one hit per swing
+        s32 ex = (crow_x[i] >> 4) + 8 - slash_x, ey = (crow_y[i] >> 4) + 8 - slash_y;
+        if (abs32(ex) > 14 || abs32(ey) > 14) continue;
+        crow_hit_by[i] = swing_id;
+        crow_hp[i] -= sword_damage;
+        crow_flash[i] = 8;
+        if (crow_hp[i] <= 0) {
+            crow_state[i] = CROW_DEAD;
+            crow_timer[i] = 16;
+            chime(1319, 10);
+            continue;
+        }
+        crow_state[i] = CROW_HURT;   // knockback away from the farmer
+        crow_timer[i] = 14;
+        crow_vx[i] = pdir == DIR_RIGHT ? 64 : pdir == DIR_LEFT ? -64 : 0;
+        crow_vy[i] = pdir == DIR_DOWN ? 64 : pdir == DIR_UP ? -64 : 0;
+        chime(880, 10);
+    }
+    if (--swing == 0) swing_cool = 6;
+}
+
+static void draw_slash(void) {
+    if (!swing) return;
+    u32 cell = pdir == DIR_LEFT || pdir == DIR_RIGHT ? SPR_SLASH_SIDE : SPR_SLASH_UP;
+    u32 flags = pdir == DIR_LEFT ? HFLIP : pdir == DIR_DOWN ? VFLIP : 0;
+    put_sprite(slash_x - 8, slash_y - 8, cell, flags);
 }
 
 // ---------- main ----------
@@ -319,6 +483,7 @@ int main(void) {
     for (u32 i = 0; i < 16; i++) {
         PAL_BG[i] = bg_pal[i];
         PAL_OBJ[i] = obj_pal[i];
+        PAL_OBJ[16 + i] = 0x7FFF;   // bank 1: hit flash, all white
     }
     PAL_BG[16 + 1] = (29) | (28 << 5) | (22 << 10);   // text: cream
     PAL_BG[16 + 2] = (3) | (4 << 5) | (6 << 10);      // text background: dark slate
@@ -340,7 +505,8 @@ int main(void) {
     px = PLAYER_START_X * 16 * 16;
     py = PLAYER_START_Y * 16 * 16;
     pdir = DIR_UP;
-    day = 1; seeds = 3; crops = 0; coins = 0; hearts = 3;   // DESIGN.md first guesses
+    day = 1; seeds = 3; crops = 0; coins = 0; hearts = max_hearts = 3;   // DESIGN.md first guesses
+    sparring = 2;
     draw_hud();
 
     REG_DISPCNT = 0x0000 | (1 << 6) | (1 << 8) | (1 << 9) | (1 << 12);   // mode 0, 1D OBJ, BG0, BG1, OBJ
@@ -357,13 +523,16 @@ int main(void) {
         update_farmer();
         update_target();
         farm_work();
+        update_sword();
+        update_crows();
         update_crops();
         update_message();
 
         oam_begin();
+        draw_slash();
         draw_farmer();
+        draw_crows();
         draw_marker();
-        draw_crow();
         oam_end();
     }
 }

@@ -19,19 +19,20 @@ Every step adds or extends a script in `crowfield/test/`.
 - [x] Target marker on the tile in front of the farmer
 - [x] `test/crops.txt`
 
-## v0.3 — crows
-- [ ] Crow pool (fixed array, no malloc). States: fly in, land, eat, flee, dead
-- [ ] Crows pick a target crop and eat one stage per bite
-- [ ] Each bite buffs the crow's HP (fed crows look different)
-- [ ] Wave spawner from the screen edges
-- [ ] `test/crows.txt`
+## v0.3 — combat (done)
+- [x] Sword on B (run moved to R): hit box in front of the farmer, slash sprite, knockback
+- [x] Crow pool (fixed arrays), crow HP, white hit flash, death puff
+- [x] Sparring crows fly at the farmer and peck him
+- [x] Farmer hearts, 1 s blink after a hit, knockout for 3 s at 0 hearts, then full hearts
+- [x] `test/combat.txt`
 
-## v0.4 — combat
-- [ ] Sword swing: hitbox in front of the farmer, swing sprite, knockback
-- [ ] Crow HP, hit flash, death puff
-- [ ] Farmer hearts, crow peck, knockout at 0 hearts
+## v0.4 — crows
+- [ ] Crows pick a target crop, land, and eat one stage per bite; they still peck the farmer
+- [ ] Each bite buffs the crow's HP (fed crows look different)
+- [ ] When no crops are left, crows go after the farmer
+- [ ] Wave spawner from the screen edges (replaces sparring crows)
 - [ ] Game over when no crops, no seeds, and not enough coins for a seed
-- [ ] `test/combat.txt`
+- [ ] `test/crows.txt`
 
 ## v0.5 — days and the shop
 - [ ] Day ends when all crows are dead, then dusk; `Day x` banner (test build caps at 20)

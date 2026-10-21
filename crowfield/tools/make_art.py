@@ -141,8 +141,9 @@ def draw_terrain():
 
 def draw_sprites():
     """Cells: 0 farmer down, 1 farmer up, 2 farmer side (right uses hflip), 3 crow wings up, 4 crow wings down,
-    5 target marker."""
-    px = blank(6)
+    5 target marker, 6 sword slash right (left = hflip), 7 sword slash up (down = vflip),
+    8 puff big, 9 puff small, 10 farmer knocked out."""
+    px = blank(11)
 
     def farmer(o, face):
         rows = [
@@ -189,8 +190,33 @@ def draw_sprites():
             for x, y in ((i, 0), (0, i), (15 - i, 0), (15, i), (i, 15), (0, 15 - i), (15 - i, 15), (15, 15 - i)):
                 px[y][o + x] = 13
 
+    def slash(o, up):   # a white crescent, like the concept's sword swing
+        for y in range(16):
+            for x in range(16):
+                a, b = (y, x) if up else (x, y)   # a: distance along the swing direction
+                d = (a - 1) ** 2 + (b - 7.5) ** 2
+                if a >= 5 and 9 ** 2 <= d <= 13 ** 2:
+                    c = 13 if d < 11.5 ** 2 else 12
+                    px[(15 - a) if up else y][o + (x if up else a)] = c
+
+    def puff(o, r):
+        for y in range(16):
+            for x in range(16):
+                d = (x - 7.5) ** 2 + (y - 7.5) ** 2
+                if (r - 2) ** 2 <= d <= r ** 2 and (x * 3 + y) % 4:
+                    px[y][o + x] = 13 if (x + y) % 3 else 10
+
     farmer(0, "down")
     marker(80)
+    slash(96, False)
+    slash(112, True)
+    puff(128, 7)
+    puff(144, 4)
+    for y in range(16):   # knocked out: the down-facing farmer turned on his side
+        for x in range(16):
+            px[y][160 + x] = px[15 - x][y]
+    for x, y in ((3, 1), (7, 0), (11, 2)):   # dizzy stars
+        px[y][160 + x] = 3
     farmer(16, "up")
     farmer(32, "side")
     crow(48, True)
