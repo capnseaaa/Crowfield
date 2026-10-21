@@ -98,7 +98,15 @@ and new types unlock on later days (Fast day 3, Armored day 5, Big day 7, Swarm 
 - Seeds cost 1 coin each at dusk (Caleb; was 5). BUY SEED buys one per press.
 - Upgrade prices (v0.3.1), rescaled from the concept's Sickle 120 / Sword 150 (set against 8-coin crops) to
   about the same number of crops at 3 coins: Sickle Lv.2 45, Lv.3 90; Sword Lv.2 60, Lv.3 120.
-  The concept's Turret 100 would be about 38 at this scale (not built yet).
+  Scarecrow: 40 coins each (the concept's 100 rescaled); Scarecrow Lv.2 60, Lv.3 120.
+
+**Scarecrow turrets (v0.4.0, first guesses).** Bought at dusk into the bag (`#` in the shop). In the
+field, SELECT places one on the empty soil tile in front (it takes that crop slot) or picks one up again.
+At most 8 on the field. A scarecrow is solid for the farmer; crows ignore it. It shoots a corn kernel
+(2.5 px per frame, 1 damage, small knockback) at the nearest crow within range, from its head.
+Lv.1: range 64 px, one shot every 1.5 s. Lv.2: one shot every 0.83 s. Lv.3: range 88 px and 2 shots
+(at the two nearest crows). The level applies to every scarecrow. Scarecrows keep shooting while the
+farmer is knocked out.
 - What the levels do (v0.3.1). Harvesting is instant, so the table's "faster swing" for Sickle Lv.2 has
   no effect in this game; Lv.2 instead harvests the 3-tile arc, and Lv.3 adds +1 crop per tile.
   Sickle Lv.2: the tile in front plus the two beside it (the marker shows all three). Lv.3: the same arc,

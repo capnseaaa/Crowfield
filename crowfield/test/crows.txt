@@ -70,7 +70,11 @@
 # the farm is paused while the shop is open: no growth (grow counter of tile 51 holds)
 60 0
 1 0 @$grow+100
-# down past SICKLE and SWORD to NEXT DAY, A: day 2 with 4 crows to come, shop closed
+# down past SICKLE, SWORD, SCARECROW, SCARECROW LV to NEXT DAY, A: day 2 with 4 crows to come
+1 128
+1 0
+1 128
+1 0
 1 128
 1 0
 1 128

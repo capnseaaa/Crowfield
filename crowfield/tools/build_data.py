@@ -8,7 +8,7 @@ OUT = os.path.join(ROOT, "src", "data.h")
 
 # Metatile indices (must match make_art.py META and main.c enum)
 (GRASS, GRASS_TUFT, DIRT, SOIL, SPROUT, CROP, CROP_RIPE, FENCE, BUSH,
- FENCE_V, FENCE_TL, FENCE_TR, FENCE_BL, FENCE_BR, CROP_YOUNG) = range(15)
+ FENCE_V, FENCE_TL, FENCE_TR, FENCE_BL, FENCE_BR, CROP_YOUNG, SCARECROW) = range(16)
 
 # The whole farm is one screen: 15 x 10 metatiles of 16x16 = 240 x 160.
 MAP_W, MAP_H = 15, 10
@@ -79,15 +79,16 @@ FONT = {
     "'": "00100 00100 01000 00000 00000 00000 00000",
     " ": "00000 00000 00000 00000 00000 00000 00000",
 }
-# Icons: "*" heart, "$" coin, "&" crop, "^" seed, ">" menu cursor.
+# Icons: "*" heart, "$" coin, "&" crop, "^" seed, ">" menu cursor, "#" scarecrow.
 FONT["*"] = "00000 01010 11111 11111 01110 00100 00000"
 FONT["$"] = "00000 01110 11111 11011 11111 01110 00000"
 FONT["&"] = "00100 01110 00100 10101 01110 00100 00100"
 FONT["^"] = "00000 00100 01110 11111 11111 01110 00000"
 FONT[">"] = "01000 00100 00010 00001 00010 00100 01000"   # menu cursor
 FONT["="] = "00000 00000 11111 00000 11111 00000 00000"
-GLYPH_COLOR = {"*": 3, "$": 4, "&": 5, "^": 4, ">": 4}   # text palette: 1 cream, 3 red, 4 gold, 5 green
-FONT_CHARS = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789%:!.?'+/-,*$&^>="
+FONT["#"] = "01110 00100 11111 00100 00100 00100 01110"   # scarecrow icon
+GLYPH_COLOR = {"*": 3, "$": 4, "&": 5, "^": 4, ">": 4, "#": 4}   # text palette: 1 cream, 3 red, 4 gold, 5 green
+FONT_CHARS = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789%:!.?'+/-,*$&^>=#"
 
 
 def font_words():

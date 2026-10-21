@@ -26,7 +26,11 @@
 1 1
 1 0 u2_sword_max.ppm
 1 0 @$coins,$sword_lv,$sword_damage,$sword_reach
-# NEXT DAY, then stop the crows for exact tests
+# down past SCARECROW and SCARECROW LV to NEXT DAY, then stop the crows for exact tests
+1 128
+1 0
+1 128
+1 0
 1 128
 1 0
 1 1

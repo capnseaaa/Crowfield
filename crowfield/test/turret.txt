@@ -1,0 +1,84 @@
+# scarecrow turrets (v0.4): buy them and their levels at dusk, place and pick up with SELECT, walls for the
+# farmer, shots at the nearest crow in range, Lv.1 range and reload, Lv.3 range and 2 shots.
+# Skip day 1's crows so the shop opens.
+1 0 !$day_left=0,$coins=300
+130 0
+1 0 @$shop_open,$shop_cursor
+# down from BUY SEED past SICKLE and SWORD to SCARECROW; buy 2 (300 -> 220)
+1 128
+1 0
+1 128
+1 0
+1 128
+1 0
+1 1
+1 0
+1 1
+1 0 @$coins,$scarecrow_bag
+# down to SCARECROW LV: Lv.2 for 60, Lv.3 for 120, then MAX (refused)
+1 128
+1 0
+1 1
+1 0 @$coins,$scarecrow_lv
+1 1
+1 0
+1 1
+1 0 @$coins,$scarecrow_lv
+# up to SCARECROW: a 3rd for 40 (40 -> 0), a 4th refused
+1 64
+1 0
+1 1
+1 0
+1 1
+1 0 t1_shop.ppm
+1 0 @$coins,$scarecrow_bag
+# down twice to NEXT DAY, A; then stop the crows
+1 128
+1 0
+1 128
+1 0
+1 1
+1 0 !$spawning=0
+3 0 t2_day2.ppm
+1 0 @$shop_open,$day
+# place: farmer below soil tile (5,3) = field index 50, facing up. SELECT places it.
+1 0 !$px=1280,$py=896,$pdir=1
+2 0
+1 4
+3 0 t3_placed.ppm
+1 0 @$scarecrows,$scarecrow_bag,$farm+48
+# SELECT again picks it up; once more puts it back
+1 4
+2 0
+1 0 @$scarecrows,$scarecrow_bag,$farm+48
+1 4
+2 0
+1 0 @$scarecrows,$scarecrow_bag,$farm+48
+# the scarecrow is solid: walking up stops at it (py stays >= 864)
+20 64
+1 0 @$py
+# Lv.1 (range 64 px, reload 90): a crow 40 px right of its head dies (held still: HURT with no slide)
+1 0 !$scarecrow_lv=1,$sc_cool=0
+1 0 !$crow_state=2,$crow_timer=999,$crow_vx=0,$crow_vy=0,$crow_x=1920,$crow_y=720,$crow_hp=1,$crow_cool=999
+4 0 t4_shot.ppm
+1 0 @$sc_cool
+25 0
+1 0 @$crow_state
+# Lv.1 out of range: a crow 80 px away stays alive and no shot flies
+30 0
+1 0 !$sc_cool=0,$crow_state=2,$crow_timer=999,$crow_vx=0,$crow_vy=0,$crow_x=2560,$crow_y=720,$crow_hp=1
+60 0
+1 0 @$crow_state,$crow_hp,$shot_life,$shot_life+4
+# Lv.3 (range 88): the same crow is hit
+1 0 !$scarecrow_lv=3
+40 0
+1 0 @$crow_state
+# Lv.3 fires 2 shots: crows 40 px left and right both die in one volley; reload at Lv.3 is 50.
+# (Each poke line runs a frame, so it may fire only once both crows exist.)
+30 0
+1 0 !$sc_cool=999,$crow_state=2,$crow_timer=999,$crow_vx=0,$crow_vy=0,$crow_x=1920,$crow_y=720,$crow_hp=1
+1 0 !$sc_cool=0,$crow_state+4=2,$crow_timer+4=999,$crow_vx+4=0,$crow_vy+4=0,$crow_x+4=640,$crow_y+4=720,$crow_hp+4=1
+2 0 t5_volley.ppm
+1 0 @$sc_cool
+25 0
+1 0 @$crow_state,$crow_state+4

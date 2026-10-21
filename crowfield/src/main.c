@@ -1,11 +1,11 @@
-// Crowfield (GBA), v0.3: days and the dusk shop.
+// Crowfield (GBA), v0.4: scarecrow turrets.
 // One-screen farm. Crops grow on a timer. The farmer plants, harvests, and fights crows with a sword.
 // Each day crows fly in, eat crops (and grow tougher), and peck the farmer. At 0 hearts he is knocked out for 3 s.
 // When all of the day's crows are gone, dusk comes: sell crops and buy seeds, then the next day.
 // No crops, no seeds, and no coins for a seed: the farm is lost. START begins a new run.
 // D-pad: move   R: run   A: plant on empty soil / harvest a ripe crop (puts the sword away)
 // B: draw and swing the sword (it stays in hand until A)
-// The shop also sells sickle and sword upgrades. Later: scarecrow turrets.
+// The shop also sells sickle and sword upgrades and scarecrow turrets (SELECT places one on soil).
 
 #include "data.h"
 #include "sound.h"
@@ -59,11 +59,11 @@ typedef signed int     s32;
 #define MAP_SB   28
 
 enum { GRASS, GRASS_TUFT, DIRT, SOIL, SPROUT, CROP, CROP_RIPE, FENCE, BUSH,
-       FENCE_V, FENCE_TL, FENCE_TR, FENCE_BL, FENCE_BR, CROP_YOUNG };   // FENCE_V.. are looks only; the map stores FENCE
+       FENCE_V, FENCE_TL, FENCE_TR, FENCE_BL, FENCE_BR, CROP_YOUNG, SCARECROW };   // FENCE_V.. are looks only; the map stores FENCE
 enum { DIR_DOWN, DIR_UP, DIR_LEFT, DIR_RIGHT };
 // Sprite cells in sprites.png (4 tiles each in OBJ VRAM)
 enum { SPR_FARMER_DOWN, SPR_FARMER_UP, SPR_FARMER_SIDE, SPR_CROW_A, SPR_CROW_B, SPR_MARKER,
-       SPR_SWORD_RIGHT, SPR_SWORD_UP, SPR_PUFF_BIG, SPR_PUFF_SMALL, SPR_FARMER_KO, SPR_SWORD_DIAG };
+       SPR_SWORD_RIGHT, SPR_SWORD_UP, SPR_PUFF_BIG, SPR_PUFF_SMALL, SPR_FARMER_KO, SPR_SWORD_DIAG, SPR_SHOT };
 // put_sprite flags
 #define HFLIP 1
 #define VFLIP 2
@@ -262,7 +262,7 @@ static void draw_meta(s32 mx, s32 my) {
 }
 
 static int is_solid(u8 t) {
-    return t == FENCE || t == BUSH;
+    return t == FENCE || t == BUSH || t == SCARECROW;
 }
 
 static void set_tile(s32 mx, s32 my, u8 t) {
@@ -354,7 +354,7 @@ static void update_target(void) {
 }
 
 static int is_field(u8 t) {
-    return t == SOIL || t == SPROUT || t == CROP_YOUNG || t == CROP || t == CROP_RIPE;
+    return t == SOIL || t == SPROUT || t == CROP_YOUNG || t == CROP || t == CROP_RIPE || t == SCARECROW;
 }
 
 static void draw_hud(void);
@@ -622,6 +622,133 @@ static void update_crows(void) {
     update_days(alive);
 }
 
+// Damage crow i; if it lives, knock it back with velocity (kvx, kvy) in 1/16 px per frame.
+static void hit_crow(s32 i, s32 dmg, s32 kvx, s32 kvy) {
+    crow_hp[i] -= dmg;
+    crow_flash[i] = 8;
+    if (crow_hp[i] <= 0) {
+        crow_state[i] = CROW_DEAD;
+        crow_timer[i] = 16;
+        play(SND_POOF);
+        return;
+    }
+    crow_state[i] = CROW_HURT;
+    crow_timer[i] = 14;
+    crow_vx[i] = kvx;
+    crow_vy[i] = kvy;
+    play(SND_HIT);
+}
+
+static int crow_targetable(s32 i) {
+    return crow_state[i] == CROW_FLY || crow_state[i] == CROW_HURT || crow_state[i] == CROW_EAT;
+}
+
+// ---------- scarecrow turrets ----------
+// Bought at dusk, placed with SELECT on an empty soil tile (it takes that crop slot; SELECT again picks it
+// up). Each shoots a corn kernel at the nearest crow in range. Levels (shop) apply to every scarecrow.
+#define MAX_SCARECROWS 8
+#define MAX_SHOTS 12
+#define SHOT_SPEED 40      // 1/16 px per frame (2.5 px)
+#define SHOT_LIFE 48
+static s32 sc_x[MAX_SCARECROWS], sc_y[MAX_SCARECROWS], sc_cool[MAX_SCARECROWS];   // tile, frames to next shot
+static s32 scarecrows, scarecrow_bag;    // placed; bought but not placed
+static s32 scarecrow_lv = 1;             // 1. 2: shoots faster. 3: wider range, 2 shots
+static s32 shot_x[MAX_SHOTS], shot_y[MAX_SHOTS], shot_vx[MAX_SHOTS], shot_vy[MAX_SHOTS], shot_life[MAX_SHOTS];
+
+static s32 scarecrow_reload(void) { return scarecrow_lv >= 2 ? 50 : 90; }   // frames between shots
+static s32 scarecrow_range(void) { return scarecrow_lv >= 3 ? 88 : 64; }    // px
+
+// Rough distance without a square root: the longer side plus half the shorter one.
+static s32 approx_dist(s32 dx, s32 dy) {
+    s32 ax = abs32(dx), ay = abs32(dy);
+    return ax > ay ? ax + (ay >> 1) : ay + (ax >> 1);
+}
+
+// Nearest targetable crow within range of point (x, y) in px, other than skip. -1 if none.
+static s32 nearest_crow(s32 x, s32 y, s32 range, s32 skip) {
+    s32 best = -1, best_d = range + 1;
+    for (s32 i = 0; i < MAX_CROWS; i++) {
+        if (i == skip || !crow_targetable(i)) continue;
+        s32 d = approx_dist((crow_x[i] >> 4) + 8 - x, (crow_y[i] >> 4) + 8 - y);
+        if (d < best_d) { best = i; best_d = d; }
+    }
+    return best;
+}
+
+static void fire_shot(s32 x, s32 y, s32 c) {   // from (x, y) px toward crow c's center
+    for (s32 k = 0; k < MAX_SHOTS; k++) {
+        if (shot_life[k]) continue;
+        s32 dx = (crow_x[c] >> 4) + 8 - x, dy = (crow_y[c] >> 4) + 8 - y;
+        s32 d = approx_dist(dx, dy);
+        if (d < 1) d = 1;
+        shot_x[k] = x * 16; shot_y[k] = y * 16;
+        shot_vx[k] = dx * SHOT_SPEED / d;   // one division per shot, not per frame
+        shot_vy[k] = dy * SHOT_SPEED / d;
+        shot_life[k] = SHOT_LIFE;
+        return;
+    }
+}
+
+static void update_scarecrows(void) {
+    for (s32 s = 0; s < scarecrows; s++) {
+        if (sc_cool[s]) { sc_cool[s]--; continue; }
+        s32 x = sc_x[s] * 16 + 8, y = sc_y[s] * 16 + 5;   // the scarecrow's head
+        s32 c = nearest_crow(x, y, scarecrow_range(), -1);
+        if (c < 0) continue;
+        fire_shot(x, y, c);
+        if (scarecrow_lv >= 3) {
+            s32 c2 = nearest_crow(x, y, scarecrow_range(), c);
+            fire_shot(x, y, c2 >= 0 ? c2 : c);
+        }
+        sc_cool[s] = scarecrow_reload();
+    }
+    for (s32 k = 0; k < MAX_SHOTS; k++) {
+        if (!shot_life[k]) continue;
+        shot_x[k] += shot_vx[k];
+        shot_y[k] += shot_vy[k];
+        shot_life[k]--;
+        s32 x = shot_x[k] >> 4, y = shot_y[k] >> 4;
+        for (s32 i = 0; i < MAX_CROWS; i++) {
+            if (!crow_targetable(i)) continue;
+            if (abs32((crow_x[i] >> 4) + 8 - x) >= 8 || abs32((crow_y[i] >> 4) + 8 - y) >= 8) continue;
+            hit_crow(i, 1, shot_vx[k], shot_vy[k]);
+            shot_life[k] = 0;
+            break;
+        }
+    }
+}
+
+// SELECT: place a scarecrow on the empty soil tile in front, or pick one up.
+static void scarecrow_work(void) {
+    if (!HIT(KEY_SELECT) || ko_timer || swing) return;
+    u8 t = tile_at(tx, ty);
+    if (t == SCARECROW) {
+        for (s32 s = 0; s < scarecrows; s++)
+            if (sc_x[s] == tx && sc_y[s] == ty) {
+                scarecrows--;
+                sc_x[s] = sc_x[scarecrows]; sc_y[s] = sc_y[scarecrows]; sc_cool[s] = sc_cool[scarecrows];
+            }
+        set_tile(tx, ty, SOIL);
+        scarecrow_bag++;
+        show_message("SCARECROW PICKED UP");
+        play(SND_HARVEST);
+    } else if (t == SOIL) {
+        if (!scarecrow_bag) { show_message("BUY SCARECROWS AT DUSK"); play(SND_NOSEEDS); return; }
+        if (scarecrows >= MAX_SCARECROWS) { show_message("NO ROOM FOR MORE"); play(SND_NOSEEDS); return; }
+        sc_x[scarecrows] = tx; sc_y[scarecrows] = ty; sc_cool[scarecrows] = 30;
+        scarecrows++;
+        scarecrow_bag--;
+        set_tile(tx, ty, SCARECROW);
+        show_message("SCARECROW PLACED");
+        play(SND_PLANT);
+    }
+}
+
+static void draw_shots(void) {
+    for (s32 k = 0; k < MAX_SHOTS; k++)
+        if (shot_life[k]) put_sprite((shot_x[k] >> 4) - 8, (shot_y[k] >> 4) - 8, SPR_SHOT, 0);
+}
+
 static void draw_crows(void) {
     for (s32 i = 0; i < MAX_CROWS; i++) {
         s32 st = crow_state[i];
@@ -670,19 +797,8 @@ static void update_sword(void) {
         s32 ex = (crow_x[i] >> 4) + 8 - slash_x, ey = (crow_y[i] >> 4) + 8 - slash_y;
         if (abs32(ex) > 14 || abs32(ey) > 14) continue;
         crow_hit_by[i] = swing_id;
-        crow_hp[i] -= sword_damage;
-        crow_flash[i] = 8;
-        if (crow_hp[i] <= 0) {
-            crow_state[i] = CROW_DEAD;
-            crow_timer[i] = 16;
-            play(SND_POOF);
-            continue;
-        }
-        crow_state[i] = CROW_HURT;   // knockback away from the farmer
-        crow_timer[i] = 14;
-        crow_vx[i] = pdir == DIR_RIGHT ? 64 : pdir == DIR_LEFT ? -64 : 0;
-        crow_vy[i] = pdir == DIR_DOWN ? 64 : pdir == DIR_UP ? -64 : 0;
-        play(SND_HIT);
+        hit_crow(i, sword_damage, pdir == DIR_RIGHT ? 64 : pdir == DIR_LEFT ? -64 : 0,   // knocked away
+                 pdir == DIR_DOWN ? 64 : pdir == DIR_UP ? -64 : 0);
     }
     if (--swing == 0) swing_cool = 6;
 }
@@ -725,27 +841,35 @@ static void draw_sword(void) {
 // Upgrade prices for Lv.2 and Lv.3: about as many crops as the concept's 120 / 150 at 8 coins a crop.
 static const s32 sickle_price[2] = { 45, 90 };
 static const s32 sword_price[2] = { 60, 120 };
+#define SCARECROW_PRICE 40   // the concept's 100 at 8-coin crops, rescaled to 3-coin crops
+static const s32 scarecrow_price[2] = { 60, 120 };
 static s32 shop_open, shop_cursor;
-enum { SHOP_SELL, SHOP_SEED, SHOP_SICKLE, SHOP_SWORD, SHOP_NEXT, SHOP_ITEMS };
-#define SHOP_L 3       // window: text columns 3..26, rows 2..18
-#define SHOP_T 2
-#define SHOP_ROWS 17
+enum { SHOP_SELL, SHOP_SEED, SHOP_SICKLE, SHOP_SWORD, SHOP_SCARECROW, SHOP_SCARECROW_LV, SHOP_NEXT, SHOP_ITEMS };
+#define SHOP_L 3       // window: text columns 3..26, rows 1..18; the hint goes on the message row 19
+#define SHOP_T 1
+#define SHOP_ROWS 18
+#define SHOP_EQ 16     // column of "=" in an item line
 
 static void shop_line(s32 row, const char *s) {
     put_text(SHOP_L, row, "                        ");
     put_text(SHOP_L + 1, row, s);
 }
-// "SICKLE LV2   = $45", or "SICKLE LV3   MAX" when bought out.
-static void shop_tool(s32 row, const char *name, s32 lv, const s32 *price) {
+// Item line k (rows 3, 5, .. 15): "  NAME" padded to SHOP_EQ, then "= $price" (price >= 0) or "MAX" (price < 0).
+static void shop_item(s32 k, const char *name, s32 price) {
     char buf[26];
+    s32 n = copy_str(buf, "  ");
+    n += copy_str(buf + n, name);
+    while (n < SHOP_EQ) buf[n++] = ' ';
+    if (price < 0) copy_str(buf + n, "MAX");
+    else fmt_num(buf + n + copy_str(buf + n, "= $"), price);
+    shop_line(SHOP_T + 2 + 2 * k, buf);
+}
+// A tool line: "SICKLE LV2" and its price, or "SICKLE LV3" and MAX.
+static void shop_level(s32 k, const char *name, s32 lv, const s32 *price) {
+    char buf[20];
     s32 n = copy_str(buf, name);
-    if (lv >= 3) { n += fmt_num(buf + n, 3); copy_str(buf + n, "    MAX"); }
-    else {
-        n += fmt_num(buf + n, lv + 1);
-        n += copy_str(buf + n, "     = $");
-        fmt_num(buf + n, price[lv - 1]);
-    }
-    shop_line(row, buf);
+    fmt_num(buf + n, lv >= 3 ? 3 : lv + 1);
+    shop_item(k, buf, lv >= 3 ? -1 : price[lv - 1]);
 }
 
 static void draw_shop(void) {
@@ -755,27 +879,28 @@ static void draw_shop(void) {
     n = copy_str(buf, "DUSK. DAY ");
     n += fmt_num(buf + n, day);
     copy_str(buf + n, " IS OVER.");
-    shop_line(SHOP_T + 1, buf);
-    n = copy_str(buf, "  SELL CROPS  &");
-    n += fmt_num(buf + n, crops);
-    n += copy_str(buf + n, " = $");
-    fmt_num(buf + n, crops * CROP_PRICE);
-    shop_line(SHOP_T + 3, buf);
-    n = copy_str(buf, "  BUY SEED    ^1 = $");
-    fmt_num(buf + n, SEED_PRICE);
-    shop_line(SHOP_T + 5, buf);
-    shop_tool(SHOP_T + 7, "  SICKLE LV", sickle_lv, sickle_price);
-    shop_tool(SHOP_T + 9, "  SWORD  LV", sword_lv, sword_price);
-    shop_line(SHOP_T + 11, "  NEXT DAY");
-    put_text(SHOP_L + 1, SHOP_T + 3 + 2 * shop_cursor, ">");
-    n = copy_str(buf, "YOU HAVE  $");
+    shop_line(SHOP_T, buf);
+    n = copy_str(buf, "SELL CROPS &");
+    fmt_num(buf + n, crops);
+    shop_item(SHOP_SELL, buf, crops * CROP_PRICE);
+    shop_item(SHOP_SEED, "BUY SEED   ^1", SEED_PRICE);
+    shop_level(SHOP_SICKLE, "SICKLE LV", sickle_lv, sickle_price);
+    shop_level(SHOP_SWORD, "SWORD LV", sword_lv, sword_price);
+    shop_item(SHOP_SCARECROW, "SCARECROW  #1", SCARECROW_PRICE);
+    shop_level(SHOP_SCARECROW_LV, "SCARECROW LV", scarecrow_lv, scarecrow_price);
+    shop_line(SHOP_T + 2 + 2 * SHOP_NEXT, "  NEXT DAY");
+    put_text(SHOP_L + 1, SHOP_T + 2 + 2 * shop_cursor, ">");
+    n = copy_str(buf, "YOU HAVE $");
     n += fmt_num(buf + n, coins);
-    n += copy_str(buf + n, "  &");
+    n += copy_str(buf + n, " &");
     n += fmt_num(buf + n, crops);
-    n += copy_str(buf + n, "  ^");
-    fmt_num(buf + n, seeds);
-    shop_line(SHOP_T + 13, buf);
-    shop_line(SHOP_T + 15, "UP/DOWN PICK  A CHOOSE");
+    n += copy_str(buf + n, " ^");
+    n += fmt_num(buf + n, seeds);
+    n += copy_str(buf + n, " #");
+    fmt_num(buf + n, scarecrow_bag);
+    shop_line(SHOP_T + 16, buf);
+    clear_row(19);
+    put_text(4, 19, "UP/DOWN PICK  A CHOOSE");
 }
 
 static void open_shop(void) {
@@ -783,15 +908,24 @@ static void open_shop(void) {
     shop_cursor = crops ? SHOP_SELL : SHOP_SEED;
     swing = 0;
     msg_timer = 0;
-    clear_row(19);
     draw_shop();
 }
 
 static void close_shop(void) {
     shop_open = 0;
     for (s32 r = SHOP_T; r < SHOP_T + SHOP_ROWS; r++) clear_row(r);
+    clear_row(19);
     day++;
     start_day();
+    if (scarecrow_bag) show_message("SELECT: PLACE A SCARECROW");
+}
+
+// Buy the next level of a tool: 1 on success.
+static int buy_level(s32 *lv, const s32 *price) {
+    if (*lv >= 3 || coins < price[*lv - 1]) return 0;
+    coins -= price[*lv - 1];
+    (*lv)++;
+    return 1;
 }
 
 // While the shop is open the farm is paused: no crows, no growth.
@@ -799,28 +933,26 @@ static void update_shop(void) {
     if (HIT(KEY_UP) && shop_cursor > 0) { shop_cursor--; draw_shop(); }
     if (HIT(KEY_DOWN) && shop_cursor < SHOP_ITEMS - 1) { shop_cursor++; draw_shop(); }
     if (!HIT(KEY_A)) return;
+    s32 ok = 1;
     if (shop_cursor == SHOP_SELL) {
-        if (!crops) { play(SND_NOSEEDS); return; }
-        coins += crops * CROP_PRICE;
-        crops = 0;
-        play(SND_HARVEST);
+        if ((ok = crops > 0)) { coins += crops * CROP_PRICE; crops = 0; }
     } else if (shop_cursor == SHOP_SEED) {
-        if (coins < SEED_PRICE) { play(SND_NOSEEDS); return; }
-        coins -= SEED_PRICE;
-        seeds++;
-        play(SND_PLANT);
-    } else if (shop_cursor == SHOP_SICKLE || shop_cursor == SHOP_SWORD) {
-        s32 sickle = shop_cursor == SHOP_SICKLE;
-        s32 lv = sickle ? sickle_lv : sword_lv;
-        s32 cost = lv < 3 ? (sickle ? sickle_price : sword_price)[lv - 1] : 0;
-        if (lv >= 3 || coins < cost) { play(SND_NOSEEDS); return; }
-        coins -= cost;
-        if (sickle) sickle_lv++; else set_sword_lv(sword_lv + 1);
-        play(SND_HARVEST);
+        if ((ok = coins >= SEED_PRICE)) { coins -= SEED_PRICE; seeds++; }
+    } else if (shop_cursor == SHOP_SICKLE) {
+        ok = buy_level(&sickle_lv, sickle_price);
+    } else if (shop_cursor == SHOP_SWORD) {
+        s32 lv = sword_lv;
+        if ((ok = buy_level(&lv, sword_price))) set_sword_lv(lv);
+    } else if (shop_cursor == SHOP_SCARECROW) {
+        if ((ok = coins >= SCARECROW_PRICE)) { coins -= SCARECROW_PRICE; scarecrow_bag++; }
+    } else if (shop_cursor == SHOP_SCARECROW_LV) {
+        ok = buy_level(&scarecrow_lv, scarecrow_price);
     } else {
         close_shop();
         return;
     }
+    if (!ok) { play(SND_NOSEEDS); return; }
+    play(shop_cursor == SHOP_SEED ? SND_PLANT : SND_HARVEST);
     draw_hud();
     draw_shop();
 }
@@ -840,6 +972,9 @@ static void new_run(void) {
     day = 1; seeds = 3; crops = 0; coins = 0; hearts = max_hearts = 3;   // DESIGN.md first guesses
     sickle_lv = 1;
     set_sword_lv(1);
+    scarecrows = scarecrow_bag = 0;
+    scarecrow_lv = 1;
+    for (s32 k = 0; k < MAX_SHOTS; k++) shot_life[k] = 0;
     spawning = 1; shop_open = 0;
     game_over = 0;
     start_day();
@@ -918,8 +1053,10 @@ int main(void) {
         update_farmer();
         update_target();
         farm_work();
+        scarecrow_work();
         update_sword();
         update_crows();
+        update_scarecrows();
         update_crops();
         update_message();
         check_game_over();
@@ -929,6 +1066,7 @@ int main(void) {
         draw_farmer();
         if (pdir == DIR_UP) draw_sword();   // behind him when he faces away
         draw_crows();
+        draw_shots();
         draw_marker();
         oam_end();
     }

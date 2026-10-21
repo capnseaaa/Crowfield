@@ -54,7 +54,28 @@ OBJ_PAL = [
 
 # Metatile order. Must match build_data.py and the enum in main.c.
 META = ["GRASS", "GRASS_TUFT", "DIRT", "SOIL", "SPROUT", "CROP", "CROP_RIPE", "FENCE", "BUSH",
-        "FENCE_V", "FENCE_TL", "FENCE_TR", "FENCE_BL", "FENCE_BR", "CROP_YOUNG"]
+        "FENCE_V", "FENCE_TL", "FENCE_TR", "FENCE_BL", "FENCE_BR", "CROP_YOUNG", "SCARECROW"]
+# Scarecrow turret on tilled soil. F outline, G straw (hat, arm ends), C sack head, R red shirt,
+# W light wood, w dark wood; "." keeps the soil.
+SCARECROW = [
+    "................",
+    "......FFFF......",
+    ".....FGGGGF.....",
+    "....FGGGGGGF....",
+    "...FFFFFFFFFF...",
+    ".....FCCCCF.....",
+    ".....FFCCFF.....",
+    ".....FCCCCF.....",
+    ".FFFFFFRRFFFFFF.",
+    "GGWWWWRRRRWWWWGG",
+    ".FFFFFRRRRFFFFF.",
+    ".....FRRRRF.....",
+    ".....FFRRFF.....",
+    ".......Ww.......",
+    ".......Ww.......",
+    "......FwwF......",
+]
+SCARECROW_COLORS = {"F": 15, "G": 12, "C": 14, "R": 11, "W": 8, "w": 7}
 # Fence pieces by which neighbors they join: up, down, left, right. FENCE is the horizontal piece.
 FENCE_JOIN = {"FENCE": "lr", "FENCE_V": "ud", "FENCE_TL": "rd", "FENCE_TR": "ld", "FENCE_BL": "ru", "FENCE_BR": "lu"}
 
@@ -131,6 +152,11 @@ def draw_terrain():
                     px[y][o + 8] = 12
         if name in FENCE_JOIN:
             draw_fence(px, o, FENCE_JOIN[name])
+        if name == "SCARECROW":
+            for y, row in enumerate(SCARECROW):
+                for x, c in enumerate(row):
+                    if c != ".":
+                        px[y][o + x] = SCARECROW_COLORS[c]
         if name == "BUSH":
             for y in range(2, 15):
                 for x in range(2, 14):
@@ -142,9 +168,9 @@ def draw_terrain():
 def draw_sprites():
     """Cells: 0 farmer down, 1 farmer up, 2 farmer side (right uses hflip), 3 crow wings up, 4 crow wings down,
     5 target marker, 6 sword pointing right, 7 sword pointing up, 8 puff big, 9 puff small,
-    10 farmer knocked out, 11 sword pointing up-right. Flips give the other directions.
+    10 farmer knocked out, 11 sword pointing up-right, 12 corn kernel (scarecrow shot). Flips give the other directions.
     The hand grips the sword at (2, 8) right, (8, 13) up, (4, 13) up-right (main.c grip_x/grip_y)."""
-    px = blank(12)
+    px = blank(13)
 
     def farmer(o, face):
         rows = [
@@ -274,6 +300,11 @@ def draw_sprites():
     farmer(32, "side")
     crow(48, True)
     crow(64, False)
+    for y, row in enumerate(["......111.......", ".....1D3B1......", ".....13BB1......", ".....1BBB1......",
+                             "......111......."]):   # corn kernel, centered: D white, 3 straw, B gold
+        for x, c in enumerate(row):
+            if c != ".":
+                px[6 + y][192 + x] = {"1": 1, "D": 13, "3": 3, "B": 11}[c]
     return px
 
 

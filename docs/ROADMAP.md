@@ -53,11 +53,11 @@ numbers v0.1.0-v0.3.3 in commit subjects; those numbers are history only and hav
 - [x] v0.3.1: shop sells Sickle Lv.2/3 and Sword Lv.2/3; `test/shop.txt`
 - [ ] Test build caps at Day 20
 
-## v0.4 — scarecrow turrets
-- [ ] Buy a turret and place it on a soil tile (uses a crop slot)
-- [ ] Turret aims at the nearest crow and fires a projectile
-- [ ] Turret levels
-- [ ] `test/turret.txt`
+## v0.4 — scarecrow turrets (done)
+- [x] Buy a turret and place it on a soil tile (uses a crop slot); SELECT places and picks up
+- [x] Turret aims at the nearest crow and fires a projectile (a corn kernel)
+- [x] Turret levels (one level for all scarecrows)
+- [x] `test/turret.txt`
 
 ## v0.4b — field growth
 - [ ] Start map: one small plot, open grass reserved for later plots
