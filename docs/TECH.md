@@ -18,8 +18,9 @@
 | Sprite tiles | 0x06010000, 1D mapping, 4 tiles per 16x16 cell |
 | BG palette bank 0 | field palette (`BG_PAL` in make_art.py) |
 | OBJ palette bank 0 | farmer + normal crow (`OBJ_PAL`) |
+| OBJ palette bank 1 | hit flash: every color white |
 
-Planned OBJ palette banks: 1 Armored crow, 2 Big crow, 3 Fast crow, 4 turret, 5 effects.
+Planned OBJ palette banks: 2 Armored crow, 3 Big crow, 4 Fast crow, 5 turret, 6 fed crow.
 Crow types should share sprite cells and differ by palette where they can.
 
 ## Metatiles
@@ -31,7 +32,8 @@ Add new tiles at the end, and update all three lists together.
 
 ## Sprite cells
 `art/sprites.png`, 16x16 cells: farmer down, farmer up, farmer side (left = hflip), crow wings up,
-crow wings down, target marker.
+crow wings down, target marker, slash side, slash up, puff big, puff small,
+farmer knocked out. `put_sprite(x, y, cell, flags)` takes HFLIP, VFLIP, FLASH.
 
 ## Sprite budget
 - Planned max on screen: 1 farmer + 1 sword swing + 8 turrets + 8 shots + 48 crows + HUD icons.

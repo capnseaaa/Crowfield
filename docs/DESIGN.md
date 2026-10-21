@@ -37,11 +37,15 @@ Each soil tile moves through: empty soil -> sprout -> young -> grown -> ripe.
 - Start of a run (first guess): 3 seeds, 0 crops, 0 coins, 3 hearts.
 
 ## Farmer
-- D-pad move, B run. A: use the tool that fits the tile (sickle on a ripe crop, sword on a crow,
-  plant on empty soil). One button keeps it simple on the R36.
+- D-pad move, R run. A: farm the tile in front (sickle on a ripe crop, plant on empty soil).
+  B: swing the sword. The sword has its own button because almost every field tile is soil,
+  so a shared A button would plant seeds when you meant to swing.
+- Sword Lv.1 (first guess): 1 damage, hit box 28x28 px centered 14 px in front, 12-frame swing,
+  6-frame cooldown. One hit per crow per swing. A hit crow flashes white and is knocked back.
+- A crow peck takes 1 heart and knocks the farmer back. He blinks for 1 s and cannot be hit.
 - Hearts: the concept art shows 3 to 5 hearts. Crows peck the farmer. This is PvE, not only
-  crop defense. At 0 hearts the farmer is knocked out for a few seconds
-  while crows eat freely, then gets up with full hearts (3 seconds).
+  crop defense. At 0 hearts the farmer is knocked out
+  for 3 seconds while crows eat freely, then gets up with full hearts.
 
 ## Tools and upgrades (3 levels each)
 | Item | Lv.1 | Lv.2 | Lv.3 | Notes |

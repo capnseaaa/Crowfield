@@ -110,12 +110,14 @@ Code rules: no external GBA libraries; plain freestanding C, `-O2 -mthumb`. No f
 - Plot sizes and unlock days (first guess: 3x3 start, new plots on days 4, 8, 12, 16). What grows after the screen is full?
 
 ### Current state
-- Version: v0.2.0. Crops grow on a timer (sprout -> young -> grown -> ripe). A plants a seed on empty soil and harvests a ripe crop. A marker shows the target tile. HUD: day, coins, crops, seeds, hearts. Fences join up. One test crow circles (does nothing).
+- Version: v0.3.0. Sword on B, run on R. Crows have HP, flash white, get knocked back, and die in a puff. Two sparring crows fly at the farmer and peck him (1 heart). At 0 hearts he is knocked out for 3 s. From v0.2: crops grow on a timer (sprout -> young -> grown -> ripe). A plants a seed on empty soil and harvests a ripe crop. A marker shows the target tile. HUD: day, coins, crops, seeds, hearts. Fences join up.
 - Branches: `main` is the real branch. Push to `main` (Caleb approved). The farm map shows. The farmer walks and runs; fences and bushes block him. One test crow circles. Art is a rough placeholder.
-- Tested: `test/boot.txt` and `test/crops.txt` in headless mGBA (screenshots and values checked). Caleb played v0.1.5 and liked it (asked for joined fences). v0.2.0 not yet played on a device.
+- Tested: `test/boot.txt`, `test/crops.txt`, `test/combat.txt` in headless mGBA (screenshots and values checked). Caleb played v0.1.5 and liked it (asked for joined fences). Caleb played v0.2.0 (works). v0.3.0 not yet played on a device.
+- Order Caleb set: combat (v0.3), then crows (v0.4), then the shop (v0.5).
 
 ### Gotchas
 - `@`, `!` lines in test scripts need the `<frames> <keys>` prefix (e.g. `1 0 @$px,$py`); a bare `@...` line is skipped silently.
+- Tests that need exact positions must set `$sparring=0` first, or random crows peck the farmer.
 - `vsync()` has a compiler memory barrier. Without it, GCC keeps globals in registers and test `!` pokes do nothing. Keep it.
 - Cloud sessions cannot push tags or create GitHub Releases (tag push is dropped; no release tool). Send the ROM to Caleb directly; he makes the Release on GitHub.
 - Commit v0.1.0 used `setup:`, which is not in the type list. Later commits follow the list.

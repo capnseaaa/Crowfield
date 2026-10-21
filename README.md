@@ -12,8 +12,9 @@ The crows are hungry. Grow your crops, sell your harvest, and upgrade your gear 
 - Run out of crops and seeds, and the farm is lost. How many days can you last?
 
 ## Controls
-- D-pad: move, B: run
-- A: plant a seed on empty soil, harvest a ripe crop (swing the sword: planned)
+- D-pad: move, R: run
+- A: plant a seed on empty soil, harvest a ripe crop
+- B: swing the sword
 
 ## Build
 Needs `arm-none-eabi-gcc` and Python 3 with Pillow.
