@@ -145,6 +145,14 @@ farmer is knocked out.
   blood moon ends the run ("THE BLOOD MOON WON"). Scarecrows fire at Lv.1
   for the night. Crops do not grow. At dawn the crows fly away, +25 coins, and the shop opens in pink
   morning light (no fireflies). Then the next day.
+- The end (v0.7, Caleb): after the 5th blood moon, the next dusk is the last shop ("LAST TIME TO BUY +150":
+  150 coins to spend). Then 3 blood moons in a row with no shop between them (a 5 s break, "BLOOD MOON 2 OF
+  3"), with white and gold crows. White crows are the hardest: 8 HP, so a Lv.3 sword needs 4 hits (Lv.1 8,
+  Lv.2 6); 1 in 4 crows are white on night 1, 1 in 3 on night 2, 1 in 2 on night 3. The 3 nights share 5
+  knockouts; the 5th loses. Survive all 3 and the run is won: "YOU WON! THANK YOU FOR PLAYING!" with the
+  highest day, crops grown (harvested), and crows defeated. Every other ending shows the same numbers under
+  "YOU DID YOUR BEST" ("THE FARM IS LOST", "THE BLOOD MOON WON", or "THE LAST MOON WON").
+- All sprites draw behind the text layer, so messages, notices, the HUD, and windows cover them (Caleb).
 - Dusk (v0.5, Caleb): the field fades toward sunset orange during the 15 s "DUSK IN n" countdown; the shop
   opens at night (dark blue field) with fireflies drifting and blinking around the window. Fireflies show
   only at night in the shop. The next day starts bright.

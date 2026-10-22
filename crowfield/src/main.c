@@ -70,8 +70,7 @@ enum { SPR_FARMER_DOWN, SPR_FARMER_UP, SPR_FARMER_SIDE, SPR_CROW_A, SPR_CROW_B, 
 #define HFLIP 1
 #define VFLIP 2
 #define FLASH 0x10   // OBJ palette bank 1: all white
-#define BANK(n) ((n) << 4)   // OBJ palette bank n: 2 red crow, 3 purple crow, 4 gold crow, 5 fireflies
-#define BEHIND 0x100         // draw behind the text layer (BG0), e.g. fireflies behind the shop window
+#define BANK(n) ((n) << 4)   // OBJ palette bank n: 2 red crow, 3 purple crow, 4 gold crow, 5 fireflies, 6 white crow
 
 // ---------- small helpers ----------
 static void copy32(volatile u32 *dst, const u32 *src, u32 words) {
@@ -226,13 +225,15 @@ static void oam_begin(void) { oam_used = 0; }
 static void oam_end(void) {
     for (u32 i = oam_used; i < 128; i++) oam_shadow[i * 4] = 0x0200;   // hidden
 }
-// 16x16 sprite at screen (x, y), cell from sprites.png. flags: HFLIP, VFLIP, FLASH, BANK(n), BEHIND.
+// 16x16 sprite at screen (x, y), cell from sprites.png. flags: HFLIP, VFLIP, FLASH, BANK(n).
+// Every sprite has priority 1, behind the text layer (BG0, priority 0): messages, notices, the HUD, and the
+// shop window always cover the farmer, the target marker, and crows (Caleb). The map (BG1) is priority 2.
 static void put_sprite(s32 x, s32 y, u32 cell, u32 flags) {
     if (oam_used >= 128) return;
     u16 *o = &oam_shadow[oam_used++ * 4];
     o[0] = (y & 0xFF);                                            // square shape
     o[1] = (x & 0x1FF) | (1 << 14) | ((flags & 3) << 12);         // 16x16, flips
-    o[2] = cell * 4 | (((flags >> 4) & 15) << 12) | ((flags & BEHIND) ? 1 << 10 : 0);   // tile, priority, bank
+    o[2] = cell * 4 | (((flags >> 4) & 15) << 12) | (1 << 10);   // tile, priority 1, palette bank
 }
 
 // ---------- farm ----------
@@ -340,7 +341,9 @@ static s32 weapon_out;           // sword in hand: B draws it, A puts it away
 #define HURT_FRAMES 60
 #define KO_FRAMES 180            // 3 seconds (Caleb's call)
 #define BLOOD_KO_FRAMES 360      // 6 s during a blood moon: "you don't get up as fast" (Caleb)
-#define BLOOD_KOS 3              // the 3rd knockout of a blood moon ends the run (Caleb)
+#define BLOOD_KOS 3              // the 3rd knockout of a blood moon loses the night (Caleb)
+#define FINALE_KOS 5             // the final blood moons allow 5 knockouts (the 5th loses)
+static s32 finale;               // 0, or which final blood moon (1-3); see the finale section
 static s32 blood_on;             // 1: blood-moon night, 2: dawn (crows fly away, then the shop)
 static s32 blood_kos;            // knockouts this blood moon
 
@@ -369,7 +372,8 @@ static void update_farmer(void) {
 }
 
 // ---------- farm work (A button) ----------
-static s32 seeds[KINDS], crops[KINDS], coins, day;   // seeds and crops in the bag, per crop ($seeds = corn)
+static s32 seeds[KINDS], crops[KINDS], coins, day;
+static s32 stat_crops, stat_kills;   // crops harvested and crows defeated this run (the end screens)   // seeds and crops in the bag, per crop ($seeds = corn)
 static s32 sel_seed;                                 // the seed A plants; L cycles it (Caleb)
 
 static s32 crops_total(void) { s32 n = 0; for (s32 k = 0; k < KINDS; k++) n += crops[k]; return n; }
@@ -428,6 +432,7 @@ static void farm_tiles(void) {
         if (is_ripe(t)) {
             set_tile(xs[k], ys[k], SOIL);
             crops[crop_kind[ys[k] * MAP_W + xs[k]]]++;
+            stat_crops++;
             harvested++;
         } else if (t == SOIL) {
             if (seeds[sel_seed] <= 0) { wanted_seed = 1; continue; }
@@ -507,12 +512,14 @@ static s32 day_done;                 // > 0: all of today's crows are gone; fram
 // Per level (index 0 = a poked crow, same as Lv.1): HP, speed in 1/16 px per frame, frames per bite.
 // HP is counted in half-points so the Lv.2 sword can do 1.5 (Caleb): black 1, red 2, purple 3, gold 5 (v0.5.1).
 #define HP(n) ((n) * 2)
-// Lv.5 is the blood-moon gold crow (v0.6): gold, 20% faster, drops 10 coins.
-static const s32 crow_hp_of[6] = { HP(1), HP(1), HP(2), HP(3), HP(5), HP(5) };
-static const s32 crow_speed_of[6] = { 6, 6, 7, 8, 9, 11 };          // +15%, +30%, +45% (docs/V0.5_PLAN.md)
-static const s32 crow_bite_of[6] = { 120, 120, 120, 90, 60, 60 };
+// Lv.5 is the blood-moon gold crow (v0.6): gold, 20% faster, drops 10 coins. Lv.6 is the white crow of the
+// final blood moons (v0.7): the hardest, 8 HP, so a Lv.3 sword needs 4 hits (Caleb).
+static const s32 crow_hp_of[7] = { HP(1), HP(1), HP(2), HP(3), HP(5), HP(5), HP(8) };
+static const s32 crow_speed_of[7] = { 6, 6, 7, 8, 9, 11, 11 };          // +15%, +30%, +45% (docs/V0.5_PLAN.md)
+static const s32 crow_bite_of[7] = { 120, 120, 120, 90, 60, 60, 60 };
 #define CROW_GOLD 4
 #define CROW_BLOOD 5
+#define CROW_WHITE 6
 #define GOLD_COINS 5       // a gold crow drops 5 coins when killed
 #define BLOOD_COINS 10     // a blood-moon gold crow drops 10
 #define PECK_COOL 90
@@ -586,7 +593,7 @@ static void hurt_farmer(s32 from_x, s32 from_y) {
             s32 n = copy_str(buf, "KNOCKOUT ");
             n += fmt_num(buf + n, ++blood_kos);
             n += copy_str(buf + n, " OF ");
-            fmt_num(buf + n, BLOOD_KOS);
+            fmt_num(buf + n, finale ? FINALE_KOS : BLOOD_KOS);
             show_message(buf);
         } else show_message("KNOCKED OUT!");
     }
@@ -693,8 +700,8 @@ static void draw_fireflies(void) {
         s32 x = fly_x[k] - 8 + (sin64[(t >> 3) & 63] * 6 >> 8);         // drift slowly
         s32 y = fly_y[k] - 8 + (sin64[((t >> 2) + k * 9) & 63] * 4 >> 8);
         u32 phase = (t >> 1) & 63;                                     // blink: bright, dim, dark
-        if (phase < 28) put_sprite(x, y, SPR_FIREFLY, BANK(5) | BEHIND);
-        else if (phase < 44) put_sprite(x, y, SPR_FIREFLY_DIM, BANK(5) | BEHIND);
+        if (phase < 28) put_sprite(x, y, SPR_FIREFLY, BANK(5));
+        else if (phase < 44) put_sprite(x, y, SPR_FIREFLY_DIM, BANK(5));
     }
 }
 
@@ -798,19 +805,37 @@ static void update_notice(void) {
 static const char *const training_notice[4] = {
     "NOW IS THE TIME FOR", "YOUR TRAINING TO SHOW.", "LOSE A BLOOD MOON NOW", "AND THE RUN IS OVER." };
 
-static void game_over_screen(const char *title);
+enum { END_FARM, END_BLOOD, END_FINALE, END_WON };
+static void end_screen(s32 kind);
 static s32 blood_night(void) { return blood_on != 0; }
+
+// ---------- the final blood moons (v0.7, Caleb) ----------
+// After the 5th blood moon, the next dusk is the last shop: +150 coins, "your last time to buy". Then 3
+// blood moons in a row with no shop, with white and gold crows. 5 knockouts are allowed (the 5th loses).
+// Survive all 3 and the player wins.
+#define FINALE_AFTER 5          // blood moons before the finale
+#define FINALE_NIGHTS 3
+#define FINALE_COINS 150
+#define BREAK_FRAMES 300        // 5 s between the final nights
+static s32 finale_pending;      // 1: the next dusk is the last shop
+static s32 shop_last;           // 1: this is the last shop
 
 static void start_blood_moon(void) {
     blood_on = 1;
     blood_timer = BLOOD_FRAMES;
-    blood_kos = 0;
+    if (finale <= 1) blood_kos = 0;   // the final nights share their 5 knockouts
     blood_coins = 0;
     blood_saved_lv = scarecrow_lv;
     scarecrow_lv = 1;            // for this night only
     spawn_timer = BLOOD_SPAWN_GAP - 60;
     set_light_blood(256);
-    show_message("BLOOD MOON!");
+    if (finale) {
+        char buf[20];
+        s32 n = copy_str(buf, "BLOOD MOON ");
+        n += fmt_num(buf + n, finale);
+        copy_str(buf + n, " OF 3");
+        show_message(buf);
+    } else show_message("BLOOD MOON!");
     play(SND_CAW);
 }
 
@@ -821,6 +846,7 @@ static void blood_dawn(void) {
     scarecrow_lv = blood_saved_lv;
     blood_count++;
     if (blood_count == BLOOD_PRACTICE) notice_pending = 1;
+    if (blood_count == FINALE_AFTER && !finale) { finale_pending = 1; blood_next = 99999; }
     blood_on = 2;
     blood_timer = DAWN_FRAMES;
     set_light_dawn();
@@ -828,8 +854,15 @@ static void blood_dawn(void) {
 }
 
 static void update_blood_moon(void) {
-    if (blood_on == 1 && blood_kos >= BLOOD_KOS && !ko_timer) {   // the 3rd knockout is over: the night is lost
-        if (blood_count >= BLOOD_PRACTICE) { game_over_screen("THE BLOOD MOON WON"); return; }
+    if (blood_on == 3) {                     // a break between the final nights
+        if (--blood_timer > 0) return;
+        finale++;
+        start_blood_moon();
+        return;
+    }
+    if (blood_on == 1 && blood_kos >= (finale ? FINALE_KOS : BLOOD_KOS) && !ko_timer) {   // the night is lost
+        if (finale) { end_screen(END_FINALE); return; }
+        if (blood_count >= BLOOD_PRACTICE) { end_screen(END_BLOOD); return; }
         coins -= blood_coins;    // practice: lose the night's coins and the bonus, keep the run
         if (coins < 0) coins = 0;
         blood_dawn();
@@ -838,12 +871,23 @@ static void update_blood_moon(void) {
     }
     if (blood_on == 1) {
         if (--blood_timer > 0) {
-            if (++spawn_timer >= BLOOD_SPAWN_GAP && spawn_crow_lv(CROW_BLOOD)) spawn_timer = 0;
+            // the final nights mix in white crows: 1 in 4, then 1 in 3, then 1 in 2
+            s32 lv = finale && rand_in(1, 5 - finale) == 1 ? CROW_WHITE : CROW_BLOOD;
+            if (++spawn_timer >= BLOOD_SPAWN_GAP && spawn_crow_lv(lv)) spawn_timer = 0;
             if (blood_timer % 60 == 0 && msg_timer <= 60) {   // "DAWN IN n", unless a message is fresh
                 char buf[16];
                 fmt_num(buf + copy_str(buf, "DAWN IN "), blood_timer / 60);
                 show_message(buf);
             }
+            return;
+        }
+        if (finale) {                        // a final night is over
+            for (s32 i = 0; i < MAX_CROWS; i++)
+                if (crow_state[i] != CROW_NONE && crow_state[i] != CROW_DEAD) crow_state[i] = CROW_FLEE;
+            if (finale >= FINALE_NIGHTS) { end_screen(END_WON); return; }
+            blood_on = 3;
+            blood_timer = BREAK_FRAMES;
+            show_message("THE NEXT ONE IS COMING...");
             return;
         }
         coins += DAWN_BONUS;
@@ -853,7 +897,7 @@ static void update_blood_moon(void) {
     }
     if (--blood_timer > 0) return;
     blood_on = 0;
-    blood_next = day + rand_in(4, 6);   // the next one comes 4 to 6 nights later (Caleb)
+    if (!finale_pending) blood_next = day + rand_in(4, 6);   // 4 to 6 nights later (Caleb); none before the finale
     shop_dawn = 1;
     open_shop();
 }
@@ -888,13 +932,21 @@ static void update_days(s32 alive) {
             char buf[24];   // "BLOOD MOON TOMORROW!" is 20 characters plus the end
             s32 sec = day_done / 60;
             if (day == blood_next - 1 && sec >= 10 && sec <= 12) copy_str(buf, "BLOOD MOON TOMORROW!");
+            else if (finale_pending && sec >= 10 && sec <= 12) copy_str(buf, "THE FINAL NIGHTS COME");
             else fmt_num(buf + copy_str(buf, blood ? "BLOOD MOON IN " : "DUSK IN "), sec);
             show_message(buf);
         }
         return;
     }
     if (blood) start_blood_moon();
-    else open_shop();
+    else {
+        if (finale_pending) {                  // the last shop before the final blood moons
+            finale_pending = 0;
+            shop_last = 1;
+            coins += FINALE_COINS;
+        }
+        open_shop();
+    }
 }
 
 static void update_crows(void) {
@@ -953,12 +1005,13 @@ static void hit_crow(s32 i, s32 dmg, s32 kvx, s32 kvy) {
     if (crow_hp[i] <= 0) {
         crow_state[i] = CROW_DEAD;
         crow_timer[i] = 16;
+        stat_kills++;
         play(SND_POOF);
         if (crow_lv[i] >= CROW_GOLD) {   // gold crows drop coins
-            s32 c = crow_lv[i] == CROW_BLOOD ? BLOOD_COINS : GOLD_COINS;
+            s32 c = crow_lv[i] >= CROW_BLOOD ? BLOOD_COINS : GOLD_COINS;
             coins += c;
             if (blood_on == 1) blood_coins += c;
-            show_message(crow_lv[i] == CROW_BLOOD ? "+10 COINS" : "+5 COINS");
+            show_message(crow_lv[i] >= CROW_BLOOD ? "+10 COINS" : "+5 COINS");
             draw_hud();
         }
         return;
@@ -1132,7 +1185,7 @@ static void draw_crows(void) {
             put_sprite(x, y, crow_timer[i] > 8 ? SPR_PUFF_SMALL : SPR_PUFF_BIG, 0);
             continue;
         }
-        u32 bank = crow_lv[i] >= CROW_GOLD ? 4 : crow_lv[i];   // blood-moon gold uses the gold colors
+        u32 bank = crow_lv[i] == CROW_WHITE ? 6 : crow_lv[i] >= CROW_GOLD ? 4 : crow_lv[i];   // blood gold: gold colors
         u32 flags = (crow_vx[i] < 0 ? HFLIP : 0) | (crow_flash[i] ? FLASH : bank >= 2 ? BANK(bank) : 0);
         if (st == CROW_EAT) {    // wings folded; dips its head for the last few frames before a bite
             put_sprite(x, y + (crow_timer[i] < 10), SPR_CROW_B, flags);
@@ -1267,7 +1320,8 @@ static void draw_shop(void) {
     s32 n;
     for (s32 r = SHOP_T; r < SHOP_T + SHOP_ROWS; r++) shop_line(r, "");
     if (shop_page == PAGE_MAIN) {
-        if (shop_dawn) copy_str(buf, "DAWN. BLOOD BONUS +25");
+        if (shop_last) copy_str(buf, "LAST TIME TO BUY +150");
+        else if (shop_dawn) copy_str(buf, "DAWN. BLOOD BONUS +25");
         else {
             n = copy_str(buf, "DUSK. DAY ");
             n += fmt_num(buf + n, day);
@@ -1347,8 +1401,14 @@ static void close_shop(void) {
     shop_open = 0;
     for (s32 r = SHOP_T; r < SHOP_T + SHOP_ROWS; r++) clear_row(r);
     clear_row(19);
-    set_light(0, 0);     // a new morning
     shop_dawn = 0;
+    if (shop_last) {     // "this is your last time to make purchases": now the final blood moons
+        shop_last = 0;
+        finale = 1;
+        start_blood_moon();
+        return;
+    }
+    set_light(0, 0);     // a new morning
     day++;
     start_day();
     if (notice_pending) { notice_pending = 0; show_notice(training_notice, 4); }
@@ -1433,6 +1493,7 @@ static void new_run(void) {
     for (s32 k = 0; k < MAX_SHOTS; k++) shot_life[k] = 0;
     spawning = 1; shop_open = 0;
     blood_on = blood_kos = shop_dawn = blood_count = notice_pending = notice_timer = 0;
+    finale = finale_pending = shop_last = stat_crops = stat_kills = 0;
     blood_next = BLOOD_FIRST;
     game_over = 0;
     start_day();
@@ -1442,21 +1503,32 @@ static void new_run(void) {
 // count as the coins they sell for at dusk.
 static void check_game_over(void) {
     if (seeds_total() > 0 || coins + crops_value() >= seed_price[CORN] || field_has_crops()) return;
-    game_over_screen("THE FARM IS LOST");
+    end_screen(END_FARM);
 }
 
-static void game_over_screen(const char *title) {   // the title, the day reached, PRESS START
-    char buf[24];
-    fmt_num(buf + copy_str(buf, "YOU REACHED DAY "), day);
+// The end of a run, in the shop window: what happened, the highest day, crops grown, crows defeated.
+#define END_START_ROW (SHOP_T + 12)    // "PRESS START" blinks here
+static void end_line(s32 row, const char *label, s32 value) {
+    char buf[26];
+    fmt_num(buf + copy_str(buf, label), value);
+    shop_centered(row, buf);
+}
+static void end_screen(s32 kind) {
+    static const char *const title[4] = { "THE FARM IS LOST", "THE BLOOD MOON WON", "THE LAST MOON WON", "YOU WON!" };
+    static const char *const sub[4] = { "YOU DID YOUR BEST", "YOU DID YOUR BEST", "YOU DID YOUR BEST",
+                                        "THANK YOU FOR PLAYING!" };
     game_over = 1;
-    msg_timer = 0;
-    clear_row(19);   // no stale "DAWN IN n" under the game-over text
-    for (s32 r = 7; r <= 13; r++) clear_row(r);
-    s32 n = 0;
-    while (title[n]) n++;
-    put_text((30 - n) / 2, 8, title);
-    put_text(7, 10, buf);
-    put_text(9, 12, "PRESS START");
+    msg_timer = notice_timer = 0;
+    shop_open = 0;
+    clear_row(19);   // no stale "DAWN IN n" under the window
+    for (s32 r = SHOP_T; r < SHOP_T + SHOP_ROWS; r++) shop_line(r, "");
+    shop_centered(SHOP_T + 1, title[kind]);
+    shop_centered(SHOP_T + 3, sub[kind]);
+    end_line(SHOP_T + 6, "MAX DAY ", day);
+    end_line(SHOP_T + 8, "CROPS GROWN ", stat_crops);
+    end_line(SHOP_T + 10, "CROWS DEFEATED ", stat_kills);
+    shop_centered(END_START_ROW, "PRESS START");
+    if (kind == END_WON) set_light_dawn();
 }
 
 // ---------- main ----------
@@ -1482,6 +1554,10 @@ int main(void) {
     for (u32 i = 0; i < 16; i++) PAL_OBJ[80 + i] = obj_pal[i];
     PAL_OBJ[80 + 13] = (31) | (31 << 5) | (20 << 10);  // firefly core: pale yellow
     PAL_OBJ[80 + 14] = (18) | (28 << 5) | (8 << 10);   // firefly glow: yellow-green
+    for (u32 i = 0; i < 16; i++) PAL_OBJ[96 + i] = obj_pal[i];
+    PAL_OBJ[96 + 1] = (20) | (20 << 5) | (22 << 10);   // white crow body: pale gray
+    PAL_OBJ[96 + 9] = (29) | (29 << 5) | (30 << 10);   // wing: white
+    PAL_OBJ[96 + 10] = (31) | (31 << 5) | (31 << 10);  // sheen: bright white
     PAL_BG[16 + 1] = (29) | (28 << 5) | (22 << 10);   // text: cream
     PAL_BG[16 + 2] = (3) | (4 << 5) | (6 << 10);      // text background: dark slate
     PAL_BG[16 + 3] = (28) | (8 << 5) | (6 << 10);     // heart red
@@ -1517,7 +1593,9 @@ int main(void) {
         if (game_over) {
             if (HIT(KEY_START)) new_run();
             else if (((frame >> 5) & 1) != ((frame - 1) >> 5 & 1))   // blink PRESS START
-                put_text(9, 12, (frame >> 5) & 1 ? "           " : "PRESS START");
+                put_text(9, END_START_ROW, (frame >> 5) & 1 ? "           " : "PRESS START");
+            oam_begin();   // no sprites over the end window
+            oam_end();
             continue;
         }
         if (shop_open) {

@@ -79,6 +79,13 @@ numbers v0.1.0-v0.3.3 in commit subjects; those numbers are history only and hav
 - [x] Dawn: crows fly away, +25 coins, the shop in pink morning light
 - [x] `test/blood.txt`
 
+## v0.7 — the end (done)
+- [x] After 5 blood moons: the last shop (+150), then 3 final blood moons in a row, no shop
+- [x] White crows (8 HP; 4 hits with a Lv.3 sword); 5 knockouts for the 3 nights
+- [x] Win screen ("YOU WON! THANK YOU FOR PLAYING!") and "YOU DID YOUR BEST" screens with stats
+- [x] Sprites behind messages and windows
+- [x] `test/finale.txt`
+
 ## Next
 - [ ] Shop: EXPANSION page that makes the crop field bigger (Caleb; replaces the v0.4b plan below)
 - [ ] Shop: more weapons on the WEAPONS page that replace the current one (Caleb)
