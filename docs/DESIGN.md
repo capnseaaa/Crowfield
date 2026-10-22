@@ -111,7 +111,8 @@ and new types unlock on later days (Fast day 3, Armored day 5, Big day 7, Swarm 
   price and grow time of the seed under the cursor.
 - Selling: (v0.4) each crop sold for 3 coins (Caleb, 2026-10-22; the first guess of 8 gave too much cash).
   Sold at dusk: SELL CROPS sells the whole bag.
-- Seeds cost 1 coin each at dusk (Caleb; was 5). BUY SEED buys one per press.
+- Seeds cost 1 coin each at dusk (Caleb; was 5). A buys one; holding A keeps buying (after 1/3 s, one every
+  4 frames) until A is let go or the coins run out (v0.7.2).
 - Upgrade prices (v0.3.1), rescaled from the concept's Sickle 120 / Sword 150 (set against 8-coin crops) to
   about the same number of crops at 3 coins: Sickle Lv.2 45, Lv.3 90; Sword Lv.2 60, Lv.3 120.
   Scarecrow: 40 coins each (the concept's 100 rescaled); Scarecrow Lv.2 60, Lv.3 120.
@@ -139,14 +140,14 @@ farmer is knocked out.
 - Game over counts crops in the bag as the coins they sell for, so a full bag never ends the run.
 - Blood moon (v0.6, Caleb; docs/V0.6_PLAN.md): the night after Day 34, then every 4 to 6 nights at random.
   The day before, the countdown warns "BLOOD MOON TOMORROW!"; on the day it reads "BLOOD MOON IN n" and
-  the sky turns red. No shop: a 90 s blood-red night of fast gold crows (one a second, 5 HP, 10 coins
+  the sky turns red. No shop: a 30 s blood-red night (90 s until v0.7.2; Caleb: too long) of fast gold crows (one a second, 5 HP, 10 coins
   each). Knockouts last 6 s; the 3rd loses the night. Losing one of the first 3 blood moons only takes back that
   night's coins and the bonus; after the 3rd a notice says the training is over, and from then on a lost
   blood moon ends the run ("THE BLOOD MOON WON"). Scarecrows fire at Lv.1
   for the night. Crops do not grow. At dawn the crows fly away, +25 coins, and the shop opens in pink
   morning light (no fireflies). Then the next day.
 - The end (v0.7, Caleb): after the 5th blood moon, the next dusk is the last shop ("LAST TIME TO BUY +150":
-  150 coins to spend). Then 3 blood moons in a row with no shop between them (a 5 s break, "BLOOD MOON 2 OF
+  150 coins to spend). Then 3 blood moons in a row (45 s each) with no shop between them (a 5 s break, "BLOOD MOON 2 OF
   3"), with white and gold crows. White crows are the hardest: 8 HP, so a Lv.3 sword needs 4 hits (Lv.1 8,
   Lv.2 6); 1 in 4 crows are white on night 1, 1 in 3 on night 2, 1 in 2 on night 3. The 3 nights share 5
   knockouts; the 5th loses. Survive all 3 and the run is won: "YOU WON! THANK YOU FOR PLAYING!" with the

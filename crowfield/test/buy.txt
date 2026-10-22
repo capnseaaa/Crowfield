@@ -1,0 +1,19 @@
+# hold A on a seed to keep buying (v0.7.2): one on the press, then after 20 frames one every 4 frames,
+# until A is let go or the coins run out.
+1 0 !$day_left=0,$coins=20
+1 0 !$day_done=2
+6 0
+1 0 @$shop_open,$shop_cursor
+# A opens SEEDS (cursor on CORN, 1 coin each)
+1 1
+1 0
+1 0 @$shop_page,$seeds,$coins
+# hold A 40 frames: 1 on the press, then one at hold frames 20, 24, ... 36 (5 more) = 6 seeds
+40 1
+1 0 @$seeds,$coins
+# let go, then hold until the coins run out: it stops at 0 coins with an error beep
+1 0
+200 1 y1_bought.ppm
+1 0 @$seeds,$coins,$buy_hold
+1 0
+1 0 @$buy_hold

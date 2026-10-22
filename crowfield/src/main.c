@@ -769,12 +769,13 @@ static void start_day(void) {
 
 // ---------- blood moon (v0.6, Caleb; docs/V0.6_PLAN.md) ----------
 // The night after Day 34, then every 4-6 nights: no dusk shop. Gold crows (Lv.5) pour in until dawn
-// (90 s). Knockouts last 6 s; the 3rd loses the night. Scarecrows fire at Lv.1 for the night. Crops do not
+// (30 s; the final nights 45 s). Knockouts last 6 s; the 3rd loses the night. Scarecrows fire at Lv.1 for the night. Crops do not
 // grow. Each kill pays 10 coins, and dawn pays a 25-coin bonus. Then the shop opens at dawn.
 // Losing one of the first 3 blood moons only costs that night's coins and the bonus (Caleb: "softer");
 // after the 3rd a notice warns that from now on a lost blood moon ends the run.
 #define BLOOD_FIRST 34          // the first blood moon is the night after Day 34
-#define BLOOD_FRAMES 5400       // 90 s until dawn
+#define BLOOD_FRAMES 1800       // 30 s until dawn (Caleb, v0.7.2; was 90)
+#define FINALE_FRAMES 2700      // each final night: 45 s
 #define BLOOD_SPAWN_GAP 60      // a new gold crow every second
 #define DAWN_FRAMES 120         // crows fly away for 2 s, then the shop
 #define DAWN_BONUS 25
@@ -823,7 +824,7 @@ static s32 shop_last;           // 1: this is the last shop
 
 static void start_blood_moon(void) {
     blood_on = 1;
-    blood_timer = BLOOD_FRAMES;
+    blood_timer = finale ? FINALE_FRAMES : BLOOD_FRAMES;
     if (finale <= 1) blood_kos = 0;   // the final nights share their 5 knockouts
     blood_coins = 0;
     blood_saved_lv = scarecrow_lv;
@@ -1425,7 +1426,27 @@ static int buy_level(s32 *lv, const s32 *price) {
 }
 
 // While the shop is open the farm is paused: no crows, no growth.
+#define BUY_HOLD 20    // hold A this long on a seed and it keeps buying (Caleb, v0.7.2)
+#define BUY_EVERY 4    // then one seed every 4 frames, until A is let go or the coins run out
+static s32 buy_hold;
 static void update_shop(void) {
+    if (shop_page == PAGE_SEEDS && HELD(KEY_A) && !HIT(KEY_A)) {
+        s32 k = shop_cursor;
+        if (buy_hold >= 0 && ++buy_hold >= BUY_HOLD && (buy_hold & (BUY_EVERY - 1)) == 0) {
+            if (day >= unlock_day[k] && coins >= seed_price[k]) {
+                coins -= seed_price[k];
+                seeds[k]++;
+                play(SND_PLANT);
+                draw_hud();
+                draw_shop();
+            } else {
+                play(SND_NOSEEDS);
+                buy_hold = -1;   // stop until A is let go
+            }
+        }
+        return;
+    }
+    if (!HELD(KEY_A)) buy_hold = 0;
     if (HIT(KEY_UP) && shop_cursor > 0) { shop_cursor--; draw_shop(); }
     if (HIT(KEY_DOWN) && shop_cursor < page_items[shop_page] - 1) { shop_cursor++; draw_shop(); }
     if (HIT(KEY_B) && shop_page != PAGE_MAIN) {
@@ -1550,7 +1571,7 @@ static s32 dev_open, dev_cursor, dev_val[DEV_ITEMS];
 
 static void draw_dev(void) {
     static const char *const label[DEV_ITEMS] = { "DAY", "SWORD LV", "SICKLE LV", "SCARE LV", "SCARECROWS",
-        "SEEDS EACH", "BLOOD MOONS", "TONIGHT", "MONEY", "INVINCIBLE" };
+        "SEEDS EACH", "MOONS DONE", "TONIGHT", "MONEY", "INVINCIBLE" };
     static const char *const tonight[3] = { "NORMAL", "BLOOD", "FINAL" };
     for (s32 r = SHOP_T; r < SHOP_T + SHOP_ROWS; r++) shop_line(r, "");
     shop_centered(SHOP_T, "DEV MODE");
@@ -1558,12 +1579,14 @@ static void draw_dev(void) {
         char buf[26];
         s32 n = copy_str(buf, k == dev_cursor ? "> " : "  ");
         n += copy_str(buf + n, label[k]);
-        while (n < 14) buf[n++] = ' ';
+        while (n < 13) buf[n++] = ' ';
         buf[n] = 0;
-        if (k == DEV_TONIGHT) copy_str(buf + n, tonight[dev_val[k]]);
-        else if (k == DEV_MONEY) copy_str(buf + n, dev_val[k] ? "INFINITE" : "NORMAL");
-        else if (k == DEV_GOD) copy_str(buf + n, dev_val[k] ? "ON" : "OFF");
-        else fmt_num(buf + n, dev_val[k]);
+        if (k == dev_cursor) n += copy_str(buf + n, "<");   // the value Left/Right change: < 3 >
+        if (k == DEV_TONIGHT) n += copy_str(buf + n, tonight[dev_val[k]]);
+        else if (k == DEV_MONEY) n += copy_str(buf + n, dev_val[k] ? "ENDLESS" : "NORMAL");
+        else if (k == DEV_GOD) n += copy_str(buf + n, dev_val[k] ? "ON" : "OFF");
+        else n += fmt_num(buf + n, dev_val[k]);
+        if (k == dev_cursor) copy_str(buf + n, ">");
         shop_line(SHOP_T + 2 + k, buf);
     }
     shop_centered(SHOP_T + 13, "A START   B CLOSE");

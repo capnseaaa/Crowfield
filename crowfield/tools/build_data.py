@@ -86,6 +86,7 @@ FONT["$"] = "00000 01110 11111 11011 11111 01110 00000"
 FONT["&"] = "00100 01110 00100 10101 01110 00100 00100"
 FONT["^"] = "00000 00100 01110 11111 11111 01110 00000"
 FONT[">"] = "01000 00100 00010 00001 00010 00100 01000"   # menu cursor
+FONT["<"] = "00010 00100 01000 10000 01000 00100 00010"   # dev mode: the value being changed
 FONT["="] = "00000 00000 11111 00000 11111 00000 00000"
 FONT["#"] = "01110 00100 11111 00100 00100 00100 01110"   # scarecrow icon
 # Seed icons, one per crop (v0.5.1; Caleb could not tell which seed was chosen). "2" pixels are leaf green.
@@ -93,8 +94,8 @@ FONT["#"] = "01110 00100 11111 00100 00100 00100 01110"   # scarecrow icon
 FONT["{"] = "20202 02220 11111 01110 01110 00100 00100"   # carrot: green top, orange point
 FONT["}"] = "00200 02220 11111 11111 11111 01110 00000"   # tomato: red, green stem
 FONT["|"] = "00020 00200 01110 11111 11011 11111 01110"   # pumpkin: wide orange, stem
-GLYPH_COLOR = {"*": 3, "$": 4, "&": 5, "^": 4, ">": 4, "#": 4, "{": 6, "}": 3, "|": 6}   # 6 orange   # text palette: 1 cream, 3 red, 4 gold, 5 green
-FONT_CHARS = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789%:!.?'+/-,*$&^>=#{}|"
+GLYPH_COLOR = {"*": 3, "$": 4, "&": 5, "^": 4, ">": 4, "#": 4, "{": 6, "}": 3, "|": 6, "<": 4}   # 6 orange   # text palette: 1 cream, 3 red, 4 gold, 5 green
+FONT_CHARS = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789%:!.?'+/-,*$&^>=#{}|<"
 
 
 def font_words():
