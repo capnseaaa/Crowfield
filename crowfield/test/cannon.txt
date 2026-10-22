@@ -81,3 +81,14 @@
 20 0 c5_flight.ppm
 21 0 c6_burst.ppm
 1 0 @$crow_hp,$crow_hp+4,$crow_hp+8,$can_ammo,$can_ammo+4,$can_cool
+# turning (v0.8.2): cannon 0 points right after those shots. One crow up and left of it: the barrel turns one
+# step every 5 frames (right -> up-right -> up -> up-left) and fires only once it points there.
+20 0
+1 0 !$crow_state+4=0,$crow_state+8=0,$can_cool=0,$can_cool+4=999,$crow_state=2,$crow_hp=20,$crow_x=640,$crow_y=1280,$crow_timer=999,$crow_vx=0,$crow_vy=0,$crow_cool=999
+1 0 @$can_pose,$can_want,$can_ammo
+5 0 c7_turning.ppm
+1 0 @$can_pose,$can_ammo
+10 0
+1 0 @$can_pose,$can_ammo
+3 0 c8_fired.ppm
+1 0 @$can_pose,$can_ammo,$can_kick

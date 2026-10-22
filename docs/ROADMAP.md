@@ -100,6 +100,7 @@ numbers v0.1.0-v0.3.3 in commit subjects; those numbers are history only and hav
 - [x] v0.8.1: iron sword, spear, scythe, slingshot (each with its own upgrades; switching back keeps the level)
 - [x] v0.8.1: crow cannon (pumpkin ammo; SELL ALL keeps pumpkins once you own one)
 - [x] v0.8.1: dev mode WEAPON and CANNONS; `test/weapons.txt`, `test/cannon.txt`
+- [x] v0.8.2: smaller weapon art (Caleb), the cannon barrel turns toward its target, a more detailed cannon
 
 ## v0.9 — music and a title screen
 - [ ] Music: a looping tune (how many songs, and when each plays: ask Caleb)

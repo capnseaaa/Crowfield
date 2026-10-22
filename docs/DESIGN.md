@@ -181,6 +181,11 @@ farmer is knocked out.
   field A always farms. Every 3 s a loaded cannon lobs a pumpkin (0.67 s flight) at the nearest crow within
   120 px; the burst does 3 damage to every crow within 16 px of that spot. Ammo stays from night to night.
   Once you own a cannon, SELL ALL keeps pumpkins; the PUMPKIN line still sells them.
+- v0.8.2 (Caleb's look at v0.8.1): the cannon is a wheeled carriage with a barrel that turns. It has 5 poses
+  (left, up-left, up, up-right, right), steps one pose every 5 frames toward the nearest crow in range, and
+  fires only once it points there (recoil and a puff of smoke). Smaller art: slingshot about half size, a thin
+  spear with a pointed steel head, a scythe one pixel smaller, and the iron sword 2 px shorter than the
+  wooden one (own cells).
 - All sprites draw behind the text layer, so messages, notices, the HUD, and windows cover them (Caleb).
 - Dusk (v0.5, Caleb): the field fades toward sunset orange during the 15 s "DUSK IN n" countdown; the shop
   opens at night (dark blue field) with fireflies drifting and blinking around the window. Fireflies show

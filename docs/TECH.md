@@ -34,7 +34,8 @@ Add new tiles at the end, and update all three lists together.
 `art/sprites.png`, 16x16 cells: farmer down, farmer up, farmer side (left = hflip), crow wings up,
 crow wings down, target marker, sword right, sword up, puff big, puff small,
 farmer knocked out, sword up-right, scarecrow shot, firefly, firefly dim, then (v0.8.1) spear up / right /
-up-right, scythe up / right / up-right, slingshot up / right, crow cannon, pumpkin ball (25 cells). Flips give the other sword directions; `swing_pose[]`
+up-right, scythe up / right / up-right, slingshot up / right, cannon carriage, pumpkin ball, then (v0.8.2) iron sword up / right / up-right and
+cannon barrel up / up-right / right, drawn over the carriage (31 cells). Flips give the other sword directions; `swing_pose[]`
 in main.c lists each facing's 3 swing poses and its resting pose. `put_sprite(x, y, cell, flags)` takes HFLIP, VFLIP, FLASH.
 
 ## Sprite budget

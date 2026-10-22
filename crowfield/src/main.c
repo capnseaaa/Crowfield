@@ -66,7 +66,8 @@ enum { DIR_DOWN, DIR_UP, DIR_LEFT, DIR_RIGHT };
 enum { SPR_FARMER_DOWN, SPR_FARMER_UP, SPR_FARMER_SIDE, SPR_CROW_A, SPR_CROW_B, SPR_MARKER,
        SPR_SWORD_RIGHT, SPR_SWORD_UP, SPR_PUFF_BIG, SPR_PUFF_SMALL, SPR_FARMER_KO, SPR_SWORD_DIAG, SPR_SHOT,
        SPR_FIREFLY, SPR_FIREFLY_DIM, SPR_SPEAR_UP, SPR_SPEAR_RIGHT, SPR_SPEAR_DIAG, SPR_SCYTHE_UP,
-       SPR_SCYTHE_RIGHT, SPR_SCYTHE_DIAG, SPR_SLING_UP, SPR_SLING_RIGHT, SPR_CANNON, SPR_BALL };
+       SPR_SCYTHE_RIGHT, SPR_SCYTHE_DIAG, SPR_SLING_UP, SPR_SLING_RIGHT, SPR_CANNON, SPR_BALL,
+       SPR_IRON_UP, SPR_IRON_RIGHT, SPR_IRON_DIAG, SPR_BARREL_UP, SPR_BARREL_DIAG, SPR_BARREL_RIGHT };
 // put_sprite flags
 #define HFLIP 1
 #define VFLIP 2
@@ -342,6 +343,9 @@ static s32 bless_attack, bless_scare;    // dawn blessings taken (v0.8): each is
 static s32 bless_pending;                // 1: the dawn shop opens on CHOOSE A BLESSING
 #define MAX_CANNONS 2
 static s32 cannons, can_ammo[MAX_CANNONS], can_cool[MAX_CANNONS];   // crow cannons (v0.8.1): pumpkins loaded
+// Barrel pose 0 left, 1 up-left, 2 up, 3 up-right, 4 right (v0.8.2): it turns one step at a time toward the crow
+// it wants (can_want) and fires only once it points there; can_kick counts down the recoil after a shot.
+static s32 can_pose[MAX_CANNONS], can_want[MAX_CANNONS], can_kick[MAX_CANNONS];
 static s32 hurt_timer;           // > 0: just hit, cannot be hit again (blinks)
 static s32 ko_timer;             // > 0: knocked out, cannot act
 static s32 pvx, pvy;             // knockback velocity, 1/16 px per frame
@@ -1340,7 +1344,7 @@ static const u8 pose_kind[8] = { 0, 0, 1, 1, 2, 2, 2, 2 };   // 0 up cell, 1 rig
 static const u8 pose_flags[8] = { 0, VFLIP, HFLIP, 0, 0, HFLIP, VFLIP, HFLIP | VFLIP };
 // Each weapon's cells (up, right, up-right; the slingshot has no up-right pose) and where the hand grips them.
 static const u8 weapon_cell[WEAPONS][3] = {
-    { SPR_SWORD_UP, SPR_SWORD_RIGHT, SPR_SWORD_DIAG }, { SPR_SWORD_UP, SPR_SWORD_RIGHT, SPR_SWORD_DIAG },
+    { SPR_SWORD_UP, SPR_SWORD_RIGHT, SPR_SWORD_DIAG }, { SPR_IRON_UP, SPR_IRON_RIGHT, SPR_IRON_DIAG },
     { SPR_SPEAR_UP, SPR_SPEAR_RIGHT, SPR_SPEAR_DIAG }, { SPR_SCYTHE_UP, SPR_SCYTHE_RIGHT, SPR_SCYTHE_DIAG },
     { SPR_SLING_UP, SPR_SLING_RIGHT, SPR_SLING_RIGHT } };
 static s32 grip_x(u32 kind) { return kind == 1 ? 2 : kind == 0 ? 8 : weapon <= IRON ? 4 : 3; }
@@ -1438,20 +1442,38 @@ static int cannon_work(void) {
     return 0;
 }
 
+// Where each barrel pose's muzzle sits, from the pivot (8, 9) in the cell.
+static const signed char muzzle_x[5] = { -7, -5, 0, 5, 7 }, muzzle_y[5] = { 0, -5, -7, -5, 0 };
+#define CANNON_TURN 5   // frames per barrel step
+
+// The pose that points at (tx, ty) from the pivot: up within ~22 degrees of straight up, sideways within ~22
+// of flat (a crow lower than the cannon counts as flat), else diagonal. No division.
+static s32 aim_pose(s32 x, s32 y, s32 tx, s32 ty) {
+    s32 dx = tx - x, up = y - ty, ax = abs32(dx);
+    if (up < 0) up = 0;
+    if (5 * ax <= 2 * up) return 2;
+    if (2 * ax >= 5 * up) return dx < 0 ? 0 : 4;
+    return dx < 0 ? 1 : 3;
+}
+
 static void update_cannons(void) {
     for (s32 k = 0; k < cannons; k++) {
-        if (can_cool[k]) { can_cool[k]--; continue; }
-        if (!can_ammo[k]) continue;
-        s32 x = cannon_x(k) + 8, y = cannon_y(k) + 6;
+        if (can_kick[k]) can_kick[k]--;
+        if (can_cool[k]) can_cool[k]--;
+        s32 x = cannon_x(k) + 8, y = cannon_y(k) + 9;   // the pivot
         s32 c = nearest_crow(x, y, CANNON_RANGE, -1);
-        if (c < 0) continue;
+        if (c >= 0) can_want[k] = aim_pose(x, y, (crow_x[c] >> 4) + 8, (crow_y[c] >> 4) + 8);
+        if (can_pose[k] != can_want[k] && (frame % CANNON_TURN) == 0)
+            can_pose[k] += can_pose[k] < can_want[k] ? 1 : -1;
+        if (c < 0 || can_cool[k] || !can_ammo[k] || can_pose[k] != can_want[k]) continue;
         for (s32 b = 0; b < BALLS; b++) {
             if (ball_t[b]) continue;
             ball_t[b] = 1;
-            ball_x0[b] = x; ball_y0[b] = y;
+            ball_x0[b] = x + muzzle_x[can_pose[k]]; ball_y0[b] = y + muzzle_y[can_pose[k]];
             ball_x1[b] = (crow_x[c] >> 4) + 8; ball_y1[b] = (crow_y[c] >> 4) + 8;
             can_ammo[k]--;
             can_cool[k] = CANNON_RELOAD;
+            can_kick[k] = 10;
             play(SND_WHOOSH);
             break;
         }
@@ -1470,7 +1492,15 @@ static void update_cannons(void) {
 }
 
 static void draw_cannons(void) {
-    for (s32 k = 0; k < cannons; k++) put_sprite(cannon_x(k), cannon_y(k), SPR_CANNON, 0);
+    static const u8 barrel_cell[5] = { SPR_BARREL_RIGHT, SPR_BARREL_DIAG, SPR_BARREL_UP, SPR_BARREL_DIAG, SPR_BARREL_RIGHT };
+    for (s32 k = 0; k < cannons; k++) {
+        s32 p = can_pose[k], x = cannon_x(k), y = cannon_y(k), back = can_kick[k] > 6;   // recoil: 1 px back
+        if (can_kick[k] > 4)   // a puff of smoke at the muzzle
+            put_sprite(x + muzzle_x[p] + muzzle_x[p] / 3, y + 1 + muzzle_y[p] + muzzle_y[p] / 3, SPR_PUFF_SMALL, 0);
+        put_sprite(x - (back ? (muzzle_x[p] > 0) - (muzzle_x[p] < 0) : 0), y + (back && muzzle_y[p] ? 1 : 0),
+                   barrel_cell[p], p < 2 ? HFLIP : 0);   // drawn first, so it sits on top of the carriage
+        put_sprite(x, y, SPR_CANNON, 0);
+    }
     for (s32 b = 0; b < BALLS; b++) {
         s32 t = ball_t[b];
         if (!t) continue;
@@ -1800,7 +1830,8 @@ static void update_shop(void) {
     } else if (shop_cursor == F_CANNON) {
         if ((ok = cannons < MAX_CANNONS && coins >= CANNON_PRICE)) {
             coins -= CANNON_PRICE;
-            can_ammo[cannons] = can_cool[cannons] = 0;
+            can_ammo[cannons] = can_cool[cannons] = can_kick[cannons] = 0;
+            can_pose[cannons] = can_want[cannons] = cannons ? 1 : 3;   // facing the field
             cannons++;
         }
     } else {
@@ -1956,7 +1987,11 @@ static void dev_start(void) {
     weapon = dev_val[DEV_WEAPON];
     set_sword_lv(dev_val[DEV_SWORD]);
     cannons = dev_val[DEV_CANNONS];
-    for (s32 k = 0; k < cannons; k++) { can_ammo[k] = CANNON_AMMO; can_cool[k] = 0; }   // loaded
+    for (s32 k = 0; k < cannons; k++) {   // loaded, facing the field
+        can_ammo[k] = CANNON_AMMO;
+        can_cool[k] = can_kick[k] = 0;
+        can_pose[k] = can_want[k] = k ? 1 : 3;
+    }
     sickle_lv = dev_val[DEV_SICKLE];
     scarecrow_lv = dev_val[DEV_SC_LV];
     scarecrow_bag = dev_val[DEV_SC_BAG];

@@ -215,10 +215,11 @@ def draw_sprites():
     5 target marker, 6 sword pointing right, 7 sword pointing up, 8 puff big, 9 puff small,
     10 farmer knocked out, 11 sword pointing up-right, 12 corn kernel (scarecrow shot), 13 firefly bright,
     14 firefly dim (fireflies use OBJ palette bank 5, set in main.c), 15-17 spear up / right / up-right,
-    18-20 scythe up / right / up-right, 21-22 slingshot up / right, 23 crow cannon, 24 pumpkin cannonball
-    (v0.8.1). Flips give the other directions. The iron sword is the sword drawn in OBJ bank 7 (steel).
+    18-20 scythe up / right / up-right, 21-22 slingshot up / right, 23 crow cannon carriage, 24 pumpkin cannonball,
+    25-27 iron sword up / right / up-right (OBJ bank 7, steel), 28-30 cannon barrel up / up-right / right
+    (v0.8.1). Flips give the other directions.
     The hand grips the sword at (2, 8) right, (8, 13) up, (4, 13) up-right (main.c grip_x/grip_y)."""
-    px = blank(25)
+    px = blank(31)
 
     def farmer(o, face):
         rows = [
@@ -383,49 +384,88 @@ def draw_sprites():
             for x in range(16):
                 px[y][o_to + x] = cell[15 - x][y]
 
-    # spear: steel tip (13 white edge, 12 gray), dark wood collar (4), wooden shaft (15), blue grip (5)
-    spear = {}
-    for y in range(1, 4):
-        spear[(7, y)] = 13
-        spear[(8, y)] = 12
-    spear[(7, 0)] = spear[(8, 0)] = 12
-    for y in range(4, 16):
-        spear[(7, y)] = spear[(8, y)] = 5 if 12 <= y <= 13 else 4 if y == 4 else 15
+    # spear (v0.8.1, thinned after Caleb's look): a 1-px wooden shaft (15) with a blue grip (5), a dark collar
+    # (4), and a pointed steel head (13 edge, 12) that ends in a sharp tip
+    spear = {(8, 0): 13, (8, 1): 13, (7, 2): 13, (8, 2): 12, (9, 2): 12, (7, 3): 13, (8, 3): 12, (9, 3): 12,
+             (8, 4): 12, (8, 5): 4}
+    for y in range(6, 16):
+        spear[(8, y)] = 5 if 12 <= y <= 13 else 15
     put_points(240, spear)
     rotate_right(240, 256)
     put_points(272, rotate_up_right(spear))
 
     # scythe: a wooden handle (15) with a curved steel blade (12, edge 13) swept left from its top
     scythe = {}
-    for y in range(3, 16):
+    for y in range(4, 16):
         scythe[(8, y)] = 5 if 12 <= y <= 13 else 15
-    for x in range(1, 9):
-        top = 2 + round(((8 - x) / 7.0) ** 2 * 3)
+    for x in range(2, 9):
+        top = 3 + round(((8 - x) / 6.0) ** 2 * 3)
         scythe[(x, top)] = 13
         scythe[(x, top + 1)] = 12
     put_points(288, scythe)
     rotate_right(288, 304)
     put_points(320, rotate_up_right(scythe))
 
-    # slingshot: a wooden Y (15) with a blue grip (5)
-    SLING = ["................", "................", "...11......11...", "..1F1......1F1..", "..1F1......1F1..",
-             "..1F1......1F1..", "...1F1....1F1...", "....1F1..1F1....", ".....1FFFF1.....", "......1FF1......",
-             "......1FF1......", "......1551......", "......1551......", "......1551......", "......1FF1......",
-             ".......11......."]
-    CANNON = ["................", "................", "....11111111....", "...1A999999A1...", "....19999991....",
-              "....19A99991....", "....19A99991....", "....19999991....", "...1199999911...", "..18888888881...",
-              "..18FFFFFFF81...", "..18888888881...", "...111111111....", "................", "................",
-              "................"]   # a mortar: dark iron barrel (9, sheen A) on a wooden base (8, 15)
+    # slingshot (half the first size): a small wooden Y (15, shade 4) with a blue grip (5)
+    sling = {(5, 7): 15, (5, 8): 15, (6, 9): 4, (10, 7): 15, (10, 8): 15, (9, 9): 4, (7, 10): 15, (8, 10): 4}
+    for y in range(11, 15):
+        sling[(7, y)] = 5 if 12 <= y <= 13 else 15
+        sling[(8, y)] = 5 if 12 <= y <= 13 else 4
+    put_points(336, sling)
+    rotate_right(336, 352)
+
+    # crow cannon (v0.8.1, Caleb: more detail, and the barrel turns): a wooden carriage (8 plank, 15 light
+    # edge, 4 bolts) on two spoked wheels with iron rims (9); the barrel is its own cell drawn on top.
+    cannon = {}
+    for x in range(3, 13):
+        cannon[(x, 9)] = 15
+        cannon[(x, 10)] = 8
+        cannon[(x, 11)] = 8
+    cannon[(5, 10)] = cannon[(10, 10)] = 4
+    for x in range(6, 10):   # the trunnion block the barrel turns on
+        cannon[(x, 8)] = 8
+    cannon[(7, 7)] = cannon[(8, 7)] = 9
+    for cx in (4, 11):       # wheels: iron rim, wooden spokes, a hub
+        for y in range(10, 16):
+            for x in range(cx - 3, cx + 4):
+                d = (x - cx) ** 2 + (y - 12.5) ** 2
+                if d <= 9.5:
+                    cannon[(x, y)] = 9 if d >= 5 else 15 if (x == cx or abs(y - 12.5) < 0.6) else 8
+        cannon[(cx, 12)] = 4
+    put_points(368, cannon)
+
+    def barrel(o, ang):   # the barrel from its pivot (8, 9) toward ang degrees (90 = up), tested at pixel centers:
+        import math       # iron (9), sheen (10) on one side, a wider muzzle ring, a dark bore at the end
+        dx, dy = math.cos(math.radians(ang)), -math.sin(math.radians(ang))
+        pts = {}
+        for y in range(16):
+            for x in range(16):
+                rx, ry = x + 0.5 - 8, y + 0.5 - 9
+                t, w = rx * dx + ry * dy, rx * dy - ry * dx
+                if t < -1 or t > 6.8:
+                    continue
+                half = 2.5 if t > 5 else 2
+                if abs(w) > half:
+                    continue
+                pts[(x, y)] = 1 if (t > 5.8 and abs(w) < 1.3) else 10 if w > 1 and t <= 5 else 9
+        put_points(o, pts)
+
     BALL = ["................", "................", "................", "................", "................",
             ".......4........", "......1111......", ".....1BBBB1.....", ".....1BBBB1.....", ".....1BBBB1.....",
             "......1111......", "................", "................", "................", "................",
             "................"]   # a pumpkin: orange (B) with a stem (4)
-    for o, grid in ((336, SLING), (368, CANNON), (384, BALL)):
-        for y, row in enumerate(grid):
-            for x, c in enumerate(row):
-                if c != ".":
-                    px[y][o + x] = {"1": 1, "F": 15, "5": 5, "9": 9, "A": 10, "8": 8, "4": 4, "B": 11}[c]
-    rotate_right(336, 352)
+    for y, row in enumerate(BALL):
+        for x, c in enumerate(row):
+            if c != ".":
+                px[y][384 + x] = {"1": 1, "4": 4, "B": 11}[c]
+
+    # iron sword (v0.8.1): its own cells, two pixels shorter than the wooden sword (drawn in OBJ bank 7)
+    draw_grid(400, ["................"] * 5 + [".......11.......", "......1331......"] + SWORD_UP[7:])
+    rotate_right(400, 416)
+    draw_grid(432, SWORD_DIAG[:5] + ["................", "................", ".........11....."] + SWORD_DIAG[8:])
+    barrel(448, 90)
+    barrel(464, 45)
+    barrel(480, 0)
     return px
 
 
