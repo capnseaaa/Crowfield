@@ -54,7 +54,7 @@ OBJ_PAL = [
 
 # Metatile order. Must match build_data.py and the enum in main.c.
 META = ["GRASS", "GRASS_TUFT", "DIRT", "SOIL", "SPROUT", "CROP", "CROP_RIPE", "FENCE", "BUSH",
-        "FENCE_V", "FENCE_TL", "FENCE_TR", "FENCE_BL", "FENCE_BR", "CROP_YOUNG", "SCARECROW"]
+        "FENCE_V", "FENCE_TL", "FENCE_TR", "FENCE_BL", "FENCE_BR", "CROP_YOUNG", "SCARECROW", "SCARECROW_OFF"]
 # Scarecrow turret on tilled soil. F outline, G straw (hat, arm ends), C sack head, R red shirt,
 # W light wood, w dark wood; "." keeps the soil.
 SCARECROW = [
@@ -76,6 +76,7 @@ SCARECROW = [
     "......FwwF......",
 ]
 SCARECROW_COLORS = {"F": 15, "G": 12, "C": 14, "R": 11, "W": 8, "w": 7}
+SCARECROW_OFF_COLORS = {"F": 15, "G": 9, "C": 14, "R": 9, "W": 8, "w": 7}   # switched off: gray hat and shirt
 # Fence pieces by which neighbors they join: up, down, left, right. FENCE is the horizontal piece.
 FENCE_JOIN = {"FENCE": "lr", "FENCE_V": "ud", "FENCE_TL": "rd", "FENCE_TR": "ld", "FENCE_BL": "ru", "FENCE_BR": "lu"}
 
@@ -152,11 +153,12 @@ def draw_terrain():
                     px[y][o + 8] = 12
         if name in FENCE_JOIN:
             draw_fence(px, o, FENCE_JOIN[name])
-        if name == "SCARECROW":
+        if name in ("SCARECROW", "SCARECROW_OFF"):
+            colors = SCARECROW_COLORS if name == "SCARECROW" else SCARECROW_OFF_COLORS
             for y, row in enumerate(SCARECROW):
                 for x, c in enumerate(row):
                     if c != ".":
-                        px[y][o + x] = SCARECROW_COLORS[c]
+                        px[y][o + x] = colors[c]
         if name == "BUSH":
             for y in range(2, 15):
                 for x in range(2, 14):

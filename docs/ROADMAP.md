@@ -59,7 +59,12 @@ numbers v0.1.0-v0.3.3 in commit subjects; those numbers are history only and hav
 - [x] Turret levels (one level for all scarecrows)
 - [x] Sickle Lv.2/3 works 2/3 tiles straight ahead, harvesting and planting (Caleb)
 - [x] 15 s to harvest and plant after the last crow, before dusk (Caleb)
+- [x] Scarecrow shots use the farmer's seeds, 1 per shot (Caleb)
+- [x] Hold B facing a scarecrow to switch it off or on (Caleb)
 - [x] `test/turret.txt`
+
+## Next update (Caleb, 2026-10-22: add it with the next batch of features)
+- [ ] Dusk looks different: a visual change when the day ends (look not chosen yet)
 
 ## v0.4b — field growth
 - [ ] Start map: one small plot, open grass reserved for later plots

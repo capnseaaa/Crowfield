@@ -103,8 +103,13 @@ and new types unlock on later days (Fast day 3, Armored day 5, Big day 7, Swarm 
 
 **Scarecrow turrets (v0.4.0, first guesses).** Bought at dusk into the bag (`#` in the shop). In the
 field, SELECT places one on the empty soil tile in front (it takes that crop slot) or picks one up again.
-At most 8 on the field. A scarecrow is solid for the farmer; crows ignore it. It shoots a corn kernel
-(2.5 px per frame, 1 damage, small knockback) at the nearest crow within range, from its head.
+At most 8 on the field. A scarecrow is solid for the farmer; crows ignore it. It shoots a seed
+(2.5 px per frame, 1 damage, small knockback) at the nearest crow within range, from its head. Every
+shot uses 1 of the farmer's seeds (Caleb, v0.4.0); with no seeds the scarecrows stop and "SCARECROWS
+NEED SEEDS" shows once. Lv.3's second shot goes to a second crow, or to the same crow only if one hit
+cannot kill it, so no seed is wasted. Facing a scarecrow and holding B for 0.5 s switches it off (gray
+hat and shirt, no shots, no seeds used) or back on (Caleb, v0.4.0); a tap of B still just swings.
+Seeds spent by scarecrows count toward the game-over rule (no crops, no seeds, no coins).
 Lv.1: range 64 px, one shot every 1.5 s. Lv.2: one shot every 0.83 s. Lv.3: range 88 px and 2 shots
 (at the two nearest crows). The level applies to every scarecrow. Scarecrows keep shooting while the
 farmer is knocked out.

@@ -59,7 +59,7 @@ typedef signed int     s32;
 #define MAP_SB   28
 
 enum { GRASS, GRASS_TUFT, DIRT, SOIL, SPROUT, CROP, CROP_RIPE, FENCE, BUSH,
-       FENCE_V, FENCE_TL, FENCE_TR, FENCE_BL, FENCE_BR, CROP_YOUNG, SCARECROW };   // FENCE_V.. are looks only; the map stores FENCE
+       FENCE_V, FENCE_TL, FENCE_TR, FENCE_BL, FENCE_BR, CROP_YOUNG, SCARECROW, SCARECROW_OFF };   // FENCE_V.. are looks only; the map stores FENCE
 enum { DIR_DOWN, DIR_UP, DIR_LEFT, DIR_RIGHT };
 // Sprite cells in sprites.png (4 tiles each in OBJ VRAM)
 enum { SPR_FARMER_DOWN, SPR_FARMER_UP, SPR_FARMER_SIDE, SPR_CROW_A, SPR_CROW_B, SPR_MARKER,
@@ -262,7 +262,7 @@ static void draw_meta(s32 mx, s32 my) {
 }
 
 static int is_solid(u8 t) {
-    return t == FENCE || t == BUSH || t == SCARECROW;
+    return t == FENCE || t == BUSH || t == SCARECROW || t == SCARECROW_OFF;
 }
 
 static void set_tile(s32 mx, s32 my, u8 t) {
@@ -354,7 +354,7 @@ static void update_target(void) {
 }
 
 static int is_field(u8 t) {
-    return t == SOIL || t == SPROUT || t == CROP_YOUNG || t == CROP || t == CROP_RIPE || t == SCARECROW;
+    return t == SOIL || t == SPROUT || t == CROP_YOUNG || t == CROP || t == CROP_RIPE || t == SCARECROW || t == SCARECROW_OFF;
 }
 
 static void draw_hud(void);
@@ -655,7 +655,9 @@ static int crow_targetable(s32 i) {
 
 // ---------- scarecrow turrets ----------
 // Bought at dusk, placed with SELECT on an empty soil tile (it takes that crop slot; SELECT again picks it
-// up). Each shoots a corn kernel at the nearest crow in range. Levels (shop) apply to every scarecrow.
+// up). Each shoots a seed at the nearest crow in range; every shot uses 1 of the farmer's seeds (Caleb),
+// so with no seeds they stop. Holding B while facing one switches it off or on (Caleb); an off scarecrow
+// is the gray SCARECROW_OFF tile and does not shoot. Levels (shop) apply to every scarecrow.
 #define MAX_SCARECROWS 8
 #define MAX_SHOTS 12
 #define SHOT_SPEED 40      // 1/16 px per frame (2.5 px)
@@ -664,6 +666,9 @@ static s32 sc_x[MAX_SCARECROWS], sc_y[MAX_SCARECROWS], sc_cool[MAX_SCARECROWS]; 
 static s32 scarecrows, scarecrow_bag;    // placed; bought but not placed
 static s32 scarecrow_lv = 1;             // 1. 2: shoots faster. 3: wider range, 2 shots
 static s32 shot_x[MAX_SHOTS], shot_y[MAX_SHOTS], shot_vx[MAX_SHOTS], shot_vy[MAX_SHOTS], shot_life[MAX_SHOTS];
+#define SWITCH_HOLD 30         // frames of held B that switch a scarecrow off or on
+static s32 sc_hold;          // frames B has been held while facing a scarecrow (stops counting after a switch)
+static s32 sc_warned;                    // 1: "SCARECROWS NEED SEEDS" shown; cleared once seeds come back
 
 static s32 scarecrow_reload(void) { return scarecrow_lv >= 2 ? 50 : 90; }   // frames between shots
 static s32 scarecrow_range(void) { return scarecrow_lv >= 3 ? 88 : 64; }    // px
@@ -685,7 +690,8 @@ static s32 nearest_crow(s32 x, s32 y, s32 range, s32 skip) {
     return best;
 }
 
-static void fire_shot(s32 x, s32 y, s32 c) {   // from (x, y) px toward crow c's center
+static void fire_shot(s32 x, s32 y, s32 c) {   // from (x, y) px toward crow c's center; costs 1 seed
+    if (seeds <= 0) return;
     for (s32 k = 0; k < MAX_SHOTS; k++) {
         if (shot_life[k]) continue;
         s32 dx = (crow_x[c] >> 4) + 8 - x, dy = (crow_y[c] >> 4) + 8 - y;
@@ -695,6 +701,8 @@ static void fire_shot(s32 x, s32 y, s32 c) {   // from (x, y) px toward crow c's
         shot_vx[k] = dx * SHOT_SPEED / d;   // one division per shot, not per frame
         shot_vy[k] = dy * SHOT_SPEED / d;
         shot_life[k] = SHOT_LIFE;
+        seeds--;
+        draw_hud();
         return;
     }
 }
@@ -702,13 +710,20 @@ static void fire_shot(s32 x, s32 y, s32 c) {   // from (x, y) px toward crow c's
 static void update_scarecrows(void) {
     for (s32 s = 0; s < scarecrows; s++) {
         if (sc_cool[s]) { sc_cool[s]--; continue; }
+        if (farm[sc_y[s] * MAP_W + sc_x[s]] == SCARECROW_OFF) continue;
         s32 x = sc_x[s] * 16 + 8, y = sc_y[s] * 16 + 5;   // the scarecrow's head
         s32 c = nearest_crow(x, y, scarecrow_range(), -1);
         if (c < 0) continue;
+        if (seeds <= 0) {        // out of ammo: tell him once
+            if (!sc_warned) { show_message("SCARECROWS NEED SEEDS"); sc_warned = 1; }
+            continue;
+        }
+        sc_warned = 0;
         fire_shot(x, y, c);
         if (scarecrow_lv >= 3) {
-            s32 c2 = nearest_crow(x, y, scarecrow_range(), c);
-            fire_shot(x, y, c2 >= 0 ? c2 : c);
+            s32 c2 = nearest_crow(x, y, scarecrow_range(), c);   // a 2nd crow, or the same one if it
+            if (c2 < 0 && crow_hp[c] > 1) c2 = c;                 // needs 2 hits; never waste a seed
+            if (c2 >= 0) fire_shot(x, y, c2);
         }
         sc_cool[s] = scarecrow_reload();
     }
@@ -729,10 +744,18 @@ static void update_scarecrows(void) {
 }
 
 // SELECT: place a scarecrow on the empty soil tile in front, or pick one up.
+// Hold B facing one for half a second: switch it off (or back on).
 static void scarecrow_work(void) {
-    if (!HIT(KEY_SELECT) || ko_timer || swing) return;
     u8 t = tile_at(tx, ty);
-    if (t == SCARECROW) {
+    int facing = t == SCARECROW || t == SCARECROW_OFF;
+    if (!HELD(KEY_B) || !facing || ko_timer) sc_hold = 0;
+    else if (sc_hold < SWITCH_HOLD && ++sc_hold == SWITCH_HOLD) {
+        set_tile(tx, ty, t == SCARECROW ? SCARECROW_OFF : SCARECROW);
+        show_message(t == SCARECROW ? "SCARECROW OFF" : "SCARECROW ON");
+        play(SND_PLANT);
+    }
+    if (!HIT(KEY_SELECT) || ko_timer || swing) return;
+    if (facing) {
         for (s32 s = 0; s < scarecrows; s++)
             if (sc_x[s] == tx && sc_y[s] == ty) {
                 scarecrows--;
@@ -982,7 +1005,7 @@ static void new_run(void) {
     day = 1; seeds = 3; crops = 0; coins = 0; hearts = max_hearts = 3;   // DESIGN.md first guesses
     sickle_lv = 1;
     set_sword_lv(1);
-    scarecrows = scarecrow_bag = 0;
+    scarecrows = scarecrow_bag = sc_warned = 0;
     scarecrow_lv = 1;
     for (s32 k = 0; k < MAX_SHOTS; k++) shot_life[k] = 0;
     spawning = 1; shop_open = 0;
