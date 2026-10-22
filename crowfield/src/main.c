@@ -370,10 +370,24 @@ static s32 sickle_tiles(s32 *xs, s32 *ys) {
     return sickle_lv;
 }
 
-// A: on each sickle tile, harvest a ripe crop or plant a seed in empty soil.
+static s32 scarecrow_bag;   // scarecrows bought but not placed (defined with the scarecrows below)
+
+// A placed scarecrow or empty soil with a scarecrow in the bag: A waits to see if it is a hold
+// (place or pick up, in scarecrow_work) or a tap (farm_tiles on release).
+static int a_waits(void) {
+    u8 t = tile_at(tx, ty);
+    return t == SCARECROW || t == SCARECROW_OFF || (t == SOIL && scarecrow_bag > 0);
+}
+
+static void farm_tiles(void);
 static void farm_work(void) {
     if (!HIT(KEY_A) || ko_timer || swing) return;
     weapon_out = 0;
+    if (!a_waits()) farm_tiles();
+}
+
+// On each sickle tile, harvest a ripe crop or plant a seed in empty soil.
+static void farm_tiles(void) {
     s32 xs[3], ys[3], n = sickle_tiles(xs, ys), harvested = 0, planted = 0, wanted_seed = 0;
     for (s32 k = 0; k < n; k++) {
         u8 t = tile_at(xs[k], ys[k]);
@@ -663,10 +677,12 @@ static int crow_targetable(s32 i) {
 #define SHOT_SPEED 40      // 1/16 px per frame (2.5 px)
 #define SHOT_LIFE 48
 static s32 sc_x[MAX_SCARECROWS], sc_y[MAX_SCARECROWS], sc_cool[MAX_SCARECROWS];   // tile, frames to next shot
-static s32 scarecrows, scarecrow_bag;    // placed; bought but not placed
+static s32 scarecrows;                   // placed (scarecrow_bag: bought, not placed)
 static s32 scarecrow_lv = 1;             // 1. 2: shoots faster. 3: wider range, 2 shots
 static s32 shot_x[MAX_SHOTS], shot_y[MAX_SHOTS], shot_vx[MAX_SHOTS], shot_vy[MAX_SHOTS], shot_life[MAX_SHOTS];
 #define SWITCH_HOLD 30         // frames of held B that switch a scarecrow off or on
+#define PLACE_HOLD 20          // frames of held A that place or pick up a scarecrow (Caleb: SELECT was not enough)
+static s32 a_hold;           // > 0: frames A has been held on a waiting tile; -1: this hold already acted
 static s32 sc_hold;          // frames B has been held while facing a scarecrow (stops counting after a switch)
 static s32 sc_warned;                    // 1: "SCARECROWS NEED SEEDS" shown; cleared once seeds come back
 
@@ -743,8 +759,31 @@ static void update_scarecrows(void) {
     }
 }
 
-// SELECT: place a scarecrow on the empty soil tile in front, or pick one up.
-// Hold B facing one for half a second: switch it off (or back on).
+static void pick_up_scarecrow(void) {
+    for (s32 s = 0; s < scarecrows; s++)
+        if (sc_x[s] == tx && sc_y[s] == ty) {
+            scarecrows--;
+            sc_x[s] = sc_x[scarecrows]; sc_y[s] = sc_y[scarecrows]; sc_cool[s] = sc_cool[scarecrows];
+        }
+    set_tile(tx, ty, SOIL);
+    scarecrow_bag++;
+    show_message("SCARECROW PICKED UP");
+    play(SND_HARVEST);
+}
+
+static void place_scarecrow(void) {
+    if (!scarecrow_bag) { show_message("BUY SCARECROWS AT DUSK"); play(SND_NOSEEDS); return; }
+    if (scarecrows >= MAX_SCARECROWS) { show_message("NO ROOM FOR MORE"); play(SND_NOSEEDS); return; }
+    sc_x[scarecrows] = tx; sc_y[scarecrows] = ty; sc_cool[scarecrows] = 30;
+    scarecrows++;
+    scarecrow_bag--;
+    set_tile(tx, ty, SCARECROW);
+    show_message("SCARECROW PLACED");
+    play(SND_PLANT);
+}
+
+// Hold A (or press SELECT) facing empty soil: place a scarecrow; facing one: pick it up.
+// A tap of A there farms as usual, on release. Hold B facing one for half a second: switch it off or on.
 static void scarecrow_work(void) {
     u8 t = tile_at(tx, ty);
     int facing = t == SCARECROW || t == SCARECROW_OFF;
@@ -754,27 +793,21 @@ static void scarecrow_work(void) {
         show_message(t == SCARECROW ? "SCARECROW OFF" : "SCARECROW ON");
         play(SND_PLANT);
     }
-    if (!HIT(KEY_SELECT) || ko_timer || swing) return;
-    if (facing) {
-        for (s32 s = 0; s < scarecrows; s++)
-            if (sc_x[s] == tx && sc_y[s] == ty) {
-                scarecrows--;
-                sc_x[s] = sc_x[scarecrows]; sc_y[s] = sc_y[scarecrows]; sc_cool[s] = sc_cool[scarecrows];
-            }
-        set_tile(tx, ty, SOIL);
-        scarecrow_bag++;
-        show_message("SCARECROW PICKED UP");
-        play(SND_HARVEST);
-    } else if (t == SOIL) {
-        if (!scarecrow_bag) { show_message("BUY SCARECROWS AT DUSK"); play(SND_NOSEEDS); return; }
-        if (scarecrows >= MAX_SCARECROWS) { show_message("NO ROOM FOR MORE"); play(SND_NOSEEDS); return; }
-        sc_x[scarecrows] = tx; sc_y[scarecrows] = ty; sc_cool[scarecrows] = 30;
-        scarecrows++;
-        scarecrow_bag--;
-        set_tile(tx, ty, SCARECROW);
-        show_message("SCARECROW PLACED");
-        play(SND_PLANT);
+    if (ko_timer || swing) { a_hold = 0; return; }
+    if (HIT(KEY_A)) a_hold = a_waits() ? 1 : 0;
+    else if (a_hold > 0 && HELD(KEY_A)) {
+        if (++a_hold >= PLACE_HOLD) {
+            a_hold = -1;
+            if (facing) pick_up_scarecrow();
+            else if (t == SOIL) place_scarecrow();
+        }
+    } else if (!HELD(KEY_A)) {
+        if (a_hold > 0 && !facing) farm_tiles();   // it was a tap
+        a_hold = 0;
     }
+    if (!HIT(KEY_SELECT)) return;
+    if (facing) pick_up_scarecrow();
+    else if (t == SOIL) place_scarecrow();
 }
 
 static void draw_shots(void) {
@@ -950,7 +983,7 @@ static void close_shop(void) {
     clear_row(19);
     day++;
     start_day();
-    if (scarecrow_bag) show_message("SELECT: PLACE A SCARECROW");
+    if (scarecrow_bag) show_message("HOLD A ON SOIL: SCARECROW");
 }
 
 // Buy the next level of a tool: 1 on success.

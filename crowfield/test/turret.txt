@@ -112,3 +112,19 @@
 2 2
 20 0
 1 0 @$farm+48
+# hold A (v0.4.1): facing the scarecrow, hold A 25 frames: picked up
+1 0 @$scarecrows,$scarecrow_bag,$seeds
+25 1
+1 0
+1 0 @$scarecrows,$scarecrow_bag,$farm+48,$seeds
+# hold A on that empty soil: placed again, no seed planted
+25 1
+1 0
+1 0 @$scarecrows,$scarecrow_bag,$farm+48,$seeds
+# tap A on another empty soil (4,3) with scarecrows in the bag: nothing while held, it plants on release.
+# (A peek line runs a frame with its own keys, so the "while held" peek keeps A down.)
+1 0 !$px=1024
+3 1
+1 1 @$farm+48,$seeds
+1 0
+1 0 @$farm+48,$seeds

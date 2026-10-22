@@ -61,6 +61,7 @@ numbers v0.1.0-v0.3.3 in commit subjects; those numbers are history only and hav
 - [x] 15 s to harvest and plant after the last crow, before dusk (Caleb)
 - [x] Scarecrow shots use the farmer's seeds, 1 per shot (Caleb)
 - [x] Hold B facing a scarecrow to switch it off or on (Caleb)
+- [x] v0.4.1: hold A to place or pick up a scarecrow (SELECT still works)
 - [x] `test/turret.txt`
 
 ## Next update (Caleb, 2026-10-22: add it with the next batch of features)

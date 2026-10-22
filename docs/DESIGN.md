@@ -102,7 +102,10 @@ and new types unlock on later days (Fast day 3, Armored day 5, Big day 7, Swarm 
   Scarecrow: 40 coins each (the concept's 100 rescaled); Scarecrow Lv.2 60, Lv.3 120.
 
 **Scarecrow turrets (v0.4.0, first guesses).** Bought at dusk into the bag (`#` in the shop). In the
-field, SELECT places one on the empty soil tile in front (it takes that crop slot) or picks one up again.
+field, holding A for 1/3 s facing an empty soil tile places one (it takes that crop slot), and holding A
+facing one picks it up (v0.4.1; Caleb could not place them with SELECT). SELECT does the same in one
+press. While a scarecrow is in the bag, a tap of A on empty soil plants on release instead of on press,
+so a hold is never mistaken for a tap.
 At most 8 on the field. A scarecrow is solid for the farmer; crows ignore it. It shoots a seed
 (2.5 px per frame, 1 damage, small knockback) at the nearest crow within range, from its head. Every
 shot uses 1 of the farmer's seeds (Caleb, v0.4.0); with no seeds the scarecrows stop and "SCARECROWS
