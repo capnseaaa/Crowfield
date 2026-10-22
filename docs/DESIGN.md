@@ -73,7 +73,8 @@ All other numbers are open until playtests.
 
 **Crow levels and eating (v0.5, Caleb).** Lv.1 black (1 HP), Lv.2 red (2 HP, +15% speed), Lv.3 purple
 (3 HP, +30%, bites every 1.5 s), gold (5 HP since v0.5.1, +45%, bites every 1 s, drops 5 coins when killed).
-HP counts sword damage: a Lv.2 or Lv.3 sword does 2, so it kills a purple crow in 2 hits and a gold one in 3.
+Sword damage (v0.5.1, Caleb): Lv.1 1, Lv.2 1.5, Lv.3 2 (HP is kept in half-points). Hits to kill:
+Lv.1 black 1, red 2, purple 3, gold 5; Lv.2 1, 2, 2, 4; Lv.3 1, 1, 2, 3. Scarecrow shots do 1.
 v0.5.1: Days 35-39 bring 2 more crows (Caleb). Up to 30 crows a day; 24 fit on screen, the rest wait. A crow that
 has eaten its 3rd whole crop becomes Lv.3 (purple). Bites no longer add HP or tint a crow (v0.2-v0.4 did),
 so a crow's color always tells its level. The day table (random count and mix per day): docs/V0.5_PLAN.md.
@@ -133,7 +134,7 @@ farmer is knocked out.
 - What the levels do. Sickle (Caleb, v0.4.0): Lv.1 works the tile in front, Lv.2 the 2 tiles straight
   ahead, Lv.3 the 3 tiles straight ahead (the marker shows them). One A press harvests each ripe tile and
   plants a seed in each empty soil tile (one seed per tile while seeds last). This replaced v0.3.1's 3-tile
-  arc at Lv.2 and bonus crop at Lv.3. Sword Lv.2: 2 damage (a fed crow dies in one hit). Lv.3: 2 damage, hit box 16 px in
+  arc at Lv.2 and bonus crop at Lv.3. Sword Lv.2: 1.5 damage (v0.5.1; was 2). Lv.3: 2 damage, hit box 16 px in
   front instead of 10 (the sword sprite keeps its size).
 - Game over counts crops in the bag as the coins they sell for, so a full bag never ends the run.
 - Dusk (v0.5, Caleb): the field fades toward sunset orange during the 15 s "DUSK IN n" countdown; the shop

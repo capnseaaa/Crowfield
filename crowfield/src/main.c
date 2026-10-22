@@ -499,7 +499,9 @@ static s32 spawning;                 // 1: days run (tests set 0 and place crows
 static s32 day_left, spawn_timer;    // crows still to come today; frames toward the next one
 static s32 day_done;                 // > 0: all of today's crows are gone; frames until dusk
 // Per level (index 0 = a poked crow, same as Lv.1): HP, speed in 1/16 px per frame, frames per bite.
-static const s32 crow_hp_of[5] = { 1, 1, 2, 3, 5 };          // gold 5 (Caleb, v0.5.1; was 4)
+// HP is counted in half-points so the Lv.2 sword can do 1.5 (Caleb): black 1, red 2, purple 3, gold 5 (v0.5.1).
+#define HP(n) ((n) * 2)
+static const s32 crow_hp_of[5] = { HP(1), HP(1), HP(2), HP(3), HP(5) };
 static const s32 crow_speed_of[5] = { 6, 6, 7, 8, 9 };          // +15%, +30%, +45% (docs/V0.5_PLAN.md)
 static const s32 crow_bite_of[5] = { 120, 120, 120, 90, 60 };
 #define CROW_GOLD 4
@@ -816,6 +818,7 @@ static int crow_targetable(s32 i) {
 #define MAX_SHOTS 12
 #define SHOT_SPEED 40      // 1/16 px per frame (2.5 px)
 #define SHOT_LIFE 48
+#define SHOT_DAMAGE HP(1)
 static s32 sc_x[MAX_SCARECROWS], sc_y[MAX_SCARECROWS], sc_cool[MAX_SCARECROWS];   // tile, frames to next shot
 static s32 scarecrows;                   // placed (scarecrow_bag: bought, not placed)
 static s32 scarecrow_lv = 1;             // 1. 2: shoots faster. 3: wider range, 2 shots
@@ -878,7 +881,7 @@ static void update_scarecrows(void) {
         fire_shot(x, y, c);
         if (scarecrow_lv >= 3) {
             s32 c2 = nearest_crow(x, y, scarecrow_range(), c);   // a 2nd crow, or the same one if it
-            if (c2 < 0 && crow_hp[c] > 1) c2 = c;                 // needs 2 hits; never waste a seed
+            if (c2 < 0 && crow_hp[c] > SHOT_DAMAGE) c2 = c;       // needs 2 hits; never waste a seed
             if (c2 >= 0) fire_shot(x, y, c2);
         }
         sc_cool[s] = scarecrow_reload();
@@ -892,7 +895,7 @@ static void update_scarecrows(void) {
         for (s32 i = 0; i < MAX_CROWS; i++) {
             if (!crow_targetable(i)) continue;
             if (abs32((crow_x[i] >> 4) + 8 - x) >= 8 || abs32((crow_y[i] >> 4) + 8 - y) >= 8) continue;
-            hit_crow(i, 1, shot_vx[k], shot_vy[k]);
+            hit_crow(i, SHOT_DAMAGE, shot_vx[k], shot_vy[k]);
             shot_life[k] = 0;
             break;
         }
@@ -977,10 +980,10 @@ static void draw_crows(void) {
 #define SWING_FRAMES 12
 static s32 swing_cool, swing_id;
 static s32 sword_lv = 1;                         // 1, 2: more damage, 3: longer reach (shop)
-static s32 sword_damage = 1, sword_reach = 10;   // set by set_sword_lv
+static s32 sword_damage = HP(1), sword_reach = 10;   // set by set_sword_lv
 static void set_sword_lv(s32 lv) {
     sword_lv = lv;
-    sword_damage = lv >= 2 ? 2 : 1;
+    sword_damage = lv >= 3 ? HP(2) : lv == 2 ? 3 : HP(1);   // 1, 1.5, 2 (Caleb)
     sword_reach = lv >= 3 ? 16 : 10;
 }
 static s32 slash_x, slash_y;                     // center of the hit box, screen px

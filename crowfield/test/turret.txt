@@ -62,14 +62,14 @@
 1 0 @$py
 # Lv.1 (range 64 px, reload 90): a crow 40 px right of its head dies (held still: HURT with no slide)
 1 0 !$scarecrow_lv=1,$sc_cool=0
-1 0 !$crow_state=2,$crow_timer=999,$crow_vx=0,$crow_vy=0,$crow_x=1920,$crow_y=720,$crow_hp=1,$crow_cool=999
+1 0 !$crow_state=2,$crow_timer=999,$crow_vx=0,$crow_vy=0,$crow_x=1920,$crow_y=720,$crow_hp=2,$crow_cool=999
 4 0 t4_shot.ppm
 1 0 @$sc_cool,$seeds
 25 0
 1 0 @$crow_state
 # Lv.1 out of range: a crow 80 px away stays alive and no shot flies
 30 0
-1 0 !$sc_cool=0,$crow_state=2,$crow_timer=999,$crow_vx=0,$crow_vy=0,$crow_x=2560,$crow_y=720,$crow_hp=1
+1 0 !$sc_cool=0,$crow_state=2,$crow_timer=999,$crow_vx=0,$crow_vy=0,$crow_x=2560,$crow_y=720,$crow_hp=2
 60 0
 1 0 @$crow_state,$crow_hp,$shot_life,$shot_life+4
 # Lv.3 (range 88): the same crow is hit
@@ -79,15 +79,15 @@
 # Lv.3 fires 2 shots: crows 40 px left and right both die in one volley; reload at Lv.3 is 50.
 # (Each poke line runs a frame, so it may fire only once both crows exist.)
 30 0
-1 0 !$seeds=5,$sc_cool=999,$crow_state=2,$crow_timer=999,$crow_vx=0,$crow_vy=0,$crow_x=1920,$crow_y=720,$crow_hp=1
-1 0 !$sc_cool=0,$crow_state+4=2,$crow_timer+4=999,$crow_vx+4=0,$crow_vy+4=0,$crow_x+4=640,$crow_y+4=720,$crow_hp+4=1
+1 0 !$seeds=5,$sc_cool=999,$crow_state=2,$crow_timer=999,$crow_vx=0,$crow_vy=0,$crow_x=1920,$crow_y=720,$crow_hp=2
+1 0 !$sc_cool=0,$crow_state+4=2,$crow_timer+4=999,$crow_vx+4=0,$crow_vy+4=0,$crow_x+4=640,$crow_y+4=720,$crow_hp+4=2
 2 0 t5_volley.ppm
 1 0 @$sc_cool
 25 0
 1 0 @$crow_state,$crow_state+4,$seeds
 # no seeds: a crow in range is not shot, and "SCARECROWS NEED SEEDS" shows once
 30 0
-1 0 !$seeds=0,$crops=5,$sc_cool=999,$crow_state=2,$crow_timer=999,$crow_vx=0,$crow_vy=0,$crow_x=1920,$crow_y=720,$crow_hp=1
+1 0 !$seeds=0,$crops=5,$sc_cool=999,$crow_state=2,$crow_timer=999,$crow_vx=0,$crow_vy=0,$crow_x=1920,$crow_y=720,$crow_hp=2
 1 0 !$sc_cool=0
 40 0 t6_noseeds.ppm
 1 0 @$crow_state,$crow_hp,$shot_life,$sc_warned,$msg_timer
@@ -97,7 +97,7 @@
 1 0 @$crow_state,$seeds,$sc_warned
 # switch off: the farmer still faces the scarecrow (from the walk up). Hold B 31 frames: it turns off.
 30 0
-1 0 !$seeds=5,$sc_cool=999,$crow_state=2,$crow_timer=999,$crow_vx=0,$crow_vy=0,$crow_x=1920,$crow_y=720,$crow_hp=1
+1 0 !$seeds=5,$sc_cool=999,$crow_state=2,$crow_timer=999,$crow_vx=0,$crow_vy=0,$crow_x=1920,$crow_y=720,$crow_hp=2
 31 2 t7_off.ppm
 1 0 @$farm+48,$msg_timer
 # off: a crow in range is not shot, no seed is used

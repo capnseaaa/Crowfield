@@ -64,14 +64,14 @@
 1 0 @$seeds,$msg_timer
 # sword Lv.3 (2 damage, reach 16): a fed crow (2 HP) 28 px to the right dies in one swing.
 # At Lv.1 (reach 10) the hit box ends 24 px out, so this crow would be out of reach.
-1 0 !$px=2048,$py=896,$pdir=3,$crow_state=1,$crow_x=2496,$crow_y=896,$crow_hp=2,$crow_cool=999,$crow_target=-1
+1 0 !$px=2048,$py=896,$pdir=3,$crow_state=1,$crow_x=2496,$crow_y=896,$crow_hp=4,$crow_cool=999,$crow_target=-1
 1 2
 4 0 u5_reach.ppm
 1 0 @$crow_state,$crow_hp
 # the same crow at Lv.1: no hit
 1 0 !$sword_lv=1,$sword_damage=1,$sword_reach=10
 20 0
-1 0 !$crow_state=1,$crow_x=2496,$crow_y=896,$crow_hp=2,$crow_cool=999,$crow_target=-1
+1 0 !$crow_state=1,$crow_x=2496,$crow_y=896,$crow_hp=4,$crow_cool=999,$crow_target=-1
 1 2
 4 0
 1 0 @$crow_state,$crow_hp

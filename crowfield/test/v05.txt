@@ -3,10 +3,10 @@
 1 0 !$spawning=0
 30 0
 # four crows held still on the grass below the field: Lv.1 black, Lv.2 red, Lv.3 purple, Lv.4 gold
-1 0 !$crow_state=2,$crow_timer=9999,$crow_vx=0,$crow_vy=0,$crow_x=640,$crow_y=2112,$crow_lv=1,$crow_hp=1
-1 0 !$crow_state+4=2,$crow_timer+4=9999,$crow_vx+4=0,$crow_vy+4=0,$crow_x+4=1152,$crow_y+4=2112,$crow_lv+4=2,$crow_hp+4=2
-1 0 !$crow_state+8=2,$crow_timer+8=9999,$crow_vx+8=0,$crow_vy+8=0,$crow_x+8=2560,$crow_y+8=2112,$crow_lv+8=3,$crow_hp+8=3
-1 0 !$crow_state+12=2,$crow_timer+12=9999,$crow_vx+12=0,$crow_vy+12=0,$crow_x+12=3072,$crow_y+12=2112,$crow_lv+12=4,$crow_hp+12=1
+1 0 !$crow_state=2,$crow_timer=9999,$crow_vx=0,$crow_vy=0,$crow_x=640,$crow_y=2112,$crow_lv=1,$crow_hp=2
+1 0 !$crow_state+4=2,$crow_timer+4=9999,$crow_vx+4=0,$crow_vy+4=0,$crow_x+4=1152,$crow_y+4=2112,$crow_lv+4=2,$crow_hp+4=4
+1 0 !$crow_state+8=2,$crow_timer+8=9999,$crow_vx+8=0,$crow_vy+8=0,$crow_x+8=2560,$crow_y+8=2112,$crow_lv+8=3,$crow_hp+8=6
+1 0 !$crow_state+12=2,$crow_timer+12=9999,$crow_vx+12=0,$crow_vy+12=0,$crow_x+12=3072,$crow_y+12=2112,$crow_lv+12=4,$crow_hp+12=2
 2 0 v1_levels.ppm
 # a gold crow drops 5 coins: the farmer stands left of it facing right and swings (gold HP set to 1 above)
 1 0 !$px=2816,$py=2112,$pdir=3,$coins=0
