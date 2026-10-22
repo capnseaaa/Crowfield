@@ -1297,11 +1297,12 @@ static void take_weapon(s32 w) {   // switch weapons; a weapon you had before co
     set_sword_lv(weapon_lv[w] ? weapon_lv[w] : 1);
 }
 
-static void fire_stone(void) {   // the slingshot: a stone straight ahead
+static const signed char hand_x[4], hand_y[4];
+static void fire_stone(void) {   // the slingshot: a stone straight ahead, out of its fork (6 px above the hand)
     for (s32 k = 0; k < MAX_SHOTS; k++) {
         if (shot_life[k]) continue;
-        shot_x[k] = ((px >> 4) + 8) * 16;
-        shot_y[k] = ((py >> 4) + 8) * 16;
+        shot_x[k] = ((px >> 4) + hand_x[pdir]) * 16;
+        shot_y[k] = ((py >> 4) + hand_y[pdir] - 6) * 16;
         shot_vx[k] = pdir == DIR_RIGHT ? STONE_SPEED : pdir == DIR_LEFT ? -STONE_SPEED : 0;
         shot_vy[k] = pdir == DIR_DOWN ? STONE_SPEED : pdir == DIR_UP ? -STONE_SPEED : 0;
         shot_life[k] = STONE_LIFE;
@@ -1364,10 +1365,9 @@ static void draw_sword(void) {
     if (!weapon_out || ko_timer) return;
     if (hurt_timer && (frame & 4)) return;   // blinks with the farmer
     u32 step = swing ? (swing_len - swing) * 3 / swing_len : 3;
-    if (weapon == SPEAR || weapon == SLING) step = 2;   // the spear jabs and the slingshot aims straight ahead
-    u32 pose = swing_pose[pdir][step];
+    if (weapon == SPEAR) step = 2;   // the spear jabs straight ahead
+    u32 pose = weapon == SLING ? P_U : swing_pose[pdir][step];   // the slingshot is always held upright (Caleb)
     u32 kind = pose_kind[pose], flags = pose_flags[pose];
-    if (weapon == SLING && kind == 2) kind = 1;
     u32 cell = weapon_cell[weapon][kind];
     s32 gx = grip_x(kind), gy = grip_y(kind);
     if (flags & HFLIP) gx = 15 - gx;

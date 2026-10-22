@@ -101,3 +101,14 @@
 1 0 !$weapon=1
 1 2
 4 0 w5_iron.ppm
+# the slingshot is always held upright and the stone flies out of its fork (v0.8.3): left, up, down
+20 0
+1 0 !$weapon=4,$swing_len=8,$sword_reach=0,$pdir=2
+1 2
+3 0 w6_sling_left.ppm
+30 0 !$pdir=1
+1 2
+3 0 w7_sling_up.ppm
+30 0 !$pdir=0
+1 2
+3 0 w8_sling_down.ppm

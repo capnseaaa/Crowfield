@@ -186,6 +186,7 @@ farmer is knocked out.
   fires only once it points there (recoil and a puff of smoke). Smaller art: slingshot about half size, a thin
   spear with a pointed steel head, a scythe one pixel smaller, and the iron sword 2 px shorter than the
   wooden one (own cells).
+- v0.8.3 (Caleb): the slingshot is always held upright and does not swing; the stone flies out of its fork.
 - All sprites draw behind the text layer, so messages, notices, the HUD, and windows cover them (Caleb).
 - Dusk (v0.5, Caleb): the field fades toward sunset orange during the 15 s "DUSK IN n" countdown; the shop
   opens at night (dark blue field) with fireflies drifting and blinking around the window. Fireflies show
