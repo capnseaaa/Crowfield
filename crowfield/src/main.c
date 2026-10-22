@@ -360,39 +360,41 @@ static int is_field(u8 t) {
 static void draw_hud(void);
 
 static s32 swing;        // > 0: sword swing frames left
-static s32 sickle_lv = 1;   // 1: one tile. 2: a 3-tile arc. 3: the arc, +1 crop per tile (shop)
+static s32 sickle_lv = 1;   // tiles worked per A press, in a line ahead: 1, 2, or 3 (shop; Caleb's rule)
 
-// The sickle's arc: the tile in front, plus the two beside it from Lv.2. Returns the count (1 or 3).
+// The sickle's tiles: the one in front, then the next ones straight ahead. Returns the count (= sickle_lv).
 static s32 sickle_tiles(s32 *xs, s32 *ys) {
-    xs[0] = tx; ys[0] = ty;
-    if (sickle_lv < 2) return 1;
-    s32 side_x = pdir == DIR_UP || pdir == DIR_DOWN;   // facing up/down: the arc runs left-right
-    xs[1] = tx - side_x; ys[1] = ty - !side_x;
-    xs[2] = tx + side_x; ys[2] = ty + !side_x;
-    return 3;
+    s32 dx = pdir == DIR_RIGHT ? 1 : pdir == DIR_LEFT ? -1 : 0;
+    s32 dy = pdir == DIR_DOWN ? 1 : pdir == DIR_UP ? -1 : 0;
+    for (s32 k = 0; k < sickle_lv; k++) { xs[k] = tx + dx * k; ys[k] = ty + dy * k; }
+    return sickle_lv;
 }
 
+// A: on each sickle tile, harvest a ripe crop or plant a seed in empty soil.
 static void farm_work(void) {
     if (!HIT(KEY_A) || ko_timer || swing) return;
     weapon_out = 0;
-    s32 xs[3], ys[3], n = sickle_tiles(xs, ys), got = 0;
+    s32 xs[3], ys[3], n = sickle_tiles(xs, ys), harvested = 0, planted = 0, wanted_seed = 0;
     for (s32 k = 0; k < n; k++) {
-        if (tile_at(xs[k], ys[k]) != CROP_RIPE) continue;
-        set_tile(xs[k], ys[k], SOIL);
-        crops += sickle_lv >= 3 ? 2 : 1;
-        got = 1;
+        u8 t = tile_at(xs[k], ys[k]);
+        if (t == CROP_RIPE) {
+            set_tile(xs[k], ys[k], SOIL);
+            crops++;
+            harvested++;
+        } else if (t == SOIL) {
+            if (seeds <= 0) { wanted_seed = 1; continue; }
+            seeds--;
+            grow[ys[k] * MAP_W + xs[k]] = 0;
+            set_tile(xs[k], ys[k], SPROUT);
+            planted++;
+        }
     }
-    u8 t = tile_at(tx, ty);
-    if (got) {
-        play(SND_HARVEST);
+    if (harvested || planted) {
+        play(harvested ? SND_HARVEST : SND_PLANT);
         draw_hud();
-    } else if (t == SOIL) {
-        if (seeds <= 0) { show_message("NO SEEDS!"); play(SND_NOSEEDS); return; }
-        seeds--;
-        grow[ty * MAP_W + tx] = 0;
-        set_tile(tx, ty, SPROUT);
-        play(SND_PLANT);
-        draw_hud();
+    } else if (wanted_seed) {
+        show_message("NO SEEDS!");
+        play(SND_NOSEEDS);
     }
 }
 
@@ -444,7 +446,7 @@ static s32 day_done;                 // > 0: all of today's crows are gone; fram
 #define PECK_COOL 90
 #define BITE_FRAMES 120    // 2 s per bite: a ripe crop is gone after 4 bites
 #define DAY_START_DELAY 120   // 2 s from a new day to its first crow
-#define DAY_DONE_FRAMES 120   // "DAY n DONE!" shows 2 s before dusk
+#define DAY_DONE_FRAMES 900   // 15 s to harvest and plant after the last crow, before dusk (Caleb)
 
 static s32 abs32(s32 v) { return v < 0 ? -v : v; }
 
@@ -574,7 +576,15 @@ static void update_days(s32 alive) {
         day_done = DAY_DONE_FRAMES;
         return;
     }
-    if (ko_timer || --day_done > 0) return;   // wait until he is back on his feet
+    if (ko_timer) return;                     // wait until he is back on his feet
+    if (--day_done > 0) {
+        if (day_done % 60 == 0) {             // once a second: "DUSK IN n"
+            char buf[16];
+            fmt_num(buf + copy_str(buf, "DUSK IN "), day_done / 60);
+            show_message(buf);
+        }
+        return;
+    }
     open_shop();
 }
 

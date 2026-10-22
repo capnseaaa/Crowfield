@@ -50,7 +50,10 @@
 1 0 !$crow_state=0,$crow_state+4=0,$crow_state+8=0,$crops=3,$coins=0,$seeds=3,$hearts=3,$ko_timer=0
 3 0 e9_daydone.ppm
 1 0 @$day_done,$shop_open
-125 0 s1_shop.ppm
+# 15 s to farm before dusk ("DUSK IN n")
+450 0 e10_duskin.ppm
+1 0 @$day_done,$shop_open
+455 0 s1_shop.ppm
 1 0 @$shop_open,$shop_cursor,$grow+100
 # F: the shop. A sells all crops: 3 x 3 = 9 coins.
 1 1

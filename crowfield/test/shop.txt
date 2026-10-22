@@ -1,9 +1,9 @@
-# shop upgrades (v0.3.1): buy sickle and sword levels, refuse when broke or maxed; then the sickle arc,
-# the Lv.3 bonus crop, and the sword's damage and reach.
+# shop upgrades (v0.3.1, sickle rule v0.4.0): buy sickle and sword levels, refuse when broke or maxed;
+# the sickle working 3 and 2 tiles ahead (harvest and plant), and the sword's damage and reach.
 # Skip day 1's crows: with none to come and none alive, the day ends and the shop opens.
 1 0
 1 0 !$day_left=0,$coins=200
-130 0
+905 0
 1 0 @$shop_open,$shop_cursor
 # cursor starts on BUY SEED (no crops). Down to SICKLE: Lv.2 for 45, Lv.3 for 90, then MAX (refused)
 1 128
@@ -37,16 +37,33 @@
 1 0 !$spawning=0
 3 0
 1 0 @$shop_open,$day
-# sickle Lv.3 arc: tiles 52, 53, 54 (row 3, x 7-9) ripe; farmer below tile 53, facing up. One A harvests
-# all three at 2 crops each: 6.
-1 0 !$farm+52=101058054,$px=2048,$py=896,$pdir=1,$crops=0
+# sickle Lv.3: the 3 tiles straight ahead. Farmer in the gate (7,6) facing up: tiles 82, 67, 52 (column 7).
+# Make them ripe (bytes: SOIL=3 SPROUT=4 RIPE=6). One A harvests all three: 3 crops.
+1 0 !$farm+52=100860934,$farm+64=100926468,$farm+80=67503107,$px=1792,$py=1408,$pdir=1,$crops=0,$seeds=5
 2 0 u3_arc.ppm
 1 1
 2 0 u4_harvested.ppm
-1 0 @$crops,$farm+52
+1 0 @$crops,$farm+52,$farm+64,$farm+80
+# A again: the 3 tiles are empty soil now, so it plants 3 seeds (5 -> 2)
+1 1
+2 0
+1 0 @$seeds,$farm+52,$farm+64,$farm+80
+# Lv.2: 2 tiles. Ripe again; one A harvests 82 and 67, and 52 (3 tiles out) stays ripe.
+1 0 !$sickle_lv=2,$farm+52=100860934,$farm+64=100926468,$farm+80=67503107,$crops=0
+1 1
+2 0
+1 0 @$crops,$farm+52,$farm+64,$farm+80
+# with 1 seed and 2 empty tiles: Lv.2 plants 1, then "NO SEEDS!" on the next press
+1 0 !$seeds=1
+1 1
+2 0
+1 0 @$seeds,$farm+64,$farm+80
+1 1
+2 0
+1 0 @$seeds,$msg_timer
 # sword Lv.3 (2 damage, reach 16): a fed crow (2 HP) 28 px to the right dies in one swing.
 # At Lv.1 (reach 10) the hit box ends 24 px out, so this crow would be out of reach.
-1 0 !$pdir=3,$crow_state=1,$crow_x=2496,$crow_y=896,$crow_hp=2,$crow_cool=999,$crow_target=-1
+1 0 !$px=2048,$py=896,$pdir=3,$crow_state=1,$crow_x=2496,$crow_y=896,$crow_hp=2,$crow_cool=999,$crow_target=-1
 1 2
 4 0 u5_reach.ppm
 1 0 @$crow_state,$crow_hp

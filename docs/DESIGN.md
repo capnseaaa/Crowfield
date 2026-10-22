@@ -55,7 +55,7 @@ Each soil tile moves through: empty soil -> sprout -> young -> grown -> ripe.
 ## Tools and upgrades (3 levels each)
 | Item | Lv.1 | Lv.2 | Lv.3 | Notes |
 |---|---|---|---|---|
-| Sickle | harvest 1 tile | faster swing | harvests a 3-tile arc, +1 crop per tile | "Faster harvest, more crops per tile." |
+| Sickle | 1 tile | 2 tiles straight ahead | 3 tiles straight ahead | Each A harvests ripe tiles and plants empty soil (Caleb, v0.4.0). |
 | Sword | short swing | more damage | longer range | "More damage, longer range." |
 | Scarecrow turret | shoots nearest crow | faster shots | wider range / 2 shots | Placed on a soil tile. It uses up that crop slot. |
 
@@ -81,7 +81,8 @@ day n brings `2 + n` crows (3 on day 1; v0.2 used `4 + 2 * day`, and Caleb found
 every `160 - 10 * n` frames (2.5 s on day 1, never under 0.75 s), each from a random screen edge.
 
 **Days (v0.3.0).** A day starts with a `DAY n` banner; its first crow comes after 2 s. When all of the
-day's crows have come and died, "DAY n DONE!" shows for 2 s (the farmer can still harvest), then dusk:
+day's crows have come and died, "DAY n DONE!" shows, then 15 s of free farming with a "DUSK IN n"
+countdown (Caleb, v0.4.0; was 2 s), then dusk:
 the shop window opens and the farm pauses (no crows, no growth). Leaving the shop starts the next day. A crow that feeds for long is harder to kill, so the farmer
 must stop crows fast. A fed crow should look different (bigger, or a palette change).
 
@@ -107,10 +108,10 @@ At most 8 on the field. A scarecrow is solid for the farmer; crows ignore it. It
 Lv.1: range 64 px, one shot every 1.5 s. Lv.2: one shot every 0.83 s. Lv.3: range 88 px and 2 shots
 (at the two nearest crows). The level applies to every scarecrow. Scarecrows keep shooting while the
 farmer is knocked out.
-- What the levels do (v0.3.1). Harvesting is instant, so the table's "faster swing" for Sickle Lv.2 has
-  no effect in this game; Lv.2 instead harvests the 3-tile arc, and Lv.3 adds +1 crop per tile.
-  Sickle Lv.2: the tile in front plus the two beside it (the marker shows all three). Lv.3: the same arc,
-  2 crops per tile. Sword Lv.2: 2 damage (a fed crow dies in one hit). Lv.3: 2 damage, hit box 16 px in
+- What the levels do. Sickle (Caleb, v0.4.0): Lv.1 works the tile in front, Lv.2 the 2 tiles straight
+  ahead, Lv.3 the 3 tiles straight ahead (the marker shows them). One A press harvests each ripe tile and
+  plants a seed in each empty soil tile (one seed per tile while seeds last). This replaced v0.3.1's 3-tile
+  arc at Lv.2 and bonus crop at Lv.3. Sword Lv.2: 2 damage (a fed crow dies in one hit). Lv.3: 2 damage, hit box 16 px in
   front instead of 10 (the sword sprite keeps its size).
 - Game over counts crops in the bag as the coins they sell for, so a full bag never ends the run.
 - Coins buy upgrades, seeds, and turrets. Crops in stock carry over.

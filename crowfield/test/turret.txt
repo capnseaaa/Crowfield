@@ -2,7 +2,7 @@
 # farmer, shots at the nearest crow in range, Lv.1 range and reload, Lv.3 range and 2 shots.
 # Skip day 1's crows so the shop opens.
 1 0 !$day_left=0,$coins=300
-130 0
+905 0
 1 0 @$shop_open,$shop_cursor
 # down from BUY SEED past SICKLE and SWORD to SCARECROW; buy 2 (300 -> 220)
 1 128
