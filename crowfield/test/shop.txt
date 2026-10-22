@@ -5,8 +5,10 @@
 1 0 !$day_left=0,$coins=200
 905 0
 1 0 @$shop_open,$shop_cursor
-# main page, cursor on SEEDS (no crops). Down to WEAPONS, A opens it on SICKLE:
-# Lv.2 for 45, Lv.3 for 90, then MAX (refused)
+# main page, cursor on SEEDS (no crops). Down past WEAPONS to FARM, A opens it on SICKLE:
+# Lv.2 for 30, Lv.3 for 60 (v0.8 prices), then MAX (refused)
+1 128
+1 0
 1 128
 1 0
 1 1
@@ -18,20 +20,26 @@
 1 1
 1 0 u1_sickle_max.ppm
 1 0 @$coins,$sickle_lv
-# down to SWORD: Lv.2 for 60 (65 -> 5); Lv.3 costs 120: refused
-1 128
+# B back (cursor on FARM), up to WEAPONS, A opens it on SWORD: Lv.2 for 40 (110 -> 70); Lv.3 costs 80: refused
+1 2
+1 0
+1 64
+1 0
+1 1
 1 0
 1 1
 1 0 @$coins,$sword_lv,$sword_damage,$sword_reach
 1 1
 1 0 @$coins,$sword_lv
-1 0 !$coins=120
+1 0 !$coins=80
 1 1
 1 0 u2_sword_max.ppm
 1 0 @$coins,$sword_lv,$sword_damage,$sword_reach
-# B back to the main page (cursor on WEAPONS), down to NEXT DAY, A; then stop the crows for exact tests
+# B back to the main page (cursor on WEAPONS), down past FARM to NEXT DAY, A; then stop the crows
 1 2
 1 0 @$shop_page,$shop_cursor
+1 128
+1 0
 1 128
 1 0
 1 1

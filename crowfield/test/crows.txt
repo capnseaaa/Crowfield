@@ -64,13 +64,17 @@
 1 0 @$day_done,$shop_open
 455 0 s1_shop.ppm
 1 0 @$shop_open,$shop_cursor,$grow+100
-# F: the shop. A sells all crops: 3 x 2 = 6 coins.
+# F: the shop (v0.8 pages). A opens SELL, A on SELL ALL sells all crops: 3 x 3 = 9 coins (v0.8 prices).
+1 1
+1 0
 1 1
 1 0 s2_sold.ppm
 1 0 @$coins,$crops
-# down to SEEDS, A opens it on CORN SEED (1 coin each). With 2 coins: buy 2 (3 -> 5 seeds); the 3rd is
-# refused (0 coins).
+# B back (cursor on SELL), down to SEEDS, A opens it on CORN SEED (1 coin each). With 2 coins: buy 2
+# (3 -> 5 seeds); the 3rd is refused (0 coins).
 1 0 !$coins=2
+1 2
+1 0
 1 128
 1 0
 1 1
@@ -85,8 +89,10 @@
 # the farm is paused while the shop is open: no growth (grow counter of tile 51 holds)
 60 0
 1 0 @$grow+100
-# B back (cursor on SEEDS), down past WEAPONS to NEXT DAY, A: day 2 with 3-5 crows to come
+# B back (cursor on SEEDS), down past WEAPONS and FARM to NEXT DAY, A: day 2 with 3-5 crows to come
 1 2
+1 0
+1 128
 1 0
 1 128
 1 0

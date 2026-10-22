@@ -1,0 +1,50 @@
+# farm expansion (v0.8): FARM page, FIELD 7X4 (60), 9X4 (120), 9X5 (200), then MAX. The fence moves out,
+# crops inside stay, the gate stays at the bottom middle; a farmer standing where the fence goes is moved.
+1 0 !$day_left=0,$coins=400
+905 0
+1 0 @$shop_open,$shop_cursor
+1 128
+1 0
+1 128
+1 0
+1 1
+1 0
+1 128
+1 0
+1 128
+1 0
+1 128
+1 0
+1 0 x1_farm_page.ppm
+1 1
+1 0
+1 0 @$farm_step,$coins
+1 0 @$farm+0,$farm+4,$farm+8,$farm+12,$farm+16,$farm+20,$farm+24,$farm+28,$farm+32,$farm+36,$farm+40,$farm+44,$farm+48
+1 0 @$farm+52,$farm+56,$farm+60,$farm+64,$farm+68,$farm+72,$farm+76,$farm+80,$farm+84,$farm+88,$farm+92,$farm+96,$farm+100
+1 0 @$farm+104,$farm+108,$farm+112,$farm+116,$farm+120,$farm+124,$farm+128,$farm+132,$farm+136,$farm+140,$farm+144,$farm+148
+1 1
+1 0
+1 0 @$farm_step,$coins
+1 0 @$farm+0,$farm+4,$farm+8,$farm+12,$farm+16,$farm+20,$farm+24,$farm+28,$farm+32,$farm+36,$farm+40,$farm+44,$farm+48
+1 0 @$farm+52,$farm+56,$farm+60,$farm+64,$farm+68,$farm+72,$farm+76,$farm+80,$farm+84,$farm+88,$farm+92,$farm+96,$farm+100
+1 0 @$farm+104,$farm+108,$farm+112,$farm+116,$farm+120,$farm+124,$farm+128,$farm+132,$farm+136,$farm+140,$farm+144,$farm+148
+1 1
+1 0
+1 0 @$farm_step,$coins
+1 0 @$farm+0,$farm+4,$farm+8,$farm+12,$farm+16,$farm+20,$farm+24,$farm+28,$farm+32,$farm+36,$farm+40,$farm+44,$farm+48
+1 0 @$farm+52,$farm+56,$farm+60,$farm+64,$farm+68,$farm+72,$farm+76,$farm+80,$farm+84,$farm+88,$farm+92,$farm+96,$farm+100
+1 0 @$farm+104,$farm+108,$farm+112,$farm+116,$farm+120,$farm+124,$farm+128,$farm+132,$farm+136,$farm+140,$farm+144,$farm+148
+1 1
+1 0
+1 0 x2_max.ppm
+1 0 @$farm_step,$coins
+# put the farmer where the 9x5 fence now is (row 7 at x 5), then NEXT DAY: he is moved below the gate
+1 0 !$px=1280,$py=1680
+1 2
+1 0
+1 128
+1 0
+1 1
+1 0
+3 0 x3_field.ppm
+1 0 @$shop_open,$day,$px,$py

@@ -53,6 +53,12 @@
 1 0 @$crow_state,$crow_state+4,$crow_state+8
 125 0 b7_dawn_shop.ppm
 1 0 @$shop_open,$shop_dawn,$blood_on,$blood_next
+# survived: the dawn shop opens on CHOOSE A BLESSING (page 5); A takes ATTACK UP (+0.5: sword 2 -> 3 half-points)
+1 0 b7b_blessing.ppm
+1 0 @$shop_page,$sword_damage
+1 1
+1 0
+1 0 @$bless_attack,$shop_page,$sword_damage
 # NEXT DAY: Day 35, a normal morning
 1 128
 1 0
@@ -78,6 +84,8 @@
 1 0 @$game_over,$blood_on,$coins,$blood_count
 125 0
 1 0 @$shop_open,$shop_dawn,$coins
+# a lost night gives no blessing: the dawn shop opens on the main page (0)
+1 0 @$shop_page
 # NEXT DAY (36). The 3rd blood moon tonight; he survives it, and the next morning the notice shows.
 1 128
 1 0
@@ -92,6 +100,14 @@
 1 0 !$blood_timer=2
 130 0
 1 0 @$shop_open,$blood_count,$notice_pending
+# CHOOSE A BLESSING: down twice to +1 HEART, A: 3 hearts -> 4
+1 128
+1 0
+1 128
+1 0
+1 1
+1 0
+1 0 @$max_hearts,$hearts,$shop_page
 1 128
 1 0
 1 128

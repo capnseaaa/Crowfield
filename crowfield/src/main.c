@@ -283,7 +283,7 @@ static const u8 grown_tile[KINDS] = { CROP, CARROT_GROWN, TOMATO_GROWN, PUMPKIN_
 static const u8 ripe_tile[KINDS] = { CROP_RIPE, CARROT_RIPE, TOMATO_RIPE, PUMPKIN_RIPE };
 static const u16 grow_frames[KINDS] = { 480, 640, 800, 1120 };   // per stage; 3 stages: 24, 32, 40, 56 s
 static const s32 seed_price[KINDS] = { 1, 2, 3, 5 };
-static const s32 sell_price[KINDS] = { 2, 5, 8, 14 };   // Caleb: corn 3 -> 2 to balance the new crops
+static const s32 sell_price[KINDS] = { 3, 7, 12, 20 };   // v0.8 money boost (Caleb); v0.5 was 2, 5, 8, 14
 static const s32 unlock_day[KINDS] = { 1, 5, 12, 20 };
 static const char *const crop_name[KINDS] = { "CORN", "CARROT", "TOMATO", "PUMPKIN" };
 static const char *const seed_icon[KINDS] = { "^", "{", "}", "|" };   // font glyphs: one colored icon per seed
@@ -315,8 +315,10 @@ static void update_crops(void) {
     }
 }
 
+static s32 farm_step;   // the field: 0 7x3, 1 7x4, 2 9x4, 3 9x5 (the expansion section)
 static void reset_farm(void) {
     for (u32 i = 0; i < MAP_W * MAP_H; i++) { farm[i] = farm_start[i]; grow[i] = 0; crop_kind[i] = CORN; }
+    farm_step = 0;
     for (s32 y = 0; y < MAP_H; y++)
         for (s32 x = 0; x < MAP_W; x++) draw_meta(x, y);
 }
@@ -334,6 +336,8 @@ static int blocked(s32 x, s32 y) {
 
 // Combat state for the farmer (used by update_farmer, so declared here)
 static s32 hearts, max_hearts;
+static s32 bless_attack, bless_scare;    // dawn blessings taken (v0.8): each is +0.5 damage (one half-point)
+static s32 bless_pending;                // 1: the dawn shop opens on CHOOSE A BLESSING
 static s32 hurt_timer;           // > 0: just hit, cannot be hit again (blinks)
 static s32 ko_timer;             // > 0: knocked out, cannot act
 static s32 pvx, pvy;             // knockback velocity, 1/16 px per frame
@@ -521,7 +525,6 @@ static const s32 crow_bite_of[7] = { 120, 120, 120, 90, 60, 60, 60 };
 #define CROW_BLOOD 5
 #define CROW_WHITE 6
 #define GOLD_COINS 5       // a gold crow drops 5 coins when killed
-#define BLOOD_COINS 10     // a blood-moon gold crow drops 10
 #define PECK_COOL 90
 #define MAX_DAY 30           // crows in one day; only MAX_CROWS fit on screen, the rest wait for a free slot
 static s32 day_queue[MAX_DAY];       // levels of today's crows still to come, spawned from the end
@@ -620,6 +623,7 @@ static int fly_to(s32 i, s32 x, s32 y) {
     s32 dx = x - crow_x[i], dy = y - crow_y[i];
     s32 ax = abs32(dx), ay = abs32(dy);
     s32 v = crow_speed_of[crow_lv[i]];
+    if (blood_on == 1) v = v * 6 / 5;   // every crow is 20% faster in a blood moon
     s32 sx = ax >= ay / 2 ? v : 0, sy = ay >= ax / 2 ? v : 0;
     if (ax > sx) crow_x[i] += dx > 0 ? sx : -sx; else crow_x[i] = x;
     if (ay > sy) crow_y[i] += dy > 0 ? sy : -sy; else crow_y[i] = y;
@@ -776,7 +780,6 @@ static void start_day(void) {
 #define BLOOD_FIRST 34          // the first blood moon is the night after Day 34
 #define BLOOD_FRAMES 1800       // 30 s until dawn (Caleb, v0.7.2; was 90)
 #define FINALE_FRAMES 2700      // each final night: 45 s
-#define BLOOD_SPAWN_GAP 60      // a new gold crow every second
 #define DAWN_FRAMES 120         // crows fly away for 2 s, then the shop
 #define DAWN_BONUS 25
 static s32 blood_next;          // the day whose night is the next blood moon
@@ -822,6 +825,45 @@ static s32 blood_night(void) { return blood_on != 0; }
 static s32 finale_pending;      // 1: the next dusk is the last shop
 static s32 shop_last;           // 1: this is the last shop
 
+// v0.8 (Caleb): every blood moon has an exact lineup (docs/V0.8_PLAN.md), released in spurts that fill the
+// whole night: 6 spurts (9 on a final night), each a little bigger than the last, one crow every 1/4 s.
+// Columns: black, red, purple, gold, white. Rows: blood moons 1-5, final nights 1-3.
+static const u8 bm_lineup[8][5] = {
+    { 4, 8, 7, 5, 0 }, { 2, 8, 9, 7, 0 }, { 0, 8, 10, 9, 1 }, { 0, 6, 11, 11, 2 }, { 0, 4, 12, 13, 3 },
+    { 0, 0, 12, 18, 6 }, { 0, 0, 10, 20, 10 }, { 0, 0, 8, 22, 15 } };
+static const u8 bm_level[5] = { 1, 2, 3, 4, CROW_WHITE };
+static const u8 bm_coins[7] = { 2, 2, 4, 6, 10, 10, 15 };   // coins per kill in a blood moon, by crow level
+#define BM_MAX 48
+#define SPURT_GAP 15            // frames between crows inside a spurt
+static u8 bm_queue[BM_MAX];     // tonight's crows (levels), shuffled
+static s32 bm_total, bm_sent;   // crows tonight; crows already sent
+static s32 spurts, spurt_len, spurt_timer, spurt_no;   // spurts tonight, frames each, frames left, which one
+
+// How many crows should be out by the end of spurt k (later spurts are bigger: sizes grow 1, 2, 3, ...).
+// Rounded up, so the first spurt always sends at least one crow.
+static s32 spurt_target(s32 k) {
+    s32 den = spurts * (spurts + 1);
+    return (bm_total * (k + 1) * (k + 2) + den - 1) / den;
+}
+
+static void plan_blood_moon(void) {
+    s32 row = finale ? 4 + finale : blood_count < 4 ? blood_count : 4;
+    bm_total = 0;
+    for (s32 t = 0; t < 5; t++)
+        for (s32 k = 0; k < bm_lineup[row][t] && bm_total < BM_MAX; k++) bm_queue[bm_total++] = bm_level[t];
+    for (s32 k = bm_total - 1; k > 0; k--) {   // shuffle
+        s32 j = rand_in(0, k);
+        u8 t = bm_queue[k];
+        bm_queue[k] = bm_queue[j];
+        bm_queue[j] = t;
+    }
+    bm_sent = 0;
+    spurts = finale ? 9 : 6;
+    spurt_len = blood_timer / spurts;
+    spurt_timer = spurt_len;
+    spurt_no = 0;
+}
+
 static void start_blood_moon(void) {
     blood_on = 1;
     blood_timer = finale ? FINALE_FRAMES : BLOOD_FRAMES;
@@ -829,7 +871,8 @@ static void start_blood_moon(void) {
     blood_coins = 0;
     blood_saved_lv = scarecrow_lv;
     scarecrow_lv = 1;            // for this night only
-    spawn_timer = BLOOD_SPAWN_GAP - 60;
+    plan_blood_moon();
+    spawn_timer = SPURT_GAP;
     set_light_blood(256);
     if (finale) {
         char buf[20];
@@ -855,6 +898,7 @@ static void blood_dawn(void) {
     draw_hud();
 }
 
+
 static void update_blood_moon(void) {
     if (blood_on == 3) {                     // a break between the final nights
         if (--blood_timer > 0) return;
@@ -873,9 +917,11 @@ static void update_blood_moon(void) {
     }
     if (blood_on == 1) {
         if (--blood_timer > 0) {
-            // the final nights mix in white crows: 1 in 4, then 1 in 3, then 1 in 2
-            s32 lv = finale && rand_in(1, 5 - finale) == 1 ? CROW_WHITE : CROW_BLOOD;
-            if (++spawn_timer >= BLOOD_SPAWN_GAP && spawn_crow_lv(lv)) spawn_timer = 0;
+            if (--spurt_timer <= 0 && spurt_no < spurts - 1) { spurt_no++; spurt_timer = spurt_len; }
+            if (bm_sent < spurt_target(spurt_no) && ++spawn_timer >= SPURT_GAP && spawn_crow_lv(bm_queue[bm_sent])) {
+                spawn_timer = 0;
+                bm_sent++;
+            }
             if (blood_timer % 60 == 0 && msg_timer <= 60) {   // "DAWN IN n", unless a message is fresh
                 char buf[16];
                 fmt_num(buf + copy_str(buf, "DAWN IN "), blood_timer / 60);
@@ -894,6 +940,7 @@ static void update_blood_moon(void) {
         }
         coins += DAWN_BONUS;
         blood_dawn();
+        bless_pending = 1;       // survived: the dawn shop opens on CHOOSE A BLESSING
         show_message("DAWN! +25 COINS");
         return;
     }
@@ -1009,11 +1056,15 @@ static void hit_crow(s32 i, s32 dmg, s32 kvx, s32 kvy) {
         crow_timer[i] = 16;
         stat_kills++;
         play(SND_POOF);
-        if (crow_lv[i] >= CROW_GOLD) {   // gold crows drop coins
-            s32 c = crow_lv[i] >= CROW_BLOOD ? BLOOD_COINS : GOLD_COINS;
+        if (blood_on == 1 || crow_lv[i] >= CROW_GOLD) {   // blood-moon crows pay by type; gold pays by day
+            s32 c = blood_on == 1 ? bm_coins[crow_lv[i]] : GOLD_COINS;
+            char buf[12];
             coins += c;
             if (blood_on == 1) blood_coins += c;
-            show_message(crow_lv[i] >= CROW_BLOOD ? "+10 COINS" : "+5 COINS");
+            s32 n = copy_str(buf, "+");
+            n += fmt_num(buf + n, c);
+            copy_str(buf + n, " COINS");
+            show_message(buf);
             draw_hud();
         }
         return;
@@ -1101,7 +1152,7 @@ static void update_scarecrows(void) {
         fire_shot(x, y, c);
         if (scarecrow_lv >= 3) {
             s32 c2 = nearest_crow(x, y, scarecrow_range(), c);   // a 2nd crow, or the same one if it
-            if (c2 < 0 && crow_hp[c] > SHOT_DAMAGE) c2 = c;       // needs 2 hits; never waste a seed
+            if (c2 < 0 && crow_hp[c] > SHOT_DAMAGE + bless_scare) c2 = c;   // needs 2 hits; never waste a seed
             if (c2 >= 0) fire_shot(x, y, c2);
         }
         sc_cool[s] = scarecrow_reload();
@@ -1115,7 +1166,7 @@ static void update_scarecrows(void) {
         for (s32 i = 0; i < MAX_CROWS; i++) {
             if (!crow_targetable(i)) continue;
             if (abs32((crow_x[i] >> 4) + 8 - x) >= 8 || abs32((crow_y[i] >> 4) + 8 - y) >= 8) continue;
-            hit_crow(i, SHOT_DAMAGE, shot_vx[k], shot_vy[k]);
+            hit_crow(i, SHOT_DAMAGE + bless_scare, shot_vx[k], shot_vy[k]);   // +0.5 a blessing
             shot_life[k] = 0;
             break;
         }
@@ -1204,7 +1255,7 @@ static s32 sword_lv = 1;                         // 1, 2: more damage, 3: longer
 static s32 sword_damage = HP(1), sword_reach = 10;   // set by set_sword_lv
 static void set_sword_lv(s32 lv) {
     sword_lv = lv;
-    sword_damage = lv >= 3 ? HP(2) : lv == 2 ? 3 : HP(1);   // 1, 1.5, 2 (Caleb)
+    sword_damage = (lv >= 3 ? HP(2) : lv == 2 ? 3 : HP(1)) + bless_attack;   // 1, 1.5, 2 (Caleb), +0.5 a blessing
     sword_reach = lv >= 3 ? 16 : 10;
 }
 static s32 slash_x, slash_y;                     // center of the hit box, screen px
@@ -1265,27 +1316,54 @@ static void draw_sword(void) {
     put_sprite((px >> 4) + hand_x[pdir] - gx, (py >> 4) - bob + hand_y[pdir] - gy, cell, flags);
 }
 
+// ---------- farm expansion (v0.8, Caleb) ----------
+// The fenced field grows in 3 steps, bought on the FARM page: 7x3 -> 7x4 (a row down) -> 9x4 (a column each
+// side) -> 9x5 (a row up). Up to 9x4 a one-tile path goes all the way around; at 9x5 the top fence meets the
+// bushes. The gate stays at the bottom middle (x 7). Crops and scarecrows inside stay where they are.
+static const u8 field_x0[4] = { 4, 4, 3, 3 }, field_x1[4] = { 10, 10, 11, 11 };
+static const u8 field_y0[4] = { 3, 3, 3, 2 }, field_y1[4] = { 5, 6, 6, 6 };
+#define GATE_X 7
+
+static void expand_field(void) {
+    farm_step++;
+    s32 x0 = field_x0[farm_step], x1 = field_x1[farm_step], y0 = field_y0[farm_step], y1 = field_y1[farm_step];
+    for (s32 y = y0 - 1; y <= y1 + 1; y++)
+        for (s32 x = x0 - 1; x <= x1 + 1; x++) {
+            s32 i = y * MAP_W + x;
+            if (x >= x0 && x <= x1 && y >= y0 && y <= y1) {   // inside: new ground becomes soil
+                if (!is_field(farm[i])) { farm[i] = SOIL; grow[i] = 0; crop_kind[i] = CORN; }
+            } else farm[i] = (y == y1 + 1 && x == GATE_X) ? DIRT : FENCE;   // the new fence and its gate
+        }
+    for (s32 y = 0; y < MAP_H; y++)   // fence pieces join their new neighbors
+        for (s32 x = 0; x < MAP_W; x++) draw_meta(x, y);
+}
+
 // ---------- dusk shop ----------
-// Seed and crop prices: seed_price[] and sell_price[] with the crops.
-// Upgrade prices for Lv.2 and Lv.3: about as many crops as the concept's 120 / 150 at 8 coins a crop.
-static const s32 sickle_price[2] = { 45, 90 };
-static const s32 sword_price[2] = { 60, 120 };
-#define SCARECROW_PRICE 40   // the concept's 100 at 8-coin crops, rescaled to 3-coin crops
-static const s32 scarecrow_price[2] = { 60, 120 };
-// The shop has a main page and two sub-pages (Caleb: the one long list was too long). A opens a page or buys,
-// B goes back to the main page. EXPANSION (bigger field) comes later.
-enum { PAGE_MAIN, PAGE_SEEDS, PAGE_WEAPONS };
-enum { MAIN_SELL, MAIN_SEEDS, MAIN_WEAPONS, MAIN_NEXT, MAIN_ITEMS };
-enum { W_SICKLE, W_SWORD, W_SCARECROW, W_SCARECROW_LV, W_ITEMS };
-static const s32 page_items[3] = { MAIN_ITEMS, KINDS, W_ITEMS };
+// Seed and crop prices: seed_price[] and sell_price[] with the crops. v0.8 cut the prices by about a third
+// (Caleb: money was hard to get).
+static const s32 sickle_price[2] = { 30, 60 };
+static const s32 sword_price[2] = { 40, 80 };
+#define SCARECROW_PRICE 30
+static const s32 scarecrow_price[2] = { 40, 80 };
+static const s32 expand_price[3] = { 60, 120, 200 };   // the field: 7x3 -> 7x4 -> 9x4 -> 9x5
+// Pages (v0.8): main, SELL, SEEDS, WEAPONS, FARM, and the dawn blessing. A opens a page or buys, B goes back.
+enum { PAGE_MAIN, PAGE_SELL, PAGE_SEEDS, PAGE_WEAPONS, PAGE_FARM, PAGE_BLESS };
+enum { MAIN_SELL, MAIN_SEEDS, MAIN_WEAPONS, MAIN_FARM, MAIN_NEXT, MAIN_ITEMS };
+enum { SELL_ALL, SELL_ITEMS = 1 + KINDS };              // then one line per crop
+enum { W_SWORD, W_ITEMS };                              // more weapons in v0.8.1
+enum { F_SICKLE, F_SCARECROW, F_SCARECROW_LV, F_EXPAND, F_ITEMS };
+enum { B_ATTACK, B_SCARE, B_HEART, B_ITEMS };
+static const s32 page_items[6] = { MAIN_ITEMS, SELL_ITEMS, KINDS, W_ITEMS, F_ITEMS, B_ITEMS };
 static s32 shop_open, shop_page, shop_cursor, main_cursor;
-// Window: text columns 3..26, rows 3..16 (centered between the HUD and the message row). One blank row
-// above the title and below "YOU HAVE", so nothing sits on the edge (Caleb). The hint goes on row 19.
+// Window: text columns 3..26, rows 2..17 (centered between the HUD and the message row). A blank row above
+// the title, two under it, items every 2nd row (rows 6-14), the bottom line on row 16, a blank row 17, so
+// nothing sits on the edge (Caleb). The hint goes on row 19.
 #define SHOP_L 3
 #define SHOP_W 24
-#define SHOP_T 3
-#define SHOP_ROWS 14
+#define SHOP_T 2
+#define SHOP_ROWS 16
 #define SHOP_EQ 16     // column of "=" in an item line
+#define SHOP_INFO (SHOP_T + 14)   // the bottom line: YOU HAVE, or about the line under the cursor
 
 static void shop_line(s32 row, const char *s) {
     put_text(SHOP_L, row, "                        ");
@@ -1297,7 +1375,7 @@ static void shop_centered(s32 row, const char *s) {   // a line centered in the 
     put_text(SHOP_L, row, "                        ");
     put_text(SHOP_L + (SHOP_W - n) / 2, row, s);
 }
-// Item line k (rows 7, 9, 11, 13): "  NAME" padded to SHOP_EQ, then "= $price" (price >= 0) or "MAX" (-1);
+// Item line k (rows 6, 8, .. 14): "  NAME" padded to SHOP_EQ, then "= $price" (price >= 0) or "MAX" (-1);
 // price -2: the name only.
 static void shop_item(s32 k, const char *name, s32 price) {
     char buf[26];
@@ -1317,10 +1395,17 @@ static void shop_level(s32 k, const char *name, s32 lv, const s32 *price) {
     shop_item(k, buf, lv >= 3 ? -1 : price[lv - 1]);
 }
 
+static s32 keep_pumpkins(void) { return 0; }   // v0.8.1: 1 once a crow cannon is owned
+
+// What SELL ALL sells: every crop, but pumpkins stay as ammo once you own a cannon.
+static s32 sell_all_value(void) { return crops_value() - (keep_pumpkins() ? crops[PUMPKIN] * sell_price[PUMPKIN] : 0); }
+static s32 sell_all_count(void) { return crops_total() - (keep_pumpkins() ? crops[PUMPKIN] : 0); }
+
 static void draw_shop(void) {
     char buf[26];
     s32 n;
     for (s32 r = SHOP_T; r < SHOP_T + SHOP_ROWS; r++) shop_line(r, "");
+    s32 info = 1;   // the bottom line shows YOU HAVE unless a page uses it
     if (shop_page == PAGE_MAIN) {
         if (shop_last) copy_str(buf, "LAST TIME TO BUY +150");
         else if (shop_dawn) copy_str(buf, "DAWN. BLOOD BONUS +25");
@@ -1330,12 +1415,27 @@ static void draw_shop(void) {
             copy_str(buf + n, " IS OVER.");
         }
         shop_centered(SHOP_T + 1, buf);
-        n = copy_str(buf, "SELL CROPS &");
+        n = copy_str(buf, "SELL  &");
         fmt_num(buf + n, crops_total());
-        shop_item(MAIN_SELL, buf, crops_value());
+        shop_item(MAIN_SELL, buf, -2);
         shop_item(MAIN_SEEDS, "SEEDS", -2);
         shop_item(MAIN_WEAPONS, "WEAPONS", -2);
+        shop_item(MAIN_FARM, "FARM", -2);
         shop_item(MAIN_NEXT, "NEXT DAY", -2);
+    } else if (shop_page == PAGE_SELL) {
+        shop_centered(SHOP_T + 1, "SELL");
+        n = copy_str(buf, "ALL   &");
+        fmt_num(buf + n, sell_all_count());
+        shop_item(SELL_ALL, buf, sell_all_value());
+        for (s32 k = 0; k < KINDS; k++) {   // "^ CORN   &3 = $9"
+            n = copy_str(buf, seed_icon[k]);
+            n += copy_str(buf + n, " ");
+            n += copy_str(buf + n, crop_name[k]);
+            while (n < 10) buf[n++] = ' ';
+            buf[n++] = '&';
+            fmt_num(buf + n, crops[k]);
+            shop_item(1 + k, buf, crops[k] * sell_price[k]);
+        }
     } else if (shop_page == PAGE_SEEDS) {
         shop_centered(SHOP_T + 1, "SEEDS");
         for (s32 k = 0; k < KINDS; k++) {   // "^ CORN    X3 = $1", or "| PUMPKIN DAY 20" while locked
@@ -1363,16 +1463,33 @@ static void draw_shop(void) {
             n += fmt_num(buf + n, grow_frames[k] * 3 / 60);   // sprout -> young -> grown -> ripe
             copy_str(buf + n, " SEC");
         }
-        shop_centered(SHOP_T + 12, buf);
-    } else {
+        shop_centered(SHOP_INFO, buf);
+        info = 0;
+    } else if (shop_page == PAGE_WEAPONS) {
         shop_centered(SHOP_T + 1, "WEAPONS");
-        shop_level(W_SICKLE, "SICKLE LV", sickle_lv, sickle_price);
         shop_level(W_SWORD, "SWORD LV", sword_lv, sword_price);
-        shop_item(W_SCARECROW, "SCARECROW  #1", SCARECROW_PRICE);
-        shop_level(W_SCARECROW_LV, "SCARECROW LV", scarecrow_lv, scarecrow_price);
+    } else if (shop_page == PAGE_FARM) {
+        shop_centered(SHOP_T + 1, "FARM");
+        shop_level(F_SICKLE, "SICKLE LV", sickle_lv, sickle_price);
+        shop_item(F_SCARECROW, "SCARECROW  #1", SCARECROW_PRICE);
+        shop_level(F_SCARECROW_LV, "SCARECROW LV", scarecrow_lv, scarecrow_price);
+        if (farm_step >= 3) shop_item(F_EXPAND, "FIELD 9X5", -1);
+        else {
+            static const char *const next_size[3] = { "FIELD 7X4", "FIELD 9X4", "FIELD 9X5" };
+            shop_item(F_EXPAND, next_size[farm_step], expand_price[farm_step]);
+        }
+    } else {                           // the dawn blessing after a blood moon survived
+        static const char *const what[B_ITEMS] = { "+0.5 WEAPON DAMAGE", "+0.5 SCARECROW DAMAGE",
+                                                   "ONE MORE HEART (MAX 5)" };   // each fits the window
+        shop_centered(SHOP_T + 1, "CHOOSE A BLESSING");
+        shop_item(B_ATTACK, "ATTACK UP", -2);
+        shop_item(B_SCARE, "SCARECROWS UP", -2);
+        shop_item(B_HEART, max_hearts >= 5 ? "+1 HEART  (MAX)" : "+1 HEART", -2);
+        shop_centered(SHOP_INFO, what[shop_cursor]);
+        info = 0;
     }
     put_text(SHOP_L + 1, SHOP_T + 4 + 2 * shop_cursor, ">");
-    if (shop_page != PAGE_SEEDS) {   // (the SEEDS page uses this line for the seed under the cursor)
+    if (info) {
         n = copy_str(buf, "YOU HAVE $");
         n += fmt_num(buf + n, coins);
         n += copy_str(buf + n, " &");
@@ -1382,16 +1499,17 @@ static void draw_shop(void) {
         n += fmt_num(buf + n, seeds[sel_seed]);
         n += copy_str(buf + n, " #");
         fmt_num(buf + n, scarecrow_bag);
-        shop_centered(SHOP_T + 12, buf);
+        shop_centered(SHOP_INFO, buf);
     }
     clear_row(19);
-    put_text(4, 19, shop_page == PAGE_MAIN ? "UP/DOWN PICK  A CHOOSE" : "A BUY  B BACK");
+    put_text(4, 19, shop_page == PAGE_MAIN ? "UP/DOWN PICK  A CHOOSE" : shop_page == PAGE_BLESS ? "UP/DOWN PICK  A TAKE" : "A BUY  B BACK");
 }
 
 static void open_shop(void) {
     shop_open = 1;
-    shop_page = PAGE_MAIN;
-    shop_cursor = crops_total() ? MAIN_SELL : MAIN_SEEDS;
+    shop_page = bless_pending ? PAGE_BLESS : PAGE_MAIN;
+    shop_cursor = bless_pending ? 0 : crops_total() ? MAIN_SELL : MAIN_SEEDS;
+    bless_pending = 0;
     swing = 0;
     if (shop_dawn) set_light_dawn();   // after a blood moon it is already morning
     else set_light(0, 256);            // night
@@ -1411,6 +1529,10 @@ static void close_shop(void) {
         return;
     }
     set_light(0, 0);     // a new morning
+    if (blocked(px, py)) {   // a new fence went up where he stood: back to the start, below the gate
+        px = PLAYER_START_X * 16 * 16;
+        py = PLAYER_START_Y * 16 * 16;
+    }
     day++;
     start_day();
     if (notice_pending) { notice_pending = 0; show_notice(training_notice, 4); }
@@ -1449,7 +1571,7 @@ static void update_shop(void) {
     if (!HELD(KEY_A)) buy_hold = 0;
     if (HIT(KEY_UP) && shop_cursor > 0) { shop_cursor--; draw_shop(); }
     if (HIT(KEY_DOWN) && shop_cursor < page_items[shop_page] - 1) { shop_cursor++; draw_shop(); }
-    if (HIT(KEY_B) && shop_page != PAGE_MAIN) {
+    if (HIT(KEY_B) && shop_page != PAGE_MAIN && shop_page != PAGE_BLESS) {
         shop_page = PAGE_MAIN;
         shop_cursor = main_cursor;
         draw_shop();
@@ -1458,33 +1580,51 @@ static void update_shop(void) {
     if (!HIT(KEY_A)) return;
     s32 ok = 1;
     if (shop_page == PAGE_MAIN) {
-        if (shop_cursor == MAIN_SELL) {
-            if ((ok = crops_total() > 0)) {
-                coins += crops_value();
-                for (s32 k = 0; k < KINDS; k++) crops[k] = 0;
-            }
-        } else if (shop_cursor == MAIN_NEXT) {
+        if (shop_cursor == MAIN_NEXT) {
             close_shop();
             return;
-        } else {                 // open a sub-page
-            main_cursor = shop_cursor;
-            shop_page = shop_cursor == MAIN_SEEDS ? PAGE_SEEDS : PAGE_WEAPONS;
-            shop_cursor = 0;
-            draw_shop();
-            return;
+        }
+        static const u8 page_of[MAIN_ITEMS] = { PAGE_SELL, PAGE_SEEDS, PAGE_WEAPONS, PAGE_FARM, PAGE_MAIN };
+        main_cursor = shop_cursor;   // open a page
+        shop_page = page_of[shop_cursor];
+        shop_cursor = 0;
+        draw_shop();
+        return;
+    } else if (shop_page == PAGE_BLESS) {
+        if (shop_cursor == B_ATTACK) { bless_attack++; set_sword_lv(sword_lv); }
+        else if (shop_cursor == B_SCARE) bless_scare++;
+        else if ((ok = max_hearts < 5)) hearts = ++max_hearts;
+        if (!ok) { play(SND_NOSEEDS); return; }
+        play(SND_HARVEST);
+        shop_page = PAGE_MAIN;
+        shop_cursor = crops_total() ? MAIN_SELL : MAIN_SEEDS;
+        draw_hud();
+        draw_shop();
+        return;
+    } else if (shop_page == PAGE_SELL) {
+        if (shop_cursor == SELL_ALL) {
+            if ((ok = sell_all_count() > 0)) {
+                coins += sell_all_value();
+                for (s32 k = 0; k < KINDS; k++) if (k != PUMPKIN || !keep_pumpkins()) crops[k] = 0;
+            }
+        } else {
+            s32 k = shop_cursor - 1;
+            if ((ok = crops[k] > 0)) { coins += crops[k] * sell_price[k]; crops[k] = 0; }
         }
     } else if (shop_page == PAGE_SEEDS) {
         s32 k = shop_cursor;
         if ((ok = day >= unlock_day[k] && coins >= seed_price[k])) { coins -= seed_price[k]; seeds[k]++; }
-    } else if (shop_cursor == W_SICKLE) {
-        ok = buy_level(&sickle_lv, sickle_price);
-    } else if (shop_cursor == W_SWORD) {
+    } else if (shop_page == PAGE_WEAPONS) {
         s32 lv = sword_lv;
         if ((ok = buy_level(&lv, sword_price))) set_sword_lv(lv);
-    } else if (shop_cursor == W_SCARECROW) {
+    } else if (shop_cursor == F_SICKLE) {
+        ok = buy_level(&sickle_lv, sickle_price);
+    } else if (shop_cursor == F_SCARECROW) {
         if ((ok = coins >= SCARECROW_PRICE)) { coins -= SCARECROW_PRICE; scarecrow_bag++; }
-    } else {
+    } else if (shop_cursor == F_SCARECROW_LV) {
         ok = buy_level(&scarecrow_lv, scarecrow_price);
+    } else {
+        if ((ok = farm_step < 3 && coins >= expand_price[farm_step])) { coins -= expand_price[farm_step]; expand_field(); }
     }
     if (!ok) { play(SND_NOSEEDS); return; }
     play(shop_page == PAGE_SEEDS ? SND_PLANT : SND_HARVEST);
@@ -1509,6 +1649,7 @@ static void new_run(void) {
     day = 1; seeds[CORN] = 3; coins = 0; hearts = max_hearts = 3;   // DESIGN.md first guesses
     sel_seed = CORN;
     sickle_lv = 1;
+    bless_attack = bless_scare = 0;
     set_sword_lv(1);
     scarecrows = scarecrow_bag = sc_warned = 0;
     scarecrow_lv = 1;
@@ -1516,7 +1657,7 @@ static void new_run(void) {
     spawning = 1; shop_open = 0;
     blood_on = blood_kos = shop_dawn = blood_count = notice_pending = notice_timer = 0;
     dev_money = dev_god = 0;   // a normal run; the dev window sets them again after new_run
-    finale = finale_pending = shop_last = stat_crops = stat_kills = 0;
+    finale = finale_pending = shop_last = stat_crops = stat_kills = bless_pending = 0;
     blood_next = BLOOD_FIRST;
     game_over = 0;
     start_day();
@@ -1562,16 +1703,16 @@ static void end_screen_again(void) { end_screen(end_kind); }
 // L + R + B together, while playing or on an end screen, opens the DEV MODE window (the game pauses).
 // Up/Down pick a line, Left/Right change it (L/R: by 10 on DAY and SEEDS), A starts a fresh run on that day
 // with that gear, B closes. Unlimited money keeps coins at 9999; invincible makes pecks do nothing.
-enum { DEV_DAY, DEV_SWORD, DEV_SICKLE, DEV_SC_LV, DEV_SC_BAG, DEV_SEEDS, DEV_BLOODS, DEV_TONIGHT, DEV_MONEY,
-       DEV_GOD, DEV_ITEMS };
+enum { DEV_DAY, DEV_SWORD, DEV_SICKLE, DEV_SC_LV, DEV_SC_BAG, DEV_FIELD, DEV_SEEDS, DEV_BLOODS, DEV_TONIGHT,
+       DEV_MONEY, DEV_GOD, DEV_ITEMS };
 enum { TONIGHT_NORMAL, TONIGHT_BLOOD, TONIGHT_FINAL };
-static const s32 dev_min[DEV_ITEMS] = { 1, 1, 1, 1, 0, 0, 0, 0, 0, 0 };
-static const s32 dev_max[DEV_ITEMS] = { 99, 3, 3, 3, MAX_SCARECROWS, 99, FINALE_AFTER, 2, 1, 1 };
+static const s32 dev_min[DEV_ITEMS] = { 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0 };
+static const s32 dev_max[DEV_ITEMS] = { 99, 3, 3, 3, MAX_SCARECROWS, 3, 99, FINALE_AFTER, 2, 1, 1 };
 static s32 dev_open, dev_cursor, dev_val[DEV_ITEMS];
 
 static void draw_dev(void) {
     static const char *const label[DEV_ITEMS] = { "DAY", "SWORD LV", "SICKLE LV", "SCARE LV", "SCARECROWS",
-        "SEEDS EACH", "MOONS DONE", "TONIGHT", "MONEY", "INVINCIBLE" };
+        "FIELD STEP", "SEEDS EACH", "MOONS DONE", "TONIGHT", "MONEY", "INVINCIBLE" };
     static const char *const tonight[3] = { "NORMAL", "BLOOD", "FINAL" };
     for (s32 r = SHOP_T; r < SHOP_T + SHOP_ROWS; r++) shop_line(r, "");
     shop_centered(SHOP_T, "DEV MODE");
@@ -1589,7 +1730,7 @@ static void draw_dev(void) {
         if (k == dev_cursor) copy_str(buf + n, ">");
         shop_line(SHOP_T + 2 + k, buf);
     }
-    shop_centered(SHOP_T + 13, "A START   B CLOSE");
+    shop_centered(SHOP_T + 14, "A START   B CLOSE");
     clear_row(19);
     put_text(1, 19, "LEFT/RIGHT CHANGE  L/R +-10");
 }
@@ -1602,6 +1743,7 @@ static void open_dev(void) {
     dev_val[DEV_SICKLE] = sickle_lv;
     dev_val[DEV_SC_LV] = blood_on ? blood_saved_lv : scarecrow_lv;
     dev_val[DEV_SC_BAG] = scarecrow_bag;
+    dev_val[DEV_FIELD] = farm_step;
     dev_val[DEV_SEEDS] = seeds[CORN];
     dev_val[DEV_BLOODS] = blood_count;
     dev_val[DEV_TONIGHT] = TONIGHT_NORMAL;
@@ -1628,6 +1770,7 @@ static void dev_start(void) {
     sickle_lv = dev_val[DEV_SICKLE];
     scarecrow_lv = dev_val[DEV_SC_LV];
     scarecrow_bag = dev_val[DEV_SC_BAG];
+    while (farm_step < dev_val[DEV_FIELD]) expand_field();
     for (s32 k = 0; k < KINDS; k++) seeds[k] = day >= unlock_day[k] ? dev_val[DEV_SEEDS] : 0;
     blood_count = dev_val[DEV_BLOODS];
     dev_money = dev_val[DEV_MONEY];

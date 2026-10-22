@@ -2,15 +2,16 @@
 # farmer, shots at the nearest crow in range (1 seed each), Lv.1 range and reload, Lv.3 range and 2 shots,
 # no shots without seeds.
 # Skip day 1's crows so the shop opens.
-1 0 !$day_left=0,$coins=300
+1 0 !$day_left=0,$coins=210
 905 0
 1 0 @$shop_open,$shop_cursor
-# main page on SEEDS: down to WEAPONS, A opens it; down past SICKLE and SWORD to SCARECROW; buy 2 (300 -> 220)
+# main page on SEEDS: down past WEAPONS to FARM, A opens it on SICKLE; down to SCARECROW; buy 2 at 30
+# (v0.8 prices; 210 -> 150)
+1 128
+1 0
 1 128
 1 0
 1 1
-1 0
-1 128
 1 0
 1 128
 1 0
@@ -18,7 +19,7 @@
 1 0
 1 1
 1 0 @$coins,$scarecrow_bag
-# down to SCARECROW LV: Lv.2 for 60, Lv.3 for 120, then MAX (refused)
+# down to SCARECROW LV: Lv.2 for 40, Lv.3 for 80, then MAX (refused)
 1 128
 1 0
 1 1
@@ -27,7 +28,7 @@
 1 0
 1 1
 1 0 @$coins,$scarecrow_lv
-# up to SCARECROW: a 3rd for 40 (40 -> 0), a 4th refused
+# up to SCARECROW: a 3rd for 30 (30 -> 0), a 4th refused
 1 64
 1 0
 1 1
@@ -35,7 +36,7 @@
 1 1
 1 0 t1_shop.ppm
 1 0 @$coins,$scarecrow_bag
-# B back (cursor on WEAPONS), down to NEXT DAY, A; then stop the crows
+# B back (cursor on FARM), down to NEXT DAY, A; then stop the crows
 1 2
 1 0
 1 128

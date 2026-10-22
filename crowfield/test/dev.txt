@@ -1,5 +1,5 @@
-# dev mode (v0.7.1): L+R+B opens it; set every line with presses; A starts Day 35 with that gear;
-# invincible, unlimited money, a blood moon tonight; B closes without changes; the combo from the shop.
+# dev mode (v0.7.1, FIELD v0.8): L+R+B opens it; set every line with presses; A starts Day 35 with that
+# gear; invincible, unlimited money, a blood moon tonight; B closes without changes.
 1 0
 1 0 !$spawning=0
 30 0
@@ -48,6 +48,12 @@
 1 0
 1 128
 1 0
+1 16
+1 0
+1 16
+1 0
+1 128
+1 0
 1 256
 1 0
 1 256
@@ -73,11 +79,11 @@
 1 16
 1 0
 1 0 d2_set.ppm
-1 0 @$dev_val,$dev_val+4,$dev_val+8,$dev_val+12,$dev_val+16,$dev_val+20,$dev_val+24,$dev_val+28,$dev_val+32,$dev_val+36
+1 0 @$dev_val+0,$dev_val+4,$dev_val+8,$dev_val+12,$dev_val+16,$dev_val+20,$dev_val+24,$dev_val+28,$dev_val+32,$dev_val+36,$dev_val+40
 1 1
 1 0
 3 0 d3_started.ppm
-1 0 @$dev_open,$day,$sword_lv,$sickle_lv,$scarecrow_lv,$scarecrow_bag,$blood_count,$blood_next
+1 0 @$dev_open,$day,$sword_lv,$sickle_lv,$scarecrow_lv,$scarecrow_bag,$blood_count,$blood_next,$farm_step
 1 0 @$seeds,$seeds+4,$seeds+8,$seeds+12,$dev_money,$coins,$dev_god
 # invincible: a crow right on the farmer, ready to peck; hearts stay 3
 1 0 !$crow_state=1,$crow_x=1792,$crow_y=2048,$crow_cool=0,$crow_target=-1,$crow_hp=2

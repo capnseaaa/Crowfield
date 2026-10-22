@@ -45,10 +45,15 @@
 1 0 @$day_done
 30 0 v6_night_shop.ppm
 1 0 @$shop_open,$shop_cursor
-# SELL: 2 corn x 2 + 1 carrot x 5 = 9 coins (after the 5 from the gold crow)
+# SELL page, SELL ALL: 2 corn x 3 + 1 carrot x 7 = 13 coins (v0.8 prices; after the 5 from the gold crow)
 1 1
+1 0
+1 1
+1 0 v6b_sell_page.ppm
 1 0 @$coins,$crops,$crops+4
-# the SEEDS page: corn, carrot, tomato open; pumpkin locked until day 20
+# B back, the SEEDS page: corn, carrot, tomato open; pumpkin locked until day 20
+1 2
+1 0
 1 128
 1 0
 1 1
@@ -74,6 +79,8 @@
 40 0 v8_fireflies.ppm
 # B back, NEXT DAY: a bright morning again
 1 2
+1 0
+1 128
 1 0
 1 128
 1 0

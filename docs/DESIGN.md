@@ -158,6 +158,12 @@ farmer is knocked out.
   unlocked crop), BLOOD MOONS already done (0-5), TONIGHT (NORMAL / BLOOD / FINAL), MONEY (NORMAL / INFINITE:
   coins stay at 9999), INVINCIBLE (pecks do nothing). Up/Down pick, Left/Right change, L/R by 10 on DAY and
   SEEDS. A starts a fresh run on that day with that gear; B closes without changes.
+- v0.8.0 (Caleb; numbers in docs/V0.8_PLAN.md): crops sell for 3 / 7 / 12 / 20, upgrades cost about a third
+  less. The shop has SELL (all, or one crop), SEEDS, WEAPONS, FARM pages. Every blood moon has an exact
+  lineup of crow types, sent in spurts that fill the night (6, or 9 on a final night); every crow is 20%
+  faster at night; kills pay by type (2 / 4 / 6 / 10 / 15). Surviving one opens the dawn shop on CHOOSE A
+  BLESSING: +0.5 weapon damage, +0.5 scarecrow damage, or +1 heart (max 5). The FARM page sells field
+  steps 7x4 (60), 9x4 (120), 9x5 (200).
 - All sprites draw behind the text layer, so messages, notices, the HUD, and windows cover them (Caleb).
 - Dusk (v0.5, Caleb): the field fades toward sunset orange during the 15 s "DUSK IN n" countdown; the shop
   opens at night (dark blue field) with fireflies drifting and blinking around the window. Fireflies show

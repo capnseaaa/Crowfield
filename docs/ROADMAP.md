@@ -90,10 +90,15 @@ numbers v0.1.0-v0.3.3 in commit subjects; those numbers are history only and hav
 
 ## Plan to v1.0 (Caleb, 2026-10-22)
 
-## v0.8 — weapons and the farm expansion
-- [ ] Shop: more weapons on the WEAPONS page; a new weapon replaces the current one (which weapons: ask Caleb)
-- [ ] Shop: EXPANSION page that makes the crop field bigger (sizes and prices: ask Caleb)
-- [ ] Tests for both
+## v0.8 — weapons and the farm expansion (plan: docs/V0.8_PLAN.md, approved by Caleb)
+- [x] v0.8.0: money boost (crops sell for more, prices about a third lower)
+- [x] v0.8.0: shop pages SELL (all or per crop), SEEDS, WEAPONS, FARM
+- [x] v0.8.0: blood moon lineups (exact counts per night, in spurts), coins by crow type, crows 20% faster
+- [x] v0.8.0: CHOOSE A BLESSING at dawn after a survived blood moon (attack, scarecrows, or a heart)
+- [x] v0.8.0: farm expansion 7x4, 9x4, 9x5 (FARM page); dev mode FIELD STEP
+- [x] v0.8.0: `test/expand.txt`; other tests updated for the pages and prices
+- [ ] v0.8.1: iron sword, spear, scythe, slingshot (each with its own upgrades)
+- [ ] v0.8.1: crow cannon (pumpkin ammo; SELL ALL keeps pumpkins once you own one)
 
 ## v0.9 — music and a title screen
 - [ ] Music: a looping tune (how many songs, and when each plays: ask Caleb)
