@@ -85,6 +85,7 @@ numbers v0.1.0-v0.3.3 in commit subjects; those numbers are history only and hav
 - [x] Win screen ("YOU WON! THANK YOU FOR PLAYING!") and "YOU DID YOUR BEST" screens with stats
 - [x] Sprites behind messages and windows
 - [x] `test/finale.txt`
+- [x] v0.7.1: dev mode (L + R + B) to jump to any day with any gear, infinite money, invincible; `test/dev.txt`
 
 ## Plan to v1.0 (Caleb, 2026-10-22)
 

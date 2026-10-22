@@ -152,6 +152,11 @@ farmer is knocked out.
   knockouts; the 5th loses. Survive all 3 and the run is won: "YOU WON! THANK YOU FOR PLAYING!" with the
   highest day, crops grown (harvested), and crows defeated. Every other ending shows the same numbers under
   "YOU DID YOUR BEST" ("THE FARM IS LOST", "THE BLOOD MOON WON", or "THE LAST MOON WON").
+- Dev mode (v0.7.1, Caleb; for testing): L + R + B together, while playing, in the shop, or on an end
+  screen, opens DEV MODE. Set DAY (1-99), SWORD / SICKLE / SCARE LV, SCARECROWS in the bag, SEEDS EACH (every
+  unlocked crop), BLOOD MOONS already done (0-5), TONIGHT (NORMAL / BLOOD / FINAL), MONEY (NORMAL / INFINITE:
+  coins stay at 9999), INVINCIBLE (pecks do nothing). Up/Down pick, Left/Right change, L/R by 10 on DAY and
+  SEEDS. A starts a fresh run on that day with that gear; B closes without changes.
 - All sprites draw behind the text layer, so messages, notices, the HUD, and windows cover them (Caleb).
 - Dusk (v0.5, Caleb): the field fades toward sunset orange during the 15 s "DUSK IN n" countdown; the shop
   opens at night (dark blue field) with fireflies drifting and blinking around the window. Fireflies show

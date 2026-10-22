@@ -577,8 +577,9 @@ static int spawn_crow_lv(s32 lv) {
     return 0;
 }
 
+static s32 dev_god, dev_money;   // dev mode: invincible, unlimited money (see the dev mode section)
 static void hurt_farmer(s32 from_x, s32 from_y) {
-    if (hurt_timer || ko_timer) return;
+    if (hurt_timer || ko_timer || dev_god) return;
     hearts--;
     s32 dx = px - from_x, dy = py - from_y;
     pvx = dx > 0 ? 48 : dx < 0 ? -48 : 0;
@@ -1493,6 +1494,7 @@ static void new_run(void) {
     for (s32 k = 0; k < MAX_SHOTS; k++) shot_life[k] = 0;
     spawning = 1; shop_open = 0;
     blood_on = blood_kos = shop_dawn = blood_count = notice_pending = notice_timer = 0;
+    dev_money = dev_god = 0;   // a normal run; the dev window sets them again after new_run
     finale = finale_pending = shop_last = stat_crops = stat_kills = 0;
     blood_next = BLOOD_FIRST;
     game_over = 0;
@@ -1513,7 +1515,9 @@ static void end_line(s32 row, const char *label, s32 value) {
     fmt_num(buf + copy_str(buf, label), value);
     shop_centered(row, buf);
 }
+static s32 end_kind;   // the last ending, to redraw it after the dev window closes
 static void end_screen(s32 kind) {
+    end_kind = kind;
     static const char *const title[4] = { "THE FARM IS LOST", "THE BLOOD MOON WON", "THE LAST MOON WON", "YOU WON!" };
     static const char *const sub[4] = { "YOU DID YOUR BEST", "YOU DID YOUR BEST", "YOU DID YOUR BEST",
                                         "THANK YOU FOR PLAYING!" };
@@ -1529,6 +1533,117 @@ static void end_screen(s32 kind) {
     end_line(SHOP_T + 10, "CROWS DEFEATED ", stat_kills);
     shop_centered(END_START_ROW, "PRESS START");
     if (kind == END_WON) set_light_dawn();
+}
+
+static void end_screen_again(void) { end_screen(end_kind); }
+
+// ---------- dev mode (v0.7.1, Caleb: test the late game) ----------
+// L + R + B together, while playing or on an end screen, opens the DEV MODE window (the game pauses).
+// Up/Down pick a line, Left/Right change it (L/R: by 10 on DAY and SEEDS), A starts a fresh run on that day
+// with that gear, B closes. Unlimited money keeps coins at 9999; invincible makes pecks do nothing.
+enum { DEV_DAY, DEV_SWORD, DEV_SICKLE, DEV_SC_LV, DEV_SC_BAG, DEV_SEEDS, DEV_BLOODS, DEV_TONIGHT, DEV_MONEY,
+       DEV_GOD, DEV_ITEMS };
+enum { TONIGHT_NORMAL, TONIGHT_BLOOD, TONIGHT_FINAL };
+static const s32 dev_min[DEV_ITEMS] = { 1, 1, 1, 1, 0, 0, 0, 0, 0, 0 };
+static const s32 dev_max[DEV_ITEMS] = { 99, 3, 3, 3, MAX_SCARECROWS, 99, FINALE_AFTER, 2, 1, 1 };
+static s32 dev_open, dev_cursor, dev_val[DEV_ITEMS];
+
+static void draw_dev(void) {
+    static const char *const label[DEV_ITEMS] = { "DAY", "SWORD LV", "SICKLE LV", "SCARE LV", "SCARECROWS",
+        "SEEDS EACH", "BLOOD MOONS", "TONIGHT", "MONEY", "INVINCIBLE" };
+    static const char *const tonight[3] = { "NORMAL", "BLOOD", "FINAL" };
+    for (s32 r = SHOP_T; r < SHOP_T + SHOP_ROWS; r++) shop_line(r, "");
+    shop_centered(SHOP_T, "DEV MODE");
+    for (s32 k = 0; k < DEV_ITEMS; k++) {   // one line each, rows 5-14
+        char buf[26];
+        s32 n = copy_str(buf, k == dev_cursor ? "> " : "  ");
+        n += copy_str(buf + n, label[k]);
+        while (n < 14) buf[n++] = ' ';
+        buf[n] = 0;
+        if (k == DEV_TONIGHT) copy_str(buf + n, tonight[dev_val[k]]);
+        else if (k == DEV_MONEY) copy_str(buf + n, dev_val[k] ? "INFINITE" : "NORMAL");
+        else if (k == DEV_GOD) copy_str(buf + n, dev_val[k] ? "ON" : "OFF");
+        else fmt_num(buf + n, dev_val[k]);
+        shop_line(SHOP_T + 2 + k, buf);
+    }
+    shop_centered(SHOP_T + 13, "A START   B CLOSE");
+    clear_row(19);
+    put_text(1, 19, "LEFT/RIGHT CHANGE  L/R +-10");
+}
+
+static void open_dev(void) {
+    dev_open = 1;
+    dev_cursor = 0;
+    dev_val[DEV_DAY] = day;
+    dev_val[DEV_SWORD] = sword_lv;
+    dev_val[DEV_SICKLE] = sickle_lv;
+    dev_val[DEV_SC_LV] = blood_on ? blood_saved_lv : scarecrow_lv;
+    dev_val[DEV_SC_BAG] = scarecrow_bag;
+    dev_val[DEV_SEEDS] = seeds[CORN];
+    dev_val[DEV_BLOODS] = blood_count;
+    dev_val[DEV_TONIGHT] = TONIGHT_NORMAL;
+    dev_val[DEV_MONEY] = dev_money;
+    dev_val[DEV_GOD] = dev_god;
+    msg_timer = notice_timer = 0;
+    draw_dev();
+}
+
+static void close_dev(void) {
+    dev_open = 0;
+    for (s32 r = SHOP_T; r < SHOP_T + SHOP_ROWS; r++) clear_row(r);
+    clear_row(19);
+    if (game_over) end_screen_again();
+    else if (shop_open) draw_shop();
+}
+
+// A: a fresh run on the chosen day with the chosen gear.
+static void dev_start(void) {
+    dev_open = 0;
+    new_run();
+    day = dev_val[DEV_DAY];
+    set_sword_lv(dev_val[DEV_SWORD]);
+    sickle_lv = dev_val[DEV_SICKLE];
+    scarecrow_lv = dev_val[DEV_SC_LV];
+    scarecrow_bag = dev_val[DEV_SC_BAG];
+    for (s32 k = 0; k < KINDS; k++) seeds[k] = day >= unlock_day[k] ? dev_val[DEV_SEEDS] : 0;
+    blood_count = dev_val[DEV_BLOODS];
+    dev_money = dev_val[DEV_MONEY];
+    dev_god = dev_val[DEV_GOD];
+    if (dev_val[DEV_TONIGHT] == TONIGHT_BLOOD) blood_next = day;
+    else if (dev_val[DEV_TONIGHT] == TONIGHT_FINAL) { finale_pending = 1; blood_next = 99999; }
+    else blood_next = day <= BLOOD_FIRST ? BLOOD_FIRST : day + 4;
+    if (blood_count >= FINALE_AFTER && dev_val[DEV_TONIGHT] != TONIGHT_FINAL) blood_next = 99999;
+    start_day();
+    show_message("DEV MODE");
+}
+
+static void update_dev(void) {
+    s32 k = dev_cursor, step = (k == DEV_DAY || k == DEV_SEEDS) ? 10 : 1, d = 0;
+    if (HIT(KEY_UP) && dev_cursor > 0) dev_cursor--;
+    if (HIT(KEY_DOWN) && dev_cursor < DEV_ITEMS - 1) dev_cursor++;
+    if (HIT(KEY_LEFT)) d = -1;
+    if (HIT(KEY_RIGHT)) d = 1;
+    if (HIT(KEY_L)) d = -step;
+    if (HIT(KEY_R)) d = step;
+    if (d) {
+        dev_val[k] += d;
+        if (dev_val[k] < dev_min[k]) dev_val[k] = dev_min[k];
+        if (dev_val[k] > dev_max[k]) dev_val[k] = dev_max[k];
+    }
+    if (HIT(KEY_A)) { dev_start(); return; }
+    if (HIT(KEY_B)) { close_dev(); return; }
+    if (keys_now != keys_prev) draw_dev();
+}
+
+// The combo: L, R, and B all down, one of them just pressed.
+static int dev_combo(void) {
+    u16 all = KEY_L | KEY_R | KEY_B;
+    return (keys_now & all) == all && (keys_now & ~keys_prev & all);
+}
+
+// Unlimited money: coins stay at 9999.
+static void dev_tick(void) {
+    if (dev_money && coins != 9999) { coins = 9999; draw_hud(); }
 }
 
 // ---------- main ----------
@@ -1590,6 +1705,14 @@ int main(void) {
         rng_state += keys_now;
         (void)rng;
 
+        if (dev_open) {
+            update_dev();
+            oam_begin();   // no sprites over the dev window
+            oam_end();
+            continue;
+        }
+        if (dev_combo()) { open_dev(); continue; }
+        dev_tick();
         if (game_over) {
             if (HIT(KEY_START)) new_run();
             else if (((frame >> 5) & 1) != ((frame - 1) >> 5 & 1))   // blink PRESS START
