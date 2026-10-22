@@ -88,12 +88,17 @@ FONT["^"] = "00000 00100 01110 11111 11111 01110 00000"
 FONT[">"] = "01000 00100 00010 00001 00010 00100 01000"   # menu cursor
 FONT["="] = "00000 00000 11111 00000 11111 00000 00000"
 FONT["#"] = "01110 00100 11111 00100 00100 00100 01110"   # scarecrow icon
-GLYPH_COLOR = {"*": 3, "$": 4, "&": 5, "^": 4, ">": 4, "#": 4}   # text palette: 1 cream, 3 red, 4 gold, 5 green
-FONT_CHARS = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789%:!.?'+/-,*$&^>=#"
+# Seed icons, one per crop (v0.5.1; Caleb could not tell which seed was chosen). "2" pixels are leaf green.
+# "^" corn stays the gold kernel. "{" carrot, "}" tomato, "|" pumpkin.
+FONT["{"] = "20202 02220 11111 01110 01110 00100 00100"   # carrot: green top, orange point
+FONT["}"] = "00200 02220 11111 11111 11111 01110 00000"   # tomato: red, green stem
+FONT["|"] = "00020 00200 01110 11111 11011 11111 01110"   # pumpkin: wide orange, stem
+GLYPH_COLOR = {"*": 3, "$": 4, "&": 5, "^": 4, ">": 4, "#": 4, "{": 6, "}": 3, "|": 6}   # 6 orange   # text palette: 1 cream, 3 red, 4 gold, 5 green
+FONT_CHARS = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789%:!.?'+/-,*$&^>=#{}|"
 
 
 def font_words():
-    """Tile 0 is transparent. Glyph tiles: color 2 background, text in color 1 (or GLYPH_COLOR)."""
+    """Tile 0 is transparent. Glyph tiles: color 2 background, text in color 1 (or GLYPH_COLOR); "2" pixels green."""
     words = [0] * 8
     for ch in FONT_CHARS:
         rows = FONT[ch].split()
@@ -104,6 +109,8 @@ def font_words():
                 c = 2
                 if 1 <= x <= 5 and y < 7 and rows[y][x - 1] == "1":
                     c = ink
+                elif 1 <= x <= 5 and y < 7 and rows[y][x - 1] == "2":
+                    c = 5   # leaf green (text palette color 5)
                 w |= c << (4 * x)
             words.append(w)
     return words

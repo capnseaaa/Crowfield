@@ -18,9 +18,12 @@
 # L cycles the seed: on day 12 corn, carrot, tomato are open (pumpkin from day 20), so L goes corn -> carrot
 # -> tomato -> corn
 1 0 !$day=12,$seeds+4=3,$seeds+8=2
+1 0 i0_corn.ppm
 1 512
+1 0 i1_carrot.ppm
 1 0 @$sel_seed
 1 512
+1 0 i2_tomato.ppm
 1 0 @$sel_seed
 1 512
 1 0 @$sel_seed
@@ -79,3 +82,7 @@
 1 1
 3 0 v9_morning.ppm
 1 0 @$shop_open,$day
+# a new gold crow has 5 HP (v0.5.1): make the next crow of day 13 gold
+1 0 !$day_left=1,$day_queue=4
+130 0
+1 0 @$crow_lv,$crow_hp

@@ -72,6 +72,7 @@ numbers v0.1.0-v0.3.3 in commit subjects; those numbers are history only and hav
 - [x] SEEDS page lists every seed; details for the one under the cursor
 - [x] Dusk: sunset fade during the countdown; night with fireflies in the shop
 - [x] `test/v05.txt`, `test/days_check.py`
+- [x] v0.5.1: colored seed icons in the HUD and shop; 2 more crows on Days 35-39; gold crows 5 HP (Caleb)
 
 ## Next
 - [ ] Shop: EXPANSION page that makes the crop field bigger (Caleb; replaces the v0.4b plan below)

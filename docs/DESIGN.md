@@ -72,7 +72,9 @@ All other numbers are open until playtests.
 | Swarm | flock of tiny crows | many weak crows that come as one group. |
 
 **Crow levels and eating (v0.5, Caleb).** Lv.1 black (1 HP), Lv.2 red (2 HP, +15% speed), Lv.3 purple
-(3 HP, +30%, bites every 1.5 s), gold (4 HP, +45%, bites every 1 s, drops 5 coins when killed). A crow that
+(3 HP, +30%, bites every 1.5 s), gold (5 HP since v0.5.1, +45%, bites every 1 s, drops 5 coins when killed).
+HP counts sword damage: a Lv.2 or Lv.3 sword does 2, so it kills a purple crow in 2 hits and a gold one in 3.
+v0.5.1: Days 35-39 bring 2 more crows (Caleb). Up to 30 crows a day; 24 fit on screen, the rest wait. A crow that
 has eaten its 3rd whole crop becomes Lv.3 (purple). Bites no longer add HP or tint a crow (v0.2-v0.4 did),
 so a crow's color always tells its level. The day table (random count and mix per day): docs/V0.5_PLAN.md.
 
@@ -102,7 +104,8 @@ and new types unlock on later days (Fast day 3, Armored day 5, Big day 7, Swarm 
   EXPANSION (a bigger field) is planned but not built.
 - Crops (v0.5): corn (seed 1, sells 2, grows 24 s), carrot (2, 5, 32 s, from Day 5), tomato (3, 8, 40 s,
   from Day 12), pumpkin (5, 14, 56 s, from Day 20). Corn went from 3 to 2 to balance the new crops (Caleb).
-  L cycles which unlocked seed A plants; the HUD seed count is for that seed. Scarecrows fire corn seeds
+  L cycles which unlocked seed A plants; the HUD shows that seed's own colored icon and count (v0.5.1:
+  corn gold kernel, carrot orange with leaves, tomato red, pumpkin round orange), so it reads at a glance. Scarecrows fire corn seeds
   only (Caleb). The SEEDS page lists every seed (locked ones show their unlock day) and tells the sell
   price and grow time of the seed under the cursor.
 - Selling: (v0.4) each crop sold for 3 coins (Caleb, 2026-10-22; the first guess of 8 gave too much cash).

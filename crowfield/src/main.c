@@ -285,6 +285,7 @@ static const s32 seed_price[KINDS] = { 1, 2, 3, 5 };
 static const s32 sell_price[KINDS] = { 2, 5, 8, 14 };   // Caleb: corn 3 -> 2 to balance the new crops
 static const s32 unlock_day[KINDS] = { 1, 5, 12, 20 };
 static const char *const crop_name[KINDS] = { "CORN", "CARROT", "TOMATO", "PUMPKIN" };
+static const char *const seed_icon[KINDS] = { "^", "{", "}", "|" };   // font glyphs: one colored icon per seed
 static u8 crop_kind[MAP_W * MAP_H] __attribute__((aligned(4)));
 static u16 grow[MAP_W * MAP_H];   // frames since the tile's last stage change
 
@@ -466,7 +467,7 @@ static void draw_hud(void) {
     fmt_num(buf, day);    put_text(5, 0, buf);
     put_text(9, 0, "$");  fmt_num(buf, coins); put_text(10, 0, buf);
     put_text(15, 0, "&"); fmt_num(buf, crops_total()); put_text(16, 0, buf);
-    put_text(20, 0, "^"); fmt_num(buf, seeds[sel_seed]); put_text(21, 0, buf);   // the chosen seed
+    put_text(20, 0, seed_icon[sel_seed]); fmt_num(buf, seeds[sel_seed]); put_text(21, 0, buf);   // the chosen seed
     for (s32 i = 0; i < hearts && i < 5; i++) put_text(25 + i, 0, "*");
 }
 
@@ -498,13 +499,14 @@ static s32 spawning;                 // 1: days run (tests set 0 and place crows
 static s32 day_left, spawn_timer;    // crows still to come today; frames toward the next one
 static s32 day_done;                 // > 0: all of today's crows are gone; frames until dusk
 // Per level (index 0 = a poked crow, same as Lv.1): HP, speed in 1/16 px per frame, frames per bite.
-static const s32 crow_hp_of[5] = { 1, 1, 2, 3, 4 };
+static const s32 crow_hp_of[5] = { 1, 1, 2, 3, 5 };          // gold 5 (Caleb, v0.5.1; was 4)
 static const s32 crow_speed_of[5] = { 6, 6, 7, 8, 9 };          // +15%, +30%, +45% (docs/V0.5_PLAN.md)
 static const s32 crow_bite_of[5] = { 120, 120, 120, 90, 60 };
 #define CROW_GOLD 4
 #define GOLD_COINS 5       // a gold crow drops 5 coins when killed
 #define PECK_COOL 90
-static s32 day_queue[MAX_CROWS];     // levels of today's crows still to come, spawned from the end
+#define MAX_DAY 30           // crows in one day; only MAX_CROWS fit on screen, the rest wait for a free slot
+static s32 day_queue[MAX_DAY];       // levels of today's crows still to come, spawned from the end
 #define DAY_START_DELAY 120   // 2 s from a new day to its first crow
 #define DAY_DONE_FRAMES 900   // 15 s to harvest and plant after the last crow, before dusk (Caleb)
 
@@ -534,7 +536,7 @@ static s32 pick_target(s32 c) {
     return best >= 0 ? best : shared;
 }
 
-static void spawn_crow(void) {
+static int spawn_crow(void) {   // 0 if all MAX_CROWS slots are busy (the crow waits)
     for (s32 i = 0; i < MAX_CROWS; i++) {
         if (crow_state[i] != CROW_NONE) continue;
         u32 side = rng() & 3, along = rng();
@@ -549,8 +551,9 @@ static void spawn_crow(void) {
         crow_flash[i] = 0; crow_cool[i] = 60; crow_vx[i] = crow_vy[i] = 0;
         crow_target[i] = pick_target(i);
         play(SND_CAW);
-        return;
+        return 1;
     }
+    return 0;
 }
 
 static void hurt_farmer(s32 from_x, s32 from_y) {
@@ -650,7 +653,7 @@ static s32 rand_in(s32 a, s32 b) { return b > a ? a + (s32)(rng() % (u32)(b - a 
 
 // Today's crows (docs/V0.5_PLAN.md day table): a random total in the day's range and a random mix of levels,
 // so runs differ. Days 1-9 black only; red from Day 10, purple from 20, gold from 30; black is a minority
-// from Day 25; from Day 40 all gold. Fills day_queue (shuffled) and returns the count.
+// from Day 25; a few more crows from Day 35; from Day 40 all gold. Fills day_queue (shuffled), returns the count.
 static s32 plan_day(s32 d) {
     s32 n[5];   // crows per level; assigned one by one (an initializer would call memset)
     n[0] = n[1] = n[2] = n[3] = n[4] = 0;
@@ -661,9 +664,9 @@ static s32 plan_day(s32 d) {
         hi = lo + 2 > MAX_CROWS ? MAX_CROWS : lo + 2;
         n[4] = total = rand_in(lo, hi);
     } else {
-        lo = 2 + d / 2;
+        lo = 2 + d / 2 + (d >= 35 ? 2 : 0);   // Caleb, v0.5.1: a few more from Day 35
         hi = lo + (d < 10 ? 2 : d < 30 ? 3 : 4);
-        if (hi > MAX_CROWS) hi = MAX_CROWS;
+        if (hi > MAX_DAY) hi = MAX_DAY;
         total = rand_in(lo, hi);
         if (d >= 20) n[3] = rand_in(1 + (d - 20) / 3, 1 + (d - 20) / 3 + (d >= 25));
         if (d >= 30) n[4] = rand_in(1 + (d - 30) / 3, 1 + (d - 30) / 3 + (d >= 33));
@@ -679,7 +682,7 @@ static s32 plan_day(s32 d) {
     }
     s32 c = 0;
     for (s32 lv = 1; lv <= 4; lv++)
-        for (s32 k = 0; k < n[lv] && c < MAX_CROWS; k++) day_queue[c++] = lv;
+        for (s32 k = 0; k < n[lv] && c < MAX_DAY; k++) day_queue[c++] = lv;
     for (s32 k = c - 1; k > 0; k--) {   // shuffle
         s32 j = rand_in(0, k), t = day_queue[k];
         day_queue[k] = day_queue[j];
@@ -707,7 +710,7 @@ static void start_day(void) {
 static void update_days(s32 alive) {
     if (!spawning) return;
     if (day_left > 0) {
-        if (++spawn_timer >= spawn_gap()) { spawn_timer = 0; spawn_crow(); day_left--; }
+        if (++spawn_timer >= spawn_gap() && spawn_crow()) { spawn_timer = 0; day_left--; }
         return;
     }
     if (alive) return;
@@ -1107,9 +1110,11 @@ static void draw_shop(void) {
         shop_item(MAIN_NEXT, "NEXT DAY", -2);
     } else if (shop_page == PAGE_SEEDS) {
         shop_centered(SHOP_T + 1, "SEEDS");
-        for (s32 k = 0; k < KINDS; k++) {   // "CORN    X3   = $1", or "PUMPKIN DAY 20" while locked
-            n = copy_str(buf, crop_name[k]);
-            while (n < 8) buf[n++] = ' ';
+        for (s32 k = 0; k < KINDS; k++) {   // "^ CORN    X3 = $1", or "| PUMPKIN DAY 20" while locked
+            n = copy_str(buf, seed_icon[k]);
+            n += copy_str(buf + n, " ");
+            n += copy_str(buf + n, crop_name[k]);
+            while (n < 10) buf[n++] = ' ';
             buf[n] = 0;
             if (day < unlock_day[k]) {
                 fmt_num(buf + n + copy_str(buf + n, "DAY "), unlock_day[k]);
@@ -1144,7 +1149,8 @@ static void draw_shop(void) {
         n += fmt_num(buf + n, coins);
         n += copy_str(buf + n, " &");
         n += fmt_num(buf + n, crops_total());
-        n += copy_str(buf + n, " ^");
+        n += copy_str(buf + n, " ");
+        n += copy_str(buf + n, seed_icon[sel_seed]);
         n += fmt_num(buf + n, seeds[sel_seed]);
         n += copy_str(buf + n, " #");
         fmt_num(buf + n, scarecrow_bag);
@@ -1297,6 +1303,7 @@ int main(void) {
     PAL_BG[16 + 3] = (28) | (8 << 5) | (6 << 10);     // heart red
     PAL_BG[16 + 4] = (29) | (25 << 5) | (10 << 10);   // coin gold
     PAL_BG[16 + 5] = (13) | (21 << 5) | (9 << 10);    // crop green
+    PAL_BG[16 + 6] = (29) | (16 << 5) | (5 << 10);    // orange (carrot and pumpkin seed icons)
     copy32(CHARBLOCK(0), terrain_tiles, sizeof(terrain_tiles) / 4);
     copy32(CHARBLOCK(1), font_tiles, sizeof(font_tiles) / 4);
     copy32(OBJ_TILES, sprite_tiles, sizeof(sprite_tiles) / 4);
