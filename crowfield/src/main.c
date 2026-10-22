@@ -761,8 +761,10 @@ static void start_day(void) {
 
 // ---------- blood moon (v0.6, Caleb; docs/V0.6_PLAN.md) ----------
 // The night after Day 34, then every 4-6 nights: no dusk shop. Gold crows (Lv.5) pour in until dawn
-// (90 s). Knockouts last 6 s and the 3rd ends the run. Scarecrows fire at Lv.1 for the night. Crops do not
+// (90 s). Knockouts last 6 s; the 3rd loses the night. Scarecrows fire at Lv.1 for the night. Crops do not
 // grow. Each kill pays 10 coins, and dawn pays a 25-coin bonus. Then the shop opens at dawn.
+// Losing one of the first 3 blood moons only costs that night's coins and the bonus (Caleb: "softer");
+// after the 3rd a notice warns that from now on a lost blood moon ends the run.
 #define BLOOD_FIRST 34          // the first blood moon is the night after Day 34
 #define BLOOD_FRAMES 5400       // 90 s until dawn
 #define BLOOD_SPAWN_GAP 60      // a new gold crow every second
@@ -773,6 +775,28 @@ static s32 blood_timer;         // frames until dawn (or until the dawn shop)
 static s32 blood_saved_lv;      // the scarecrow level paid for, given back at dawn
 static s32 shop_dawn;           // 1: the shop opened at dawn after a blood moon
 static s32 scarecrow_lv;        // (defined with the scarecrows below)
+static s32 blood_count;         // blood moons over so far (won or lost)
+static s32 blood_coins;         // coins earned this blood moon (taken back if it is lost)
+#define BLOOD_PRACTICE 3        // losing one of the first 3 only costs its coins
+static s32 notice_timer, notice_pending;   // the "training" notice over the field after the 3rd
+
+// Up to 4 centered lines over the field for a few seconds: two pairs (rows 6-7 and 10-11) with room between.
+static const u8 notice_row[4] = { 6, 7, 10, 11 };
+static void show_notice(const char *const *lines, s32 count) {
+    for (s32 k = 0; k < count; k++) {
+        s32 n = 0;
+        while (lines[k][n]) n++;
+        clear_row(notice_row[k]);
+        put_text((30 - n) / 2, notice_row[k], lines[k]);
+    }
+    notice_timer = 300;
+}
+static void update_notice(void) {
+    if (notice_timer && --notice_timer == 0)
+        for (s32 k = 0; k < 4; k++) clear_row(notice_row[k]);
+}
+static const char *const training_notice[4] = {
+    "NOW IS THE TIME FOR", "YOUR TRAINING TO SHOW.", "LOSE A BLOOD MOON NOW", "AND THE RUN IS OVER." };
 
 static void game_over_screen(const char *title);
 static s32 blood_night(void) { return blood_on != 0; }
@@ -781,6 +805,7 @@ static void start_blood_moon(void) {
     blood_on = 1;
     blood_timer = BLOOD_FRAMES;
     blood_kos = 0;
+    blood_coins = 0;
     blood_saved_lv = scarecrow_lv;
     scarecrow_lv = 1;            // for this night only
     spawn_timer = BLOOD_SPAWN_GAP - 60;
@@ -789,9 +814,26 @@ static void start_blood_moon(void) {
     play(SND_CAW);
 }
 
+// Dawn: every crow still here flies away, scarecrows get their level back, the sky turns pink.
+static void blood_dawn(void) {
+    for (s32 i = 0; i < MAX_CROWS; i++)
+        if (crow_state[i] != CROW_NONE && crow_state[i] != CROW_DEAD) crow_state[i] = CROW_FLEE;
+    scarecrow_lv = blood_saved_lv;
+    blood_count++;
+    if (blood_count == BLOOD_PRACTICE) notice_pending = 1;
+    blood_on = 2;
+    blood_timer = DAWN_FRAMES;
+    set_light_dawn();
+    draw_hud();
+}
+
 static void update_blood_moon(void) {
     if (blood_on == 1 && blood_kos >= BLOOD_KOS && !ko_timer) {   // the 3rd knockout is over: the night is lost
-        game_over_screen("THE BLOOD MOON WON");
+        if (blood_count >= BLOOD_PRACTICE) { game_over_screen("THE BLOOD MOON WON"); return; }
+        coins -= blood_coins;    // practice: lose the night's coins and the bonus, keep the run
+        if (coins < 0) coins = 0;
+        blood_dawn();
+        show_message("LOST! NO COINS TONIGHT");
         return;
     }
     if (blood_on == 1) {
@@ -804,15 +846,9 @@ static void update_blood_moon(void) {
             }
             return;
         }
-        for (s32 i = 0; i < MAX_CROWS; i++)   // dawn: every crow still here flies away
-            if (crow_state[i] != CROW_NONE && crow_state[i] != CROW_DEAD) crow_state[i] = CROW_FLEE;
         coins += DAWN_BONUS;
-        scarecrow_lv = blood_saved_lv;
-        blood_on = 2;
-        blood_timer = DAWN_FRAMES;
-        set_light_dawn();
+        blood_dawn();
         show_message("DAWN! +25 COINS");
-        draw_hud();
         return;
     }
     if (--blood_timer > 0) return;
@@ -919,7 +955,9 @@ static void hit_crow(s32 i, s32 dmg, s32 kvx, s32 kvy) {
         crow_timer[i] = 16;
         play(SND_POOF);
         if (crow_lv[i] >= CROW_GOLD) {   // gold crows drop coins
-            coins += crow_lv[i] == CROW_BLOOD ? BLOOD_COINS : GOLD_COINS;
+            s32 c = crow_lv[i] == CROW_BLOOD ? BLOOD_COINS : GOLD_COINS;
+            coins += c;
+            if (blood_on == 1) blood_coins += c;
             show_message(crow_lv[i] == CROW_BLOOD ? "+10 COINS" : "+5 COINS");
             draw_hud();
         }
@@ -1313,6 +1351,7 @@ static void close_shop(void) {
     shop_dawn = 0;
     day++;
     start_day();
+    if (notice_pending) { notice_pending = 0; show_notice(training_notice, 4); }
     if (scarecrow_bag) show_message("HOLD A ON SOIL: SCARECROW");
 }
 
@@ -1393,7 +1432,7 @@ static void new_run(void) {
     scarecrow_lv = 1;
     for (s32 k = 0; k < MAX_SHOTS; k++) shot_life[k] = 0;
     spawning = 1; shop_open = 0;
-    blood_on = blood_kos = shop_dawn = 0;
+    blood_on = blood_kos = shop_dawn = blood_count = notice_pending = notice_timer = 0;
     blood_next = BLOOD_FIRST;
     game_over = 0;
     start_day();
@@ -1498,6 +1537,7 @@ int main(void) {
         update_scarecrows();
         update_crops();
         update_message();
+        update_notice();
         check_game_over();
 
         oam_begin();
