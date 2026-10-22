@@ -1,0 +1,103 @@
+# weapons (v0.8.1): the WEAPONS page (in hand: its upgrade line; else BUY), switching back keeps a weapon's
+# level, and each weapon's hit: the spear reaches 30 px ahead (the sword does not), the scythe 20 px to the
+# side (the sword does not), the slingshot's stone kills a crow 70 px away.
+1 0 !$day_left=0,$coins=1000
+905 0
+1 0 @$shop_open,$shop_cursor
+1 128
+1 0
+1 1
+1 0
+1 0 w0_page.ppm
+1 0 @$shop_page,$weapon,$sword_lv
+1 1
+1 0
+1 0 @$coins,$weapon,$sword_lv,$sword_damage
+1 128
+1 0
+1 1
+1 0
+1 0 @$coins,$weapon,$sword_lv,$sword_damage,$swing_len
+1 128
+1 0
+1 1
+1 0
+1 1
+1 0
+1 0 @$coins,$weapon,$sword_lv,$sword_damage,$sword_reach
+1 64
+1 0
+1 64
+1 0
+1 1
+1 0
+1 0 @$coins,$weapon,$sword_lv,$sword_damage
+1 128
+1 0
+1 128
+1 0
+1 1
+1 0
+1 0 @$coins,$weapon,$sword_lv
+1 128
+1 0
+1 1
+1 0
+1 128
+1 0
+1 1
+1 0
+1 0 w1_bought.ppm
+1 0 @$coins,$weapon,$sword_lv,$sword_damage,$weapon_lv,$weapon_lv+4,$weapon_lv+8,$weapon_lv+12,$weapon_lv+16
+1 2
+1 0
+1 128
+1 0
+1 128
+1 0
+1 1
+1 0
+1 0 !$spawning=0
+3 0
+1 0 @$shop_open,$day
+# the farmer at (144, 68) facing right; his center is (152, 76)
+# slingshot (in hand): a crow 70 px ahead (center 222) dies to one stone (2 damage vs 2 HP)
+1 0 !$px=2304,$py=1088,$pdir=3,$crow_hp=4,$crow_x=3424,$crow_y=1088,$crow_state=2,$crow_timer=999,$crow_vx=0,$crow_vy=0
+1 2
+8 0 w2_stone.ppm
+25 0
+1 0 @$crow_state
+# wood sword Lv.1 (reach 10, box 14): a crow 30 px ahead is out of reach
+40 0
+1 0 !$weapon=0,$sword_lv=1,$sword_damage=2,$sword_reach=10,$swing_len=12
+1 0 !$crow_hp=4,$crow_x=2784,$crow_y=1088,$crow_state=2,$crow_timer=999,$crow_vx=0,$crow_vy=0
+1 2
+15 0
+1 0 @$crow_state,$crow_hp
+# spear Lv.1 (reach 22): the same crow is hit
+20 0
+1 0 !$weapon=2,$sword_damage=4,$sword_reach=22,$swing_len=10
+1 0 !$crow_hp=4,$crow_x=2784,$crow_y=1088,$crow_state=2,$crow_timer=999,$crow_vx=0,$crow_vy=0
+1 2
+4 0 w3_spear.ppm
+11 0
+1 0 @$crow_state,$crow_hp
+# wood sword: a crow 20 px to the side (8 ahead) is missed; the scythe (side 24) hits it
+20 0
+1 0 !$weapon=0,$sword_damage=2,$sword_reach=10,$swing_len=12
+1 0 !$crow_hp=4,$crow_x=2432,$crow_y=1408,$crow_state=2,$crow_timer=999,$crow_vx=0,$crow_vy=0
+1 2
+15 0
+1 0 @$crow_state,$crow_hp
+20 0
+1 0 !$weapon=3,$sword_damage=3,$sword_reach=8,$swing_len=18
+1 0 !$crow_hp=4,$crow_x=2432,$crow_y=1408,$crow_state=2,$crow_timer=999,$crow_vx=0,$crow_vy=0
+1 2
+6 0 w4_scythe.ppm
+15 0
+1 0 @$crow_state,$crow_hp
+# the iron sword in steel colors
+20 0
+1 0 !$weapon=1
+1 2
+4 0 w5_iron.ppm

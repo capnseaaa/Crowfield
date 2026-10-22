@@ -1,0 +1,83 @@
+# crow cannon (v0.8.1): buy two on the FARM page (a third is refused), SELL ALL keeps pumpkins, A next to
+# a cannon loads it from outside the field (inside, A farms), and a pumpkin burst hits every crow near its target.
+1 0 !$day_left=0,$coins=1000,$crops=5,$crops+12=12
+905 0
+1 0 @$shop_open,$shop_cursor
+1 0 !$shop_cursor=3
+1 1
+1 0
+1 128
+1 0
+1 128
+1 0
+1 128
+1 0
+1 1
+1 0
+1 0 @$coins,$cannons
+1 1
+1 0
+1 1
+1 0
+1 0 c1_farm.ppm
+1 0 @$coins,$cannons
+1 2
+1 0
+1 0 @$shop_page,$shop_cursor
+1 64
+1 0
+1 64
+1 0
+1 64
+1 0
+1 1
+1 0
+1 1
+1 0
+1 0 c2_sell.ppm
+1 0 @$coins,$crops,$crops+12
+1 2
+1 0
+1 128
+1 0
+1 128
+1 0
+1 128
+1 0
+1 128
+1 0
+1 1
+1 0
+1 0 !$spawning=0
+3 0
+1 0 @$shop_open,$day
+# inside the field by cannon 0 (tile 4,5): A farms, nothing is loaded
+1 0 !$px=1024,$py=1216,$pdir=0
+1 1
+1 0
+1 0 @$can_ammo,$crops+12
+# outside, under cannon 0 (tile 3,6): A loads 10 of 12; A again changes nothing
+1 0 !$px=768,$py=1664,$pdir=1
+1 1
+1 0
+1 0 c3_loaded.ppm
+1 0 @$can_ammo,$crops+12
+1 1
+1 0
+1 0 @$can_ammo,$crops+12
+# under cannon 1 (tile 11,6): A loads the last 2; then NO PUMPKINS
+1 0 !$px=2816,$py=1664
+1 1
+1 0
+1 1
+1 0
+1 0 c4_nopumpkins.ppm
+1 0 @$can_ammo,$can_ammo+4,$crops+12
+# three crows (10 HP): 0 and 1 side by side, 2 far up; both cannons fire at crow 0, the bursts hit 0 and 1
+1 0 !$px=1600,$py=2000
+1 0 !$crow_state=2,$crow_hp=20,$crow_x=1600,$crow_y=1920,$crow_state+4=2,$crow_hp+4=20,$crow_x+4=1760,$crow_y+4=1920
+1 0 !$crow_state+8=2,$crow_hp+8=20,$crow_x+8=2240,$crow_y+8=320,$crow_timer=999,$crow_vx=0,$crow_vy=0,$crow_cool=999
+1 0 !$crow_timer+4=999,$crow_cool+4=999,$crow_timer+8=999,$crow_cool+8=999
+20 0 c5_flight.ppm
+21 0 c6_burst.ppm
+1 0 @$crow_hp,$crow_hp+4,$crow_hp+8,$can_ammo,$can_ammo+4,$can_cool

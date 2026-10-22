@@ -19,9 +19,9 @@
 | BG palette bank 0 | field palette (`BG_PAL` in make_art.py) |
 | OBJ palette bank 0 | farmer + normal crow (`OBJ_PAL`) |
 | OBJ palette bank 1 | hit flash: every color white |
+| OBJ banks 2-8 | 2 red crow, 3 purple crow, 4 gold crow, 5 fireflies, 6 white crow, 7 steel (iron sword), 8 slingshot stone |
 
-Planned OBJ palette banks: 2 Armored crow, 3 Big crow, 4 Fast crow, 5 turret, 6 fed crow.
-Crow types should share sprite cells and differ by palette where they can.
+Crow types share sprite cells and differ by palette.
 
 ## Metatiles
 16x16 cells in `art/terrain.png`, in this order (make_art.py `META`, build_data.py, main.c enum):
@@ -33,7 +33,8 @@ Add new tiles at the end, and update all three lists together.
 ## Sprite cells
 `art/sprites.png`, 16x16 cells: farmer down, farmer up, farmer side (left = hflip), crow wings up,
 crow wings down, target marker, sword right, sword up, puff big, puff small,
-farmer knocked out, sword up-right. Flips give the other sword directions; `swing_pose[]`
+farmer knocked out, sword up-right, scarecrow shot, firefly, firefly dim, then (v0.8.1) spear up / right /
+up-right, scythe up / right / up-right, slingshot up / right, crow cannon, pumpkin ball (25 cells). Flips give the other sword directions; `swing_pose[]`
 in main.c lists each facing's 3 swing poses and its resting pose. `put_sprite(x, y, cell, flags)` takes HFLIP, VFLIP, FLASH.
 
 ## Sprite budget

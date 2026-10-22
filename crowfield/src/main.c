@@ -65,12 +65,14 @@ enum { DIR_DOWN, DIR_UP, DIR_LEFT, DIR_RIGHT };
 // Sprite cells in sprites.png (4 tiles each in OBJ VRAM)
 enum { SPR_FARMER_DOWN, SPR_FARMER_UP, SPR_FARMER_SIDE, SPR_CROW_A, SPR_CROW_B, SPR_MARKER,
        SPR_SWORD_RIGHT, SPR_SWORD_UP, SPR_PUFF_BIG, SPR_PUFF_SMALL, SPR_FARMER_KO, SPR_SWORD_DIAG, SPR_SHOT,
-       SPR_FIREFLY, SPR_FIREFLY_DIM };
+       SPR_FIREFLY, SPR_FIREFLY_DIM, SPR_SPEAR_UP, SPR_SPEAR_RIGHT, SPR_SPEAR_DIAG, SPR_SCYTHE_UP,
+       SPR_SCYTHE_RIGHT, SPR_SCYTHE_DIAG, SPR_SLING_UP, SPR_SLING_RIGHT, SPR_CANNON, SPR_BALL };
 // put_sprite flags
 #define HFLIP 1
 #define VFLIP 2
 #define FLASH 0x10   // OBJ palette bank 1: all white
-#define BANK(n) ((n) << 4)   // OBJ palette bank n: 2 red crow, 3 purple crow, 4 gold crow, 5 fireflies, 6 white crow
+#define BANK(n) ((n) << 4)   // OBJ palette bank n: 2 red crow, 3 purple crow, 4 gold crow, 5 fireflies, 6 white crow,
+                             // 7 steel (iron sword), 8 stone (slingshot shot)
 
 // ---------- small helpers ----------
 static void copy32(volatile u32 *dst, const u32 *src, u32 words) {
@@ -338,6 +340,8 @@ static int blocked(s32 x, s32 y) {
 static s32 hearts, max_hearts;
 static s32 bless_attack, bless_scare;    // dawn blessings taken (v0.8): each is +0.5 damage (one half-point)
 static s32 bless_pending;                // 1: the dawn shop opens on CHOOSE A BLESSING
+#define MAX_CANNONS 2
+static s32 cannons, can_ammo[MAX_CANNONS], can_cool[MAX_CANNONS];   // crow cannons (v0.8.1): pumpkins loaded
 static s32 hurt_timer;           // > 0: just hit, cannot be hit again (blinks)
 static s32 ko_timer;             // > 0: knocked out, cannot act
 static s32 pvx, pvy;             // knockback velocity, 1/16 px per frame
@@ -422,9 +426,11 @@ static int a_waits(void) {
 }
 
 static void farm_tiles(void);
+static int cannon_work(void);
 static void farm_work(void) {
     if (!HIT(KEY_A) || ko_timer || swing) return;
     weapon_out = 0;
+    if (cannon_work()) return;   // next to a crow cannon: load it
     if (!a_waits()) farm_tiles();
 }
 
@@ -1094,6 +1100,7 @@ static s32 sc_x[MAX_SCARECROWS], sc_y[MAX_SCARECROWS], sc_cool[MAX_SCARECROWS]; 
 static s32 scarecrows;                   // placed (scarecrow_bag: bought, not placed)
 static s32 scarecrow_lv = 1;             // 1. 2: shoots faster. 3: wider range, 2 shots
 static s32 shot_x[MAX_SHOTS], shot_y[MAX_SHOTS], shot_vx[MAX_SHOTS], shot_vy[MAX_SHOTS], shot_life[MAX_SHOTS];
+static s32 shot_dmg[MAX_SHOTS], shot_stone[MAX_SHOTS];   // damage (half-points); 1: a slingshot stone
 #define SWITCH_HOLD 30         // frames of held B that switch a scarecrow off or on
 #define PLACE_HOLD 20          // frames of held A that place or pick up a scarecrow (Caleb: SELECT was not enough)
 static s32 a_hold;           // > 0: frames A has been held on a waiting tile; -1: this hold already acted
@@ -1131,6 +1138,8 @@ static void fire_shot(s32 x, s32 y, s32 c) {   // from (x, y) px toward crow c's
         shot_vx[k] = dx * SHOT_SPEED / d;   // one division per shot, not per frame
         shot_vy[k] = dy * SHOT_SPEED / d;
         shot_life[k] = SHOT_LIFE;
+        shot_dmg[k] = SHOT_DAMAGE + bless_scare;   // +0.5 a blessing
+        shot_stone[k] = 0;
         seeds[CORN]--;
         draw_hud();
         return;
@@ -1166,7 +1175,7 @@ static void update_scarecrows(void) {
         for (s32 i = 0; i < MAX_CROWS; i++) {
             if (!crow_targetable(i)) continue;
             if (abs32((crow_x[i] >> 4) + 8 - x) >= 8 || abs32((crow_y[i] >> 4) + 8 - y) >= 8) continue;
-            hit_crow(i, SHOT_DAMAGE + bless_scare, shot_vx[k], shot_vy[k]);   // +0.5 a blessing
+            hit_crow(i, shot_dmg[k], shot_vx[k], shot_vy[k]);
             shot_life[k] = 0;
             break;
         }
@@ -1226,7 +1235,7 @@ static void scarecrow_work(void) {
 
 static void draw_shots(void) {
     for (s32 k = 0; k < MAX_SHOTS; k++)
-        if (shot_life[k]) put_sprite((shot_x[k] >> 4) - 8, (shot_y[k] >> 4) - 8, SPR_SHOT, 0);
+        if (shot_life[k]) put_sprite((shot_x[k] >> 4) - 8, (shot_y[k] >> 4) - 8, SPR_SHOT, shot_stone[k] ? BANK(8) : 0);
 }
 
 static void draw_crows(void) {
@@ -1248,50 +1257,94 @@ static void draw_crows(void) {
     }
 }
 
-// ---------- sword ----------
-#define SWING_FRAMES 12
+// ---------- weapons (v0.8.1, Caleb; docs/V0.8_PLAN.md) ----------
+// The farmer holds one weapon. Buying another replaces it; each weapon keeps its own level, so switching back
+// brings it back at the level it had. Damage is in half-points (plus +0.5 per ATTACK UP blessing).
+// sword_lv / sword_damage / sword_reach are the held weapon's level, damage, and hit-box distance.
+enum { WOOD, IRON, SPEAR, SCYTHE, SLING, WEAPONS };
+static const char *const weapon_name[WEAPONS] = { "WOOD SWORD", "IRON SWORD", "SPEAR", "SCYTHE", "SLINGSHOT" };
+static const s32 weapon_buy[WEAPONS] = { 0, 100, 80, 110, 120 };
+static const s32 weapon_up[WEAPONS][2] = { { 40, 80 }, { 70, 140 }, { 60, 120 }, { 80, 160 }, { 80, 160 } };
+static const u8 weapon_dmg[WEAPONS][3] = { { 2, 3, 4 }, { 6, 7, 8 }, { 4, 5, 6 }, { 3, 4, 5 }, { 4, 5, 6 } };
+static const u8 weapon_swing[WEAPONS] = { 12, 18, 10, 18, 8 };   // frames a swing (or a shot) lasts
+// The hit box: its center this far ahead of the farmer, and half its size along and across his facing.
+static const u8 weapon_fwd[WEAPONS] = { 10, 10, 22, 8, 0 };      // wood Lv.3 reaches 16
+static const u8 weapon_along[WEAPONS] = { 14, 14, 14, 10, 0 };
+static const u8 weapon_side[WEAPONS] = { 14, 14, 6, 24, 0 };     // spear narrow, scythe wide
+#define SLING_RELOAD 22         // + the 8-frame shot: one stone every 0.5 s
+#define STONE_SPEED 64          // 4 px a frame
+#define STONE_LIFE 60
+static s32 weapon;              // the weapon in hand
+static s32 weapon_lv[WEAPONS];  // each weapon's level; 0 = never had it
+static s32 swing_len = 12;
+
 static s32 swing_cool, swing_id;
-static s32 sword_lv = 1;                         // 1, 2: more damage, 3: longer reach (shop)
+static s32 sword_lv = 1;                         // the held weapon's level (1-3)
 static s32 sword_damage = HP(1), sword_reach = 10;   // set by set_sword_lv
 static void set_sword_lv(s32 lv) {
     sword_lv = lv;
-    sword_damage = (lv >= 3 ? HP(2) : lv == 2 ? 3 : HP(1)) + bless_attack;   // 1, 1.5, 2 (Caleb), +0.5 a blessing
-    sword_reach = lv >= 3 ? 16 : 10;
+    weapon_lv[weapon] = lv;
+    sword_damage = weapon_dmg[weapon][lv - 1] + bless_attack;   // wood: 1, 1.5, 2 (Caleb); +0.5 a blessing
+    sword_reach = weapon == WOOD && lv >= 3 ? 16 : weapon_fwd[weapon];
+    swing_len = weapon_swing[weapon];
 }
-static s32 slash_x, slash_y;                     // center of the hit box, screen px
+static void take_weapon(s32 w) {   // switch weapons; a weapon you had before comes back at its level
+    weapon = w;
+    set_sword_lv(weapon_lv[w] ? weapon_lv[w] : 1);
+}
+
+static void fire_stone(void) {   // the slingshot: a stone straight ahead
+    for (s32 k = 0; k < MAX_SHOTS; k++) {
+        if (shot_life[k]) continue;
+        shot_x[k] = ((px >> 4) + 8) * 16;
+        shot_y[k] = ((py >> 4) + 8) * 16;
+        shot_vx[k] = pdir == DIR_RIGHT ? STONE_SPEED : pdir == DIR_LEFT ? -STONE_SPEED : 0;
+        shot_vy[k] = pdir == DIR_DOWN ? STONE_SPEED : pdir == DIR_UP ? -STONE_SPEED : 0;
+        shot_life[k] = STONE_LIFE;
+        shot_dmg[k] = sword_damage;
+        shot_stone[k] = 1;
+        return;
+    }
+}
 
 static void update_sword(void) {
     if (swing_cool) swing_cool--;
     if (!swing && HIT(KEY_B) && !swing_cool && !ko_timer) {
-        swing = SWING_FRAMES;
+        swing = swing_len;
         weapon_out = 1;
         swing_id++;
         play(SND_WHOOSH);
+        if (weapon == SLING) fire_stone();
     }
     if (!swing) return;
-    s32 cx = (px >> 4) + 8, cy = (py >> 4) + 8;
-    slash_x = cx + (pdir == DIR_RIGHT ? sword_reach : pdir == DIR_LEFT ? -sword_reach : 0);
-    slash_y = cy + (pdir == DIR_DOWN ? sword_reach : pdir == DIR_UP ? -sword_reach : 0);
-    for (s32 i = 0; i < MAX_CROWS; i++) {
-        if (crow_state[i] != CROW_FLY && crow_state[i] != CROW_HURT && crow_state[i] != CROW_EAT) continue;
-        if (crow_hit_by[i] == swing_id) continue;   // one hit per swing
-        s32 ex = (crow_x[i] >> 4) + 8 - slash_x, ey = (crow_y[i] >> 4) + 8 - slash_y;
-        if (abs32(ex) > 14 || abs32(ey) > 14) continue;
-        crow_hit_by[i] = swing_id;
-        hit_crow(i, sword_damage, pdir == DIR_RIGHT ? 64 : pdir == DIR_LEFT ? -64 : 0,   // knocked away
-                 pdir == DIR_DOWN ? 64 : pdir == DIR_UP ? -64 : 0);
+    if (weapon != SLING) {
+        s32 cx = (px >> 4) + 8, cy = (py >> 4) + 8;
+        for (s32 i = 0; i < MAX_CROWS; i++) {
+            if (crow_state[i] != CROW_FLY && crow_state[i] != CROW_HURT && crow_state[i] != CROW_EAT) continue;
+            if (crow_hit_by[i] == swing_id) continue;   // one hit per swing
+            s32 dx = (crow_x[i] >> 4) + 8 - cx, dy = (crow_y[i] >> 4) + 8 - cy;
+            s32 along = pdir == DIR_RIGHT ? dx : pdir == DIR_LEFT ? -dx : pdir == DIR_DOWN ? dy : -dy;
+            s32 side = pdir == DIR_RIGHT || pdir == DIR_LEFT ? dy : dx;
+            if (abs32(along - sword_reach) > weapon_along[weapon] || abs32(side) > weapon_side[weapon]) continue;
+            crow_hit_by[i] = swing_id;
+            hit_crow(i, sword_damage, pdir == DIR_RIGHT ? 64 : pdir == DIR_LEFT ? -64 : 0,   // knocked away
+                     pdir == DIR_DOWN ? 64 : pdir == DIR_UP ? -64 : 0);
+        }
     }
-    if (--swing == 0) swing_cool = 6;
+    if (--swing == 0) swing_cool = weapon == SLING ? SLING_RELOAD : 6;
 }
 
 // Sword poses: which cell and flips point the blade each way.
 enum { P_U, P_D, P_L, P_R, P_UR, P_UL, P_DR, P_DL };
-static const u8 pose_cell[8] = { SPR_SWORD_UP, SPR_SWORD_UP, SPR_SWORD_RIGHT, SPR_SWORD_RIGHT,
-                                 SPR_SWORD_DIAG, SPR_SWORD_DIAG, SPR_SWORD_DIAG, SPR_SWORD_DIAG };
+static const u8 pose_kind[8] = { 0, 0, 1, 1, 2, 2, 2, 2 };   // 0 up cell, 1 right cell, 2 up-right cell
 static const u8 pose_flags[8] = { 0, VFLIP, HFLIP, 0, 0, HFLIP, VFLIP, HFLIP | VFLIP };
-// Where the hand grips each unflipped cell (px in the 16x16 cell): right, up, up-right.
-static s32 grip_x(u32 cell) { return cell == SPR_SWORD_RIGHT ? 2 : cell == SPR_SWORD_UP ? 8 : 4; }
-static s32 grip_y(u32 cell) { return cell == SPR_SWORD_RIGHT ? 8 : 13; }
+// Each weapon's cells (up, right, up-right; the slingshot has no up-right pose) and where the hand grips them.
+static const u8 weapon_cell[WEAPONS][3] = {
+    { SPR_SWORD_UP, SPR_SWORD_RIGHT, SPR_SWORD_DIAG }, { SPR_SWORD_UP, SPR_SWORD_RIGHT, SPR_SWORD_DIAG },
+    { SPR_SPEAR_UP, SPR_SPEAR_RIGHT, SPR_SPEAR_DIAG }, { SPR_SCYTHE_UP, SPR_SCYTHE_RIGHT, SPR_SCYTHE_DIAG },
+    { SPR_SLING_UP, SPR_SLING_RIGHT, SPR_SLING_RIGHT } };
+static s32 grip_x(u32 kind) { return kind == 1 ? 2 : kind == 0 ? 8 : weapon <= IRON ? 4 : 3; }
+static s32 grip_y(u32 kind) { return kind == 1 ? 8 : kind == 0 ? 13 : weapon <= IRON ? 13 : 14; }
 // Per facing (down, up, left, right): the swing's 3 poses, then the resting pose.
 static const u8 swing_pose[4][4] = {
     { P_R, P_DR, P_D, P_DR },   // down
@@ -1306,14 +1359,20 @@ static const signed char hand_y[4] = { 12, 9, 10, 10 };
 static void draw_sword(void) {
     if (!weapon_out || ko_timer) return;
     if (hurt_timer && (frame & 4)) return;   // blinks with the farmer
-    u32 step = swing ? (SWING_FRAMES - swing) * 3 / SWING_FRAMES : 3;
+    u32 step = swing ? (swing_len - swing) * 3 / swing_len : 3;
+    if (weapon == SPEAR || weapon == SLING) step = 2;   // the spear jabs and the slingshot aims straight ahead
     u32 pose = swing_pose[pdir][step];
-    u32 cell = pose_cell[pose], flags = pose_flags[pose];
-    s32 gx = grip_x(cell), gy = grip_y(cell);
+    u32 kind = pose_kind[pose], flags = pose_flags[pose];
+    if (weapon == SLING && kind == 2) kind = 1;
+    u32 cell = weapon_cell[weapon][kind];
+    s32 gx = grip_x(kind), gy = grip_y(kind);
     if (flags & HFLIP) gx = 15 - gx;
     if (flags & VFLIP) gy = 15 - gy;
     s32 bob = (pstep >> 3) & 1;
-    put_sprite((px >> 4) + hand_x[pdir] - gx, (py >> 4) - bob + hand_y[pdir] - gy, cell, flags);
+    s32 jab = weapon == SPEAR && swing ? 5 : 0;   // the spear thrusts forward
+    s32 jx = pdir == DIR_RIGHT ? jab : pdir == DIR_LEFT ? -jab : 0, jy = pdir == DIR_DOWN ? jab : pdir == DIR_UP ? -jab : 0;
+    put_sprite((px >> 4) + hand_x[pdir] - gx + jx, (py >> 4) - bob + hand_y[pdir] - gy + jy, cell,
+               flags | (weapon == IRON ? BANK(7) : 0));
 }
 
 // ---------- farm expansion (v0.8, Caleb) ----------
@@ -1338,11 +1397,94 @@ static void expand_field(void) {
         for (s32 x = 0; x < MAP_W; x++) draw_meta(x, y);
 }
 
+// ---------- crow cannon (v0.8.1, Caleb: "stock it with pumpkins") ----------
+// Bought on the FARM page (max 2), it sits on a bottom fence corner: no crop slot, no placing. Press A next
+// to it to load the pumpkins in your bag (up to 10). Every 3 s a loaded cannon lobs a pumpkin at the
+// nearest crow within 120 px; it bursts and hits every crow within one tile for 3 damage.
+#define CANNON_PRICE 160
+#define CANNON_AMMO 10
+#define CANNON_RELOAD 180
+#define CANNON_RANGE 120
+#define BALLS 4
+#define BALL_FRAMES 40
+#define BALL_DAMAGE HP(3)
+#define BURST_FRAMES 12
+static s32 ball_t[BALLS], ball_x0[BALLS], ball_y0[BALLS], ball_x1[BALLS], ball_y1[BALLS];   // 0: free
+
+static s32 cannon_x(s32 k) { return (k ? field_x1[farm_step] + 1 : field_x0[farm_step] - 1) * 16; }   // px
+static s32 cannon_y(s32 k) { (void)k; return (field_y1[farm_step] + 1) * 16; }
+
+// A next to a cannon loads it with the pumpkins in the bag. Returns 1 if a cannon was in reach.
+static int cannon_work(void) {
+    s32 fx = (px >> 4) + 8, fy = (py >> 4) + 12;   // feet
+    if (fx >> 4 >= field_x0[farm_step] && fx >> 4 <= field_x1[farm_step] &&
+        fy >> 4 >= field_y0[farm_step] && fy >> 4 <= field_y1[farm_step]) return 0;   // in the field: A farms
+    for (s32 k = 0; k < cannons; k++) {
+        if (abs32(cannon_x(k) + 8 - fx) > 20 || abs32(cannon_y(k) + 8 - fy) > 20) continue;
+        char buf[24];
+        s32 n = CANNON_AMMO - can_ammo[k];
+        if (n > crops[PUMPKIN]) n = crops[PUMPKIN];
+        if (!crops[PUMPKIN] && can_ammo[k] < CANNON_AMMO) { show_message("NO PUMPKINS TO LOAD"); play(SND_NOSEEDS); return 1; }
+        can_ammo[k] += n;
+        crops[PUMPKIN] -= n;
+        n = copy_str(buf, "CANNON ");
+        n += fmt_num(buf + n, can_ammo[k]);
+        copy_str(buf + n, " OF 10");
+        show_message(buf);
+        play(SND_PLANT);
+        draw_hud();
+        return 1;
+    }
+    return 0;
+}
+
+static void update_cannons(void) {
+    for (s32 k = 0; k < cannons; k++) {
+        if (can_cool[k]) { can_cool[k]--; continue; }
+        if (!can_ammo[k]) continue;
+        s32 x = cannon_x(k) + 8, y = cannon_y(k) + 6;
+        s32 c = nearest_crow(x, y, CANNON_RANGE, -1);
+        if (c < 0) continue;
+        for (s32 b = 0; b < BALLS; b++) {
+            if (ball_t[b]) continue;
+            ball_t[b] = 1;
+            ball_x0[b] = x; ball_y0[b] = y;
+            ball_x1[b] = (crow_x[c] >> 4) + 8; ball_y1[b] = (crow_y[c] >> 4) + 8;
+            can_ammo[k]--;
+            can_cool[k] = CANNON_RELOAD;
+            play(SND_WHOOSH);
+            break;
+        }
+    }
+    for (s32 b = 0; b < BALLS; b++) {
+        if (!ball_t[b]) continue;
+        if (++ball_t[b] == BALL_FRAMES) {   // it lands: burst
+            for (s32 i = 0; i < MAX_CROWS; i++)
+                if (crow_targetable(i) && abs32((crow_x[i] >> 4) + 8 - ball_x1[b]) <= 16 &&
+                    abs32((crow_y[i] >> 4) + 8 - ball_y1[b]) <= 16)
+                    hit_crow(i, BALL_DAMAGE, 0, 0);
+            play(SND_HURT);
+        }
+        if (ball_t[b] >= BALL_FRAMES + BURST_FRAMES) ball_t[b] = 0;
+    }
+}
+
+static void draw_cannons(void) {
+    for (s32 k = 0; k < cannons; k++) put_sprite(cannon_x(k), cannon_y(k), SPR_CANNON, 0);
+    for (s32 b = 0; b < BALLS; b++) {
+        s32 t = ball_t[b];
+        if (!t) continue;
+        if (t >= BALL_FRAMES) { put_sprite(ball_x1[b] - 8, ball_y1[b] - 8, SPR_PUFF_BIG, 0); continue; }
+        s32 x = ball_x0[b] + (ball_x1[b] - ball_x0[b]) * t / BALL_FRAMES;
+        s32 y = ball_y0[b] + (ball_y1[b] - ball_y0[b]) * t / BALL_FRAMES - (sin64[t * 32 / BALL_FRAMES] * 24 >> 8);
+        put_sprite(x - 8, y - 8, SPR_BALL, 0);
+    }
+}
+
 // ---------- dusk shop ----------
 // Seed and crop prices: seed_price[] and sell_price[] with the crops. v0.8 cut the prices by about a third
 // (Caleb: money was hard to get).
 static const s32 sickle_price[2] = { 30, 60 };
-static const s32 sword_price[2] = { 40, 80 };
 #define SCARECROW_PRICE 30
 static const s32 scarecrow_price[2] = { 40, 80 };
 static const s32 expand_price[3] = { 60, 120, 200 };   // the field: 7x3 -> 7x4 -> 9x4 -> 9x5
@@ -1350,8 +1492,8 @@ static const s32 expand_price[3] = { 60, 120, 200 };   // the field: 7x3 -> 7x4 
 enum { PAGE_MAIN, PAGE_SELL, PAGE_SEEDS, PAGE_WEAPONS, PAGE_FARM, PAGE_BLESS };
 enum { MAIN_SELL, MAIN_SEEDS, MAIN_WEAPONS, MAIN_FARM, MAIN_NEXT, MAIN_ITEMS };
 enum { SELL_ALL, SELL_ITEMS = 1 + KINDS };              // then one line per crop
-enum { W_SWORD, W_ITEMS };                              // more weapons in v0.8.1
-enum { F_SICKLE, F_SCARECROW, F_SCARECROW_LV, F_EXPAND, F_ITEMS };
+enum { W_ITEMS = WEAPONS };                             // one line per weapon
+enum { F_SICKLE, F_SCARECROW, F_SCARECROW_LV, F_CANNON, F_EXPAND, F_ITEMS };
 enum { B_ATTACK, B_SCARE, B_HEART, B_ITEMS };
 static const s32 page_items[6] = { MAIN_ITEMS, SELL_ITEMS, KINDS, W_ITEMS, F_ITEMS, B_ITEMS };
 static s32 shop_open, shop_page, shop_cursor, main_cursor;
@@ -1395,7 +1537,7 @@ static void shop_level(s32 k, const char *name, s32 lv, const s32 *price) {
     shop_item(k, buf, lv >= 3 ? -1 : price[lv - 1]);
 }
 
-static s32 keep_pumpkins(void) { return 0; }   // v0.8.1: 1 once a crow cannon is owned
+static s32 keep_pumpkins(void) { return cannons > 0; }   // pumpkins are ammo once you own a crow cannon
 
 // What SELL ALL sells: every crop, but pumpkins stay as ammo once you own a cannon.
 static s32 sell_all_value(void) { return crops_value() - (keep_pumpkins() ? crops[PUMPKIN] * sell_price[PUMPKIN] : 0); }
@@ -1466,13 +1608,39 @@ static void draw_shop(void) {
         shop_centered(SHOP_INFO, buf);
         info = 0;
     } else if (shop_page == PAGE_WEAPONS) {
+        static const char *const what[WEAPONS] = { "QUICK, ALL-ROUND", "BIG HITS, SLOWER", "REACHES 2 TILES",
+                                                   "HITS 3 TILES WIDE", "SHOOTS ANY DISTANCE" };
         shop_centered(SHOP_T + 1, "WEAPONS");
-        shop_level(W_SWORD, "SWORD LV", sword_lv, sword_price);
+        for (s32 w = 0; w < WEAPONS; w++) {   // in hand: its upgrade line; else BUY (Caleb)
+            if (w == weapon) {
+                n = copy_str(buf, weapon_name[w]);
+                copy_str(buf + n, " LV");
+                shop_level(w, buf, sword_lv, weapon_up[w]);
+            } else {
+                n = copy_str(buf, "BUY ");
+                copy_str(buf + n, weapon_name[w]);
+                shop_item(w, buf, weapon_buy[w]);
+            }
+        }
+        s32 w = shop_cursor;   // the bottom line: what the weapon under the cursor does
+        if (w == weapon) {
+            s32 d = sword_damage;
+            n = copy_str(buf, "IN HAND  DAMAGE ");
+            n += fmt_num(buf + n, d / 2);
+            copy_str(buf + n, d & 1 ? ".5" : "");
+        } else if (weapon_lv[w]) {
+            n = copy_str(buf, what[w]);
+            n += copy_str(buf + n, " LV");
+            fmt_num(buf + n, weapon_lv[w]);
+        } else copy_str(buf, what[w]);
+        shop_centered(SHOP_INFO, buf);
+        info = 0;
     } else if (shop_page == PAGE_FARM) {
         shop_centered(SHOP_T + 1, "FARM");
         shop_level(F_SICKLE, "SICKLE LV", sickle_lv, sickle_price);
         shop_item(F_SCARECROW, "SCARECROW  #1", SCARECROW_PRICE);
         shop_level(F_SCARECROW_LV, "SCARECROW LV", scarecrow_lv, scarecrow_price);
+        shop_item(F_CANNON, "CROW CANNON", cannons >= MAX_CANNONS ? -1 : CANNON_PRICE);
         if (farm_step >= 3) shop_item(F_EXPAND, "FIELD 9X5", -1);
         else {
             static const char *const next_size[3] = { "FIELD 7X4", "FIELD 9X4", "FIELD 9X5" };
@@ -1615,14 +1783,26 @@ static void update_shop(void) {
         s32 k = shop_cursor;
         if ((ok = day >= unlock_day[k] && coins >= seed_price[k])) { coins -= seed_price[k]; seeds[k]++; }
     } else if (shop_page == PAGE_WEAPONS) {
-        s32 lv = sword_lv;
-        if ((ok = buy_level(&lv, sword_price))) set_sword_lv(lv);
+        s32 w = shop_cursor;
+        if (w == weapon) {           // upgrade the weapon in hand
+            s32 lv = sword_lv;
+            if ((ok = buy_level(&lv, weapon_up[w]))) set_sword_lv(lv);
+        } else if ((ok = coins >= weapon_buy[w])) {   // buy another: it replaces the one in hand
+            coins -= weapon_buy[w];
+            take_weapon(w);
+        }
     } else if (shop_cursor == F_SICKLE) {
         ok = buy_level(&sickle_lv, sickle_price);
     } else if (shop_cursor == F_SCARECROW) {
         if ((ok = coins >= SCARECROW_PRICE)) { coins -= SCARECROW_PRICE; scarecrow_bag++; }
     } else if (shop_cursor == F_SCARECROW_LV) {
         ok = buy_level(&scarecrow_lv, scarecrow_price);
+    } else if (shop_cursor == F_CANNON) {
+        if ((ok = cannons < MAX_CANNONS && coins >= CANNON_PRICE)) {
+            coins -= CANNON_PRICE;
+            can_ammo[cannons] = can_cool[cannons] = 0;
+            cannons++;
+        }
     } else {
         if ((ok = farm_step < 3 && coins >= expand_price[farm_step])) { coins -= expand_price[farm_step]; expand_field(); }
     }
@@ -1650,7 +1830,11 @@ static void new_run(void) {
     sel_seed = CORN;
     sickle_lv = 1;
     bless_attack = bless_scare = 0;
+    for (s32 w = 0; w < WEAPONS; w++) weapon_lv[w] = 0;
+    weapon = WOOD;
     set_sword_lv(1);
+    cannons = 0;
+    for (s32 b = 0; b < BALLS; b++) ball_t[b] = 0;
     scarecrows = scarecrow_bag = sc_warned = 0;
     scarecrow_lv = 1;
     for (s32 k = 0; k < MAX_SHOTS; k++) shot_life[k] = 0;
@@ -1703,20 +1887,21 @@ static void end_screen_again(void) { end_screen(end_kind); }
 // L + R + B together, while playing or on an end screen, opens the DEV MODE window (the game pauses).
 // Up/Down pick a line, Left/Right change it (L/R: by 10 on DAY and SEEDS), A starts a fresh run on that day
 // with that gear, B closes. Unlimited money keeps coins at 9999; invincible makes pecks do nothing.
-enum { DEV_DAY, DEV_SWORD, DEV_SICKLE, DEV_SC_LV, DEV_SC_BAG, DEV_FIELD, DEV_SEEDS, DEV_BLOODS, DEV_TONIGHT,
-       DEV_MONEY, DEV_GOD, DEV_ITEMS };
+enum { DEV_DAY, DEV_WEAPON, DEV_SWORD, DEV_SICKLE, DEV_SC_LV, DEV_SC_BAG, DEV_CANNONS, DEV_FIELD, DEV_SEEDS,
+       DEV_BLOODS, DEV_TONIGHT, DEV_MONEY, DEV_GOD, DEV_ITEMS };
 enum { TONIGHT_NORMAL, TONIGHT_BLOOD, TONIGHT_FINAL };
-static const s32 dev_min[DEV_ITEMS] = { 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0 };
-static const s32 dev_max[DEV_ITEMS] = { 99, 3, 3, 3, MAX_SCARECROWS, 3, 99, FINALE_AFTER, 2, 1, 1 };
+static const s32 dev_min[DEV_ITEMS] = { 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0 };
+static const s32 dev_max[DEV_ITEMS] = { 99, WEAPONS - 1, 3, 3, 3, MAX_SCARECROWS, MAX_CANNONS, 3, 99, FINALE_AFTER, 2, 1, 1 };
 static s32 dev_open, dev_cursor, dev_val[DEV_ITEMS];
 
 static void draw_dev(void) {
-    static const char *const label[DEV_ITEMS] = { "DAY", "SWORD LV", "SICKLE LV", "SCARE LV", "SCARECROWS",
-        "FIELD STEP", "SEEDS EACH", "MOONS DONE", "TONIGHT", "MONEY", "INVINCIBLE" };
+    static const char *const label[DEV_ITEMS] = { "DAY", "WEAPON", "WEAPON LV", "SICKLE LV", "SCARE LV",
+        "SCARECROWS", "CANNONS", "FIELD STEP", "SEEDS EACH", "MOONS DONE", "TONIGHT", "MONEY", "INVINCIBLE" };
     static const char *const tonight[3] = { "NORMAL", "BLOOD", "FINAL" };
+    static const char *const short_weapon[WEAPONS] = { "WOOD", "IRON", "SPEAR", "SCYTHE", "SLING" };
     for (s32 r = SHOP_T; r < SHOP_T + SHOP_ROWS; r++) shop_line(r, "");
-    shop_centered(SHOP_T, "DEV MODE");
-    for (s32 k = 0; k < DEV_ITEMS; k++) {   // one line each, rows 5-14
+    shop_centered(SHOP_T + 1, "DEV MODE");   // a blank row above it, like the shop titles
+    for (s32 k = 0; k < DEV_ITEMS; k++) {   // one line each, rows 4-16
         char buf[26];
         s32 n = copy_str(buf, k == dev_cursor ? "> " : "  ");
         n += copy_str(buf + n, label[k]);
@@ -1724,22 +1909,24 @@ static void draw_dev(void) {
         buf[n] = 0;
         if (k == dev_cursor) n += copy_str(buf + n, "<");   // the value Left/Right change: < 3 >
         if (k == DEV_TONIGHT) n += copy_str(buf + n, tonight[dev_val[k]]);
+        else if (k == DEV_WEAPON) n += copy_str(buf + n, short_weapon[dev_val[k]]);
         else if (k == DEV_MONEY) n += copy_str(buf + n, dev_val[k] ? "ENDLESS" : "NORMAL");
         else if (k == DEV_GOD) n += copy_str(buf + n, dev_val[k] ? "ON" : "OFF");
         else n += fmt_num(buf + n, dev_val[k]);
         if (k == dev_cursor) copy_str(buf + n, ">");
         shop_line(SHOP_T + 2 + k, buf);
     }
-    shop_centered(SHOP_T + 14, "A START   B CLOSE");
     clear_row(19);
-    put_text(1, 19, "LEFT/RIGHT CHANGE  L/R +-10");
+    put_text(1, 19, "L/R +-10   A START  B CLOSE");
 }
 
 static void open_dev(void) {
     dev_open = 1;
     dev_cursor = 0;
     dev_val[DEV_DAY] = day;
+    dev_val[DEV_WEAPON] = weapon;
     dev_val[DEV_SWORD] = sword_lv;
+    dev_val[DEV_CANNONS] = cannons;
     dev_val[DEV_SICKLE] = sickle_lv;
     dev_val[DEV_SC_LV] = blood_on ? blood_saved_lv : scarecrow_lv;
     dev_val[DEV_SC_BAG] = scarecrow_bag;
@@ -1766,7 +1953,10 @@ static void dev_start(void) {
     dev_open = 0;
     new_run();
     day = dev_val[DEV_DAY];
+    weapon = dev_val[DEV_WEAPON];
     set_sword_lv(dev_val[DEV_SWORD]);
+    cannons = dev_val[DEV_CANNONS];
+    for (s32 k = 0; k < cannons; k++) { can_ammo[k] = CANNON_AMMO; can_cool[k] = 0; }   // loaded
     sickle_lv = dev_val[DEV_SICKLE];
     scarecrow_lv = dev_val[DEV_SC_LV];
     scarecrow_bag = dev_val[DEV_SC_BAG];
@@ -1839,6 +2029,12 @@ int main(void) {
     PAL_OBJ[96 + 1] = (20) | (20 << 5) | (22 << 10);   // white crow body: pale gray
     PAL_OBJ[96 + 9] = (29) | (29 << 5) | (30 << 10);   // wing: white
     PAL_OBJ[96 + 10] = (31) | (31 << 5) | (31 << 10);  // sheen: bright white
+    for (u32 i = 0; i < 16; i++) { PAL_OBJ[112 + i] = obj_pal[i]; PAL_OBJ[128 + i] = obj_pal[i]; }
+    PAL_OBJ[112 + 3] = (27) | (28 << 5) | (29 << 10);  // iron sword: light steel blade
+    PAL_OBJ[112 + 4] = (16) | (17 << 5) | (19 << 10);  // steel shade
+    PAL_OBJ[128 + 3] = (19) | (19 << 5) | (19 << 10);  // slingshot stone: gray
+    PAL_OBJ[128 + 11] = (13) | (13 << 5) | (14 << 10);
+    PAL_OBJ[128 + 13] = (26) | (26 << 5) | (26 << 10);
     PAL_BG[16 + 1] = (29) | (28 << 5) | (22 << 10);   // text: cream
     PAL_BG[16 + 2] = (3) | (4 << 5) | (6 << 10);      // text background: dark slate
     PAL_BG[16 + 3] = (28) | (8 << 5) | (6 << 10);     // heart red
@@ -1902,6 +2098,7 @@ int main(void) {
         update_sword();
         update_crows();
         update_scarecrows();
+        update_cannons();
         update_crops();
         update_message();
         update_notice();
@@ -1913,6 +2110,7 @@ int main(void) {
         if (pdir == DIR_UP) draw_sword();   // behind him when he faces away
         draw_crows();
         draw_shots();
+        draw_cannons();
         draw_marker();
         oam_end();
     }

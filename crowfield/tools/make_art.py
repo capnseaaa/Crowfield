@@ -214,9 +214,11 @@ def draw_sprites():
     """Cells: 0 farmer down, 1 farmer up, 2 farmer side (right uses hflip), 3 crow wings up, 4 crow wings down,
     5 target marker, 6 sword pointing right, 7 sword pointing up, 8 puff big, 9 puff small,
     10 farmer knocked out, 11 sword pointing up-right, 12 corn kernel (scarecrow shot), 13 firefly bright,
-    14 firefly dim (fireflies use OBJ palette bank 5, set in main.c). Flips give the other directions.
+    14 firefly dim (fireflies use OBJ palette bank 5, set in main.c), 15-17 spear up / right / up-right,
+    18-20 scythe up / right / up-right, 21-22 slingshot up / right, 23 crow cannon, 24 pumpkin cannonball
+    (v0.8.1). Flips give the other directions. The iron sword is the sword drawn in OBJ bank 7 (steel).
     The hand grips the sword at (2, 8) right, (8, 13) up, (4, 13) up-right (main.c grip_x/grip_y)."""
-    px = blank(15)
+    px = blank(25)
 
     def farmer(o, face):
         rows = [
@@ -357,6 +359,73 @@ def draw_sprites():
                 px[5 + y][208 + 2 + x] = {"D": 13, "E": 14}[c]
     for x, y in ((7, 7), (8, 7), (7, 8), (8, 8)):   # dim firefly: a small glow
         px[y][224 + x] = 14
+
+    # ---- v0.8.1 weapons: point lists with an automatic 1-pixel outline ----
+    def put_points(o, pts):   # pts: {(x, y): color}; outline (1) on empty 4-neighbors
+        for (x, y), c in pts.items():
+            if 0 <= x < 16 and 0 <= y < 16:
+                px[y][o + x] = c
+        for (x, y) in pts:
+            for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
+                if 0 <= nx < 16 and 0 <= ny < 16 and (nx, ny) not in pts and px[ny][o + nx] == 0:
+                    px[ny][o + nx] = 1
+
+    def rotate_up_right(pts, gx=8, gy=13, to=(3, 14)):   # the up pose leaned 45 degrees around the grip
+        out = {}
+        for (x, y), c in pts.items():
+            dx, dy = x - gx, y - gy
+            out[(round(to[0] + (dx - dy) * 0.7071), round(to[1] + (dx + dy) * 0.7071))] = c
+        return out
+
+    def rotate_right(o_from, o_to):   # a cell turned a quarter clockwise (like sword_right)
+        cell = [[px[y][o_from + x] for x in range(16)] for y in range(16)]
+        for y in range(16):
+            for x in range(16):
+                px[y][o_to + x] = cell[15 - x][y]
+
+    # spear: steel tip (13 white edge, 12 gray), dark wood collar (4), wooden shaft (15), blue grip (5)
+    spear = {}
+    for y in range(1, 4):
+        spear[(7, y)] = 13
+        spear[(8, y)] = 12
+    spear[(7, 0)] = spear[(8, 0)] = 12
+    for y in range(4, 16):
+        spear[(7, y)] = spear[(8, y)] = 5 if 12 <= y <= 13 else 4 if y == 4 else 15
+    put_points(240, spear)
+    rotate_right(240, 256)
+    put_points(272, rotate_up_right(spear))
+
+    # scythe: a wooden handle (15) with a curved steel blade (12, edge 13) swept left from its top
+    scythe = {}
+    for y in range(3, 16):
+        scythe[(8, y)] = 5 if 12 <= y <= 13 else 15
+    for x in range(1, 9):
+        top = 2 + round(((8 - x) / 7.0) ** 2 * 3)
+        scythe[(x, top)] = 13
+        scythe[(x, top + 1)] = 12
+    put_points(288, scythe)
+    rotate_right(288, 304)
+    put_points(320, rotate_up_right(scythe))
+
+    # slingshot: a wooden Y (15) with a blue grip (5)
+    SLING = ["................", "................", "...11......11...", "..1F1......1F1..", "..1F1......1F1..",
+             "..1F1......1F1..", "...1F1....1F1...", "....1F1..1F1....", ".....1FFFF1.....", "......1FF1......",
+             "......1FF1......", "......1551......", "......1551......", "......1551......", "......1FF1......",
+             ".......11......."]
+    CANNON = ["................", "................", "....11111111....", "...1A999999A1...", "....19999991....",
+              "....19A99991....", "....19A99991....", "....19999991....", "...1199999911...", "..18888888881...",
+              "..18FFFFFFF81...", "..18888888881...", "...111111111....", "................", "................",
+              "................"]   # a mortar: dark iron barrel (9, sheen A) on a wooden base (8, 15)
+    BALL = ["................", "................", "................", "................", "................",
+            ".......4........", "......1111......", ".....1BBBB1.....", ".....1BBBB1.....", ".....1BBBB1.....",
+            "......1111......", "................", "................", "................", "................",
+            "................"]   # a pumpkin: orange (B) with a stem (4)
+    for o, grid in ((336, SLING), (368, CANNON), (384, BALL)):
+        for y, row in enumerate(grid):
+            for x, c in enumerate(row):
+                if c != ".":
+                    px[y][o + x] = {"1": 1, "F": 15, "5": 5, "9": 9, "A": 10, "8": 8, "4": 4, "B": 11}[c]
+    rotate_right(336, 352)
     return px
 
 

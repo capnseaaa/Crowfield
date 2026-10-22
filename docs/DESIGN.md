@@ -42,7 +42,7 @@ Each soil tile moves through: empty soil -> sprout -> young -> grown -> ripe.
   so a shared A button would plant seeds when you meant to swing.
 - The sword is visible. Before the first B press the farmer holds nothing. B draws the sword
   and swings it through 3 poses (4 frames each); then it rests in his hand. A puts it away.
-  Later weapons (e.g. a scythe with a longer swing) can be shop upgrades.
+  More weapons came in v0.8.1 (see below).
 - The Lv.1 sword is a short wooden sword (Caleb, 2026-10-22: the old steel one was far too long; he wants a
   wooden sword like the one in A Link to the Past). About 13 px long; the farmer is 16 px tall.
 - Sword Lv.1 (first guess): 1 damage, hit box 28x28 px centered 10 px in front (14 before the short sword), 12-frame swing,
@@ -154,7 +154,8 @@ farmer is knocked out.
   highest day, crops grown (harvested), and crows defeated. Every other ending shows the same numbers under
   "YOU DID YOUR BEST" ("THE FARM IS LOST", "THE BLOOD MOON WON", or "THE LAST MOON WON").
 - Dev mode (v0.7.1, Caleb; for testing): L + R + B together, while playing, in the shop, or on an end
-  screen, opens DEV MODE. Set DAY (1-99), SWORD / SICKLE / SCARE LV, SCARECROWS in the bag, SEEDS EACH (every
+  screen, opens DEV MODE. Set DAY (1-99), WEAPON and WEAPON LV (v0.8.1), SICKLE / SCARE LV, SCARECROWS in the bag,
+  CANNONS (0-2, loaded with 10; v0.8.1), FIELD STEP (v0.8), SEEDS EACH (every
   unlocked crop), BLOOD MOONS already done (0-5), TONIGHT (NORMAL / BLOOD / FINAL), MONEY (NORMAL / INFINITE:
   coins stay at 9999), INVINCIBLE (pecks do nothing). Up/Down pick, Left/Right change, L/R by 10 on DAY and
   SEEDS. A starts a fresh run on that day with that gear; B closes without changes.
@@ -164,6 +165,22 @@ farmer is knocked out.
   faster at night; kills pay by type (2 / 4 / 6 / 10 / 15). Surviving one opens the dawn shop on CHOOSE A
   BLESSING: +0.5 weapon damage, +0.5 scarecrow damage, or +1 heart (max 5). The FARM page sells field
   steps 7x4 (60), 9x4 (120), 9x5 (200).
+- v0.8.1 weapons (WEAPONS page; you hold one). Damage in hearts per level, hit box measured from the farmer's
+  center along his facing:
+  | Weapon | Buy | Dmg Lv.1/2/3 | Ups | Swing | Hit box |
+  |---|---|---|---|---|---|
+  | Wooden sword | start | 1 / 1.5 / 2 | 40 / 80 | 12 | 10 px ahead (16 at Lv.3), +-14 along, +-14 side |
+  | Iron sword | 100 | 3 / 3.5 / 4 | 70 / 140 | 18 | 10 ahead, +-14, +-14 |
+  | Spear | 80 | 2 / 2.5 / 3 | 60 / 120 | 10 | 22 ahead, +-14 along, +-6 side (a jab) |
+  | Scythe | 110 | 1.5 / 2 / 2.5 | 80 / 160 | 18 | 8 ahead, +-10 along, +-24 side (a sweep) |
+  | Slingshot | 120 | 2 / 2.5 / 3 | 80 / 160 | 8 + 22 reload | a stone flies straight ahead (4 px/frame, 1 s) |
+  The weapon in hand shows its upgrade line; the others show BUY. Buying one you had before costs its buy
+  price again and brings it back at its old level (Caleb). ATTACK UP blessings add to every weapon.
+- v0.8.1 crow cannon (FARM page, 160, max 2): sits on the left, then the right bottom fence corner. A next to
+  it, from outside the field, loads pumpkins from the bag (up to 10 each; "NO PUMPKINS TO LOAD"). Inside the
+  field A always farms. Every 3 s a loaded cannon lobs a pumpkin (0.67 s flight) at the nearest crow within
+  120 px; the burst does 3 damage to every crow within 16 px of that spot. Ammo stays from night to night.
+  Once you own a cannon, SELL ALL keeps pumpkins; the PUMPKIN line still sells them.
 - All sprites draw behind the text layer, so messages, notices, the HUD, and windows cover them (Caleb).
 - Dusk (v0.5, Caleb): the field fades toward sunset orange during the 15 s "DUSK IN n" countdown; the shop
   opens at night (dark blue field) with fireflies drifting and blinking around the window. Fireflies show
