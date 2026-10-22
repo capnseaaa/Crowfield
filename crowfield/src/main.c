@@ -917,16 +917,25 @@ enum { SEED_CORN, SEED_ITEMS };   // one crop so far; more seeds come later
 enum { W_SICKLE, W_SWORD, W_SCARECROW, W_SCARECROW_LV, W_ITEMS };
 static const s32 page_items[3] = { MAIN_ITEMS, SEED_ITEMS, W_ITEMS };
 static s32 shop_open, shop_page, shop_cursor, main_cursor;
-#define SHOP_L 3       // window: text columns 3..26, rows 3..14; the hint goes on the message row 19
+// Window: text columns 3..26, rows 3..16 (centered between the HUD and the message row). One blank row
+// above the title and below "YOU HAVE", so nothing sits on the edge (Caleb). The hint goes on row 19.
+#define SHOP_L 3
+#define SHOP_W 24
 #define SHOP_T 3
-#define SHOP_ROWS 12
+#define SHOP_ROWS 14
 #define SHOP_EQ 16     // column of "=" in an item line
 
 static void shop_line(s32 row, const char *s) {
     put_text(SHOP_L, row, "                        ");
     put_text(SHOP_L + 1, row, s);
 }
-// Item line k (rows 5, 7, 9, 11): "  NAME" padded to SHOP_EQ, then "= $price" (price >= 0) or "MAX" (-1);
+static void shop_centered(s32 row, const char *s) {   // a line centered in the window
+    s32 n = 0;
+    while (s[n]) n++;
+    put_text(SHOP_L, row, "                        ");
+    put_text(SHOP_L + (SHOP_W - n) / 2, row, s);
+}
+// Item line k (rows 7, 9, 11, 13): "  NAME" padded to SHOP_EQ, then "= $price" (price >= 0) or "MAX" (-1);
 // price -2: the name only.
 static void shop_item(s32 k, const char *name, s32 price) {
     char buf[26];
@@ -936,7 +945,7 @@ static void shop_item(s32 k, const char *name, s32 price) {
     buf[n] = 0;
     if (price == -1) copy_str(buf + n, "MAX");
     else if (price >= 0) fmt_num(buf + n + copy_str(buf + n, "= $"), price);
-    shop_line(SHOP_T + 2 + 2 * k, buf);
+    shop_line(SHOP_T + 4 + 2 * k, buf);
 }
 // A tool line: "SICKLE LV2" and its price, or "SICKLE LV3" and MAX.
 static void shop_level(s32 k, const char *name, s32 lv, const s32 *price) {
@@ -954,7 +963,7 @@ static void draw_shop(void) {
         n = copy_str(buf, "DUSK. DAY ");
         n += fmt_num(buf + n, day);
         copy_str(buf + n, " IS OVER.");
-        shop_line(SHOP_T, buf);
+        shop_centered(SHOP_T + 1, buf);
         n = copy_str(buf, "SELL CROPS &");
         fmt_num(buf + n, crops);
         shop_item(MAIN_SELL, buf, crops * CROP_PRICE);
@@ -962,23 +971,23 @@ static void draw_shop(void) {
         shop_item(MAIN_WEAPONS, "WEAPONS", -2);
         shop_item(MAIN_NEXT, "NEXT DAY", -2);
     } else if (shop_page == PAGE_SEEDS) {
-        shop_line(SHOP_T, "SEEDS");
+        shop_centered(SHOP_T + 1, "SEEDS");
         shop_item(SEED_CORN, "CORN SEED  ^1", SEED_PRICE);
         n = copy_str(buf, "    SELLS FOR $");
         fmt_num(buf + n, CROP_PRICE);
-        shop_line(SHOP_T + 4, buf);
+        shop_line(SHOP_T + 6, buf);
         n = copy_str(buf, "    GROWS IN ");
         n += fmt_num(buf + n, GROW_FRAMES * 3 / 60);   // sprout -> young -> grown -> ripe
         copy_str(buf + n, " SEC");
-        shop_line(SHOP_T + 6, buf);
+        shop_line(SHOP_T + 8, buf);
     } else {
-        shop_line(SHOP_T, "WEAPONS");
+        shop_centered(SHOP_T + 1, "WEAPONS");
         shop_level(W_SICKLE, "SICKLE LV", sickle_lv, sickle_price);
         shop_level(W_SWORD, "SWORD LV", sword_lv, sword_price);
         shop_item(W_SCARECROW, "SCARECROW  #1", SCARECROW_PRICE);
         shop_level(W_SCARECROW_LV, "SCARECROW LV", scarecrow_lv, scarecrow_price);
     }
-    put_text(SHOP_L + 1, SHOP_T + 2 + 2 * shop_cursor, ">");
+    put_text(SHOP_L + 1, SHOP_T + 4 + 2 * shop_cursor, ">");
     n = copy_str(buf, "YOU HAVE $");
     n += fmt_num(buf + n, coins);
     n += copy_str(buf + n, " &");
@@ -987,7 +996,7 @@ static void draw_shop(void) {
     n += fmt_num(buf + n, seeds);
     n += copy_str(buf + n, " #");
     fmt_num(buf + n, scarecrow_bag);
-    shop_line(SHOP_T + 10, buf);
+    shop_centered(SHOP_T + 12, buf);
     clear_row(19);
     put_text(4, 19, shop_page == PAGE_MAIN ? "UP/DOWN PICK  A CHOOSE" : "A BUY  B BACK");
 }
