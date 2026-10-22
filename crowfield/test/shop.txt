@@ -5,9 +5,12 @@
 1 0 !$day_left=0,$coins=200
 905 0
 1 0 @$shop_open,$shop_cursor
-# cursor starts on BUY SEED (no crops). Down to SICKLE: Lv.2 for 45, Lv.3 for 90, then MAX (refused)
+# main page, cursor on SEEDS (no crops). Down to WEAPONS, A opens it on SICKLE:
+# Lv.2 for 45, Lv.3 for 90, then MAX (refused)
 1 128
 1 0
+1 1
+1 0 @$shop_page,$shop_cursor
 1 1
 1 0 @$coins,$sickle_lv
 1 1
@@ -26,11 +29,9 @@
 1 1
 1 0 u2_sword_max.ppm
 1 0 @$coins,$sword_lv,$sword_damage,$sword_reach
-# down past SCARECROW and SCARECROW LV to NEXT DAY, then stop the crows for exact tests
-1 128
-1 0
-1 128
-1 0
+# B back to the main page (cursor on WEAPONS), down to NEXT DAY, A; then stop the crows for exact tests
+1 2
+1 0 @$shop_page,$shop_cursor
 1 128
 1 0
 1 1

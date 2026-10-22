@@ -909,25 +909,33 @@ static const s32 sickle_price[2] = { 45, 90 };
 static const s32 sword_price[2] = { 60, 120 };
 #define SCARECROW_PRICE 40   // the concept's 100 at 8-coin crops, rescaled to 3-coin crops
 static const s32 scarecrow_price[2] = { 60, 120 };
-static s32 shop_open, shop_cursor;
-enum { SHOP_SELL, SHOP_SEED, SHOP_SICKLE, SHOP_SWORD, SHOP_SCARECROW, SHOP_SCARECROW_LV, SHOP_NEXT, SHOP_ITEMS };
-#define SHOP_L 3       // window: text columns 3..26, rows 1..18; the hint goes on the message row 19
-#define SHOP_T 1
-#define SHOP_ROWS 18
+// The shop has a main page and two sub-pages (Caleb: the one long list was too long). A opens a page or buys,
+// B goes back to the main page. EXPANSION (bigger field) comes later.
+enum { PAGE_MAIN, PAGE_SEEDS, PAGE_WEAPONS };
+enum { MAIN_SELL, MAIN_SEEDS, MAIN_WEAPONS, MAIN_NEXT, MAIN_ITEMS };
+enum { SEED_CORN, SEED_ITEMS };   // one crop so far; more seeds come later
+enum { W_SICKLE, W_SWORD, W_SCARECROW, W_SCARECROW_LV, W_ITEMS };
+static const s32 page_items[3] = { MAIN_ITEMS, SEED_ITEMS, W_ITEMS };
+static s32 shop_open, shop_page, shop_cursor, main_cursor;
+#define SHOP_L 3       // window: text columns 3..26, rows 3..14; the hint goes on the message row 19
+#define SHOP_T 3
+#define SHOP_ROWS 12
 #define SHOP_EQ 16     // column of "=" in an item line
 
 static void shop_line(s32 row, const char *s) {
     put_text(SHOP_L, row, "                        ");
     put_text(SHOP_L + 1, row, s);
 }
-// Item line k (rows 3, 5, .. 15): "  NAME" padded to SHOP_EQ, then "= $price" (price >= 0) or "MAX" (price < 0).
+// Item line k (rows 5, 7, 9, 11): "  NAME" padded to SHOP_EQ, then "= $price" (price >= 0) or "MAX" (-1);
+// price -2: the name only.
 static void shop_item(s32 k, const char *name, s32 price) {
     char buf[26];
     s32 n = copy_str(buf, "  ");
     n += copy_str(buf + n, name);
-    while (n < SHOP_EQ) buf[n++] = ' ';
-    if (price < 0) copy_str(buf + n, "MAX");
-    else fmt_num(buf + n + copy_str(buf + n, "= $"), price);
+    if (price != -2) while (n < SHOP_EQ) buf[n++] = ' ';
+    buf[n] = 0;
+    if (price == -1) copy_str(buf + n, "MAX");
+    else if (price >= 0) fmt_num(buf + n + copy_str(buf + n, "= $"), price);
     shop_line(SHOP_T + 2 + 2 * k, buf);
 }
 // A tool line: "SICKLE LV2" and its price, or "SICKLE LV3" and MAX.
@@ -942,19 +950,34 @@ static void draw_shop(void) {
     char buf[26];
     s32 n;
     for (s32 r = SHOP_T; r < SHOP_T + SHOP_ROWS; r++) shop_line(r, "");
-    n = copy_str(buf, "DUSK. DAY ");
-    n += fmt_num(buf + n, day);
-    copy_str(buf + n, " IS OVER.");
-    shop_line(SHOP_T, buf);
-    n = copy_str(buf, "SELL CROPS &");
-    fmt_num(buf + n, crops);
-    shop_item(SHOP_SELL, buf, crops * CROP_PRICE);
-    shop_item(SHOP_SEED, "BUY SEED   ^1", SEED_PRICE);
-    shop_level(SHOP_SICKLE, "SICKLE LV", sickle_lv, sickle_price);
-    shop_level(SHOP_SWORD, "SWORD LV", sword_lv, sword_price);
-    shop_item(SHOP_SCARECROW, "SCARECROW  #1", SCARECROW_PRICE);
-    shop_level(SHOP_SCARECROW_LV, "SCARECROW LV", scarecrow_lv, scarecrow_price);
-    shop_line(SHOP_T + 2 + 2 * SHOP_NEXT, "  NEXT DAY");
+    if (shop_page == PAGE_MAIN) {
+        n = copy_str(buf, "DUSK. DAY ");
+        n += fmt_num(buf + n, day);
+        copy_str(buf + n, " IS OVER.");
+        shop_line(SHOP_T, buf);
+        n = copy_str(buf, "SELL CROPS &");
+        fmt_num(buf + n, crops);
+        shop_item(MAIN_SELL, buf, crops * CROP_PRICE);
+        shop_item(MAIN_SEEDS, "SEEDS", -2);
+        shop_item(MAIN_WEAPONS, "WEAPONS", -2);
+        shop_item(MAIN_NEXT, "NEXT DAY", -2);
+    } else if (shop_page == PAGE_SEEDS) {
+        shop_line(SHOP_T, "SEEDS");
+        shop_item(SEED_CORN, "CORN SEED  ^1", SEED_PRICE);
+        n = copy_str(buf, "    SELLS FOR $");
+        fmt_num(buf + n, CROP_PRICE);
+        shop_line(SHOP_T + 4, buf);
+        n = copy_str(buf, "    GROWS IN ");
+        n += fmt_num(buf + n, GROW_FRAMES * 3 / 60);   // sprout -> young -> grown -> ripe
+        copy_str(buf + n, " SEC");
+        shop_line(SHOP_T + 6, buf);
+    } else {
+        shop_line(SHOP_T, "WEAPONS");
+        shop_level(W_SICKLE, "SICKLE LV", sickle_lv, sickle_price);
+        shop_level(W_SWORD, "SWORD LV", sword_lv, sword_price);
+        shop_item(W_SCARECROW, "SCARECROW  #1", SCARECROW_PRICE);
+        shop_level(W_SCARECROW_LV, "SCARECROW LV", scarecrow_lv, scarecrow_price);
+    }
     put_text(SHOP_L + 1, SHOP_T + 2 + 2 * shop_cursor, ">");
     n = copy_str(buf, "YOU HAVE $");
     n += fmt_num(buf + n, coins);
@@ -964,14 +987,15 @@ static void draw_shop(void) {
     n += fmt_num(buf + n, seeds);
     n += copy_str(buf + n, " #");
     fmt_num(buf + n, scarecrow_bag);
-    shop_line(SHOP_T + 16, buf);
+    shop_line(SHOP_T + 10, buf);
     clear_row(19);
-    put_text(4, 19, "UP/DOWN PICK  A CHOOSE");
+    put_text(4, 19, shop_page == PAGE_MAIN ? "UP/DOWN PICK  A CHOOSE" : "A BUY  B BACK");
 }
 
 static void open_shop(void) {
     shop_open = 1;
-    shop_cursor = crops ? SHOP_SELL : SHOP_SEED;
+    shop_page = PAGE_MAIN;
+    shop_cursor = crops ? MAIN_SELL : MAIN_SEEDS;
     swing = 0;
     msg_timer = 0;
     draw_shop();
@@ -997,28 +1021,42 @@ static int buy_level(s32 *lv, const s32 *price) {
 // While the shop is open the farm is paused: no crows, no growth.
 static void update_shop(void) {
     if (HIT(KEY_UP) && shop_cursor > 0) { shop_cursor--; draw_shop(); }
-    if (HIT(KEY_DOWN) && shop_cursor < SHOP_ITEMS - 1) { shop_cursor++; draw_shop(); }
-    if (!HIT(KEY_A)) return;
-    s32 ok = 1;
-    if (shop_cursor == SHOP_SELL) {
-        if ((ok = crops > 0)) { coins += crops * CROP_PRICE; crops = 0; }
-    } else if (shop_cursor == SHOP_SEED) {
-        if ((ok = coins >= SEED_PRICE)) { coins -= SEED_PRICE; seeds++; }
-    } else if (shop_cursor == SHOP_SICKLE) {
-        ok = buy_level(&sickle_lv, sickle_price);
-    } else if (shop_cursor == SHOP_SWORD) {
-        s32 lv = sword_lv;
-        if ((ok = buy_level(&lv, sword_price))) set_sword_lv(lv);
-    } else if (shop_cursor == SHOP_SCARECROW) {
-        if ((ok = coins >= SCARECROW_PRICE)) { coins -= SCARECROW_PRICE; scarecrow_bag++; }
-    } else if (shop_cursor == SHOP_SCARECROW_LV) {
-        ok = buy_level(&scarecrow_lv, scarecrow_price);
-    } else {
-        close_shop();
+    if (HIT(KEY_DOWN) && shop_cursor < page_items[shop_page] - 1) { shop_cursor++; draw_shop(); }
+    if (HIT(KEY_B) && shop_page != PAGE_MAIN) {
+        shop_page = PAGE_MAIN;
+        shop_cursor = main_cursor;
+        draw_shop();
         return;
     }
+    if (!HIT(KEY_A)) return;
+    s32 ok = 1;
+    if (shop_page == PAGE_MAIN) {
+        if (shop_cursor == MAIN_SELL) {
+            if ((ok = crops > 0)) { coins += crops * CROP_PRICE; crops = 0; }
+        } else if (shop_cursor == MAIN_NEXT) {
+            close_shop();
+            return;
+        } else {                 // open a sub-page
+            main_cursor = shop_cursor;
+            shop_page = shop_cursor == MAIN_SEEDS ? PAGE_SEEDS : PAGE_WEAPONS;
+            shop_cursor = 0;
+            draw_shop();
+            return;
+        }
+    } else if (shop_page == PAGE_SEEDS) {
+        if ((ok = coins >= SEED_PRICE)) { coins -= SEED_PRICE; seeds++; }
+    } else if (shop_cursor == W_SICKLE) {
+        ok = buy_level(&sickle_lv, sickle_price);
+    } else if (shop_cursor == W_SWORD) {
+        s32 lv = sword_lv;
+        if ((ok = buy_level(&lv, sword_price))) set_sword_lv(lv);
+    } else if (shop_cursor == W_SCARECROW) {
+        if ((ok = coins >= SCARECROW_PRICE)) { coins -= SCARECROW_PRICE; scarecrow_bag++; }
+    } else {
+        ok = buy_level(&scarecrow_lv, scarecrow_price);
+    }
     if (!ok) { play(SND_NOSEEDS); return; }
-    play(shop_cursor == SHOP_SEED ? SND_PLANT : SND_HARVEST);
+    play(shop_page == PAGE_SEEDS ? SND_PLANT : SND_HARVEST);
     draw_hud();
     draw_shop();
 }

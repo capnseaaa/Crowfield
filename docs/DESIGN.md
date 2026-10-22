@@ -94,6 +94,10 @@ Crows get stronger and more numerous each day. First guess for wave size: `4 + 2
 and new types unlock on later days (Fast day 3, Armored day 5, Big day 7, Swarm day 9).
 
 ## Economy
+- Shop pages (v0.4.1, Caleb): the main page lists SELL CROPS, SEEDS, WEAPONS, NEXT DAY. SEEDS lists each
+  seed with its price, what its crop sells for, and its grow time (corn: 1, 3, 24 s; the only crop so far).
+  WEAPONS lists Sickle, Sword, Scarecrow, Scarecrow level. A opens a page or buys; B goes back.
+  EXPANSION (a bigger field) is planned but not built.
 - Selling: each crop sells for 3 coins (Caleb, 2026-10-22; the first guess of 8 gave too much cash).
   Sold at dusk: SELL CROPS sells the whole bag.
 - Seeds cost 1 coin each at dusk (Caleb; was 5). BUY SEED buys one per press.

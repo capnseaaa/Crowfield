@@ -5,8 +5,10 @@
 1 0 !$day_left=0,$coins=300
 905 0
 1 0 @$shop_open,$shop_cursor
-# down from BUY SEED past SICKLE and SWORD to SCARECROW; buy 2 (300 -> 220)
+# main page on SEEDS: down to WEAPONS, A opens it; down past SICKLE and SWORD to SCARECROW; buy 2 (300 -> 220)
 1 128
+1 0
+1 1
 1 0
 1 128
 1 0
@@ -33,8 +35,8 @@
 1 1
 1 0 t1_shop.ppm
 1 0 @$coins,$scarecrow_bag
-# down twice to NEXT DAY, A; then stop the crows
-1 128
+# B back (cursor on WEAPONS), down to NEXT DAY, A; then stop the crows
+1 2
 1 0
 1 128
 1 0

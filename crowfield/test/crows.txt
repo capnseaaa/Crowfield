@@ -59,10 +59,13 @@
 1 1
 1 0 s2_sold.ppm
 1 0 @$coins,$crops
-# down to BUY SEED (1 coin each). With 2 coins: buy 2 (3 -> 5 seeds); the 3rd is refused (0 coins).
+# down to SEEDS, A opens it on CORN SEED (1 coin each). With 2 coins: buy 2 (3 -> 5 seeds); the 3rd is
+# refused (0 coins).
 1 0 !$coins=2
 1 128
 1 0
+1 1
+1 0 s5_seeds.ppm
 1 1
 1 0
 1 1
@@ -73,12 +76,8 @@
 # the farm is paused while the shop is open: no growth (grow counter of tile 51 holds)
 60 0
 1 0 @$grow+100
-# down past SICKLE, SWORD, SCARECROW, SCARECROW LV to NEXT DAY, A: day 2 with 4 crows to come
-1 128
-1 0
-1 128
-1 0
-1 128
+# B back (cursor on SEEDS), down past WEAPONS to NEXT DAY, A: day 2 with 4 crows to come
+1 2
 1 0
 1 128
 1 0

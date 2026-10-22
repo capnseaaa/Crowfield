@@ -62,10 +62,20 @@ numbers v0.1.0-v0.3.3 in commit subjects; those numbers are history only and hav
 - [x] Scarecrow shots use the farmer's seeds, 1 per shot (Caleb)
 - [x] Hold B facing a scarecrow to switch it off or on (Caleb)
 - [x] v0.4.1: hold A to place or pick up a scarecrow (SELECT still works)
+- [x] v0.4.1: shop split into a main page (SELL CROPS, SEEDS, WEAPONS, NEXT DAY) and SEEDS / WEAPONS pages (Caleb: the list was too long)
 - [x] `test/turret.txt`
 
 ## Next update (Caleb, 2026-10-22: add it with the next batch of features)
 - [ ] Dusk looks different: a visual change when the day ends (look not chosen yet)
+- [ ] Harder crows over time (Caleb, 2026-10-22: at Day 20 with 3 scarecrows he was "chilling"):
+      - from Day 10, Lv.2 crows (the red ones) spawn naturally, about 1 more per day
+      - Day 20 adds a Lv.3 crow (a new color)
+      - from Day 25, Lv.1 crows become a minority
+      - Day 30 adds a gold crow, and so on
+      (numbers for HP, speed, and counts: not set; ask Caleb)
+- [ ] Shop: EXPANSION page that makes the crop field bigger (Caleb; replaces the v0.4b plan below)
+- [ ] Shop: more seed types on the SEEDS page, each with its own sell price and grow time (Caleb)
+- [ ] Shop: more weapons on the WEAPONS page that replace the current one (Caleb)
 
 ## v0.4b — field growth
 - [ ] Start map: one small plot, open grass reserved for later plots
