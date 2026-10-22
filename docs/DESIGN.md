@@ -5,7 +5,7 @@
 The crows are hungry. Grow crops, sell the harvest, and upgrade your gear before they take it all.
 
 ## Core loop
-Days keep going with no set end. The test build stops at Day 20. Each day has two phases.
+Days keep going with no set end (Caleb dropped the Day 20 test-build stop, 2026-10-22). Each day has two phases.
 
 1. **Day (grow + fight).** Crows arrive in waves. Crops grow on a timer. The farmer harvests
    ripe crops and fights crows at the same time. Crows land on crops and eat them.
@@ -15,7 +15,7 @@ Days keep going with no set end. The test build stops at Day 20. Each day has tw
    The next day starts when the player leaves the shop.
 
 **Game over:** the farmer has no crops in the field, no seeds, and not enough coins to buy a seed.
-Nothing can grow, so the farm is dead. There is no win state; the score is the last day reached. (Test build: Day 20 ends it.)
+Nothing can grow, so the farm is dead. There is no win state; the score is the last day reached.
 
 ## The field
 - One screen, no scrolling: 15 x 10 metatiles of 16x16 px. This keeps every crow on screen,
@@ -137,6 +137,12 @@ farmer is knocked out.
   arc at Lv.2 and bonus crop at Lv.3. Sword Lv.2: 1.5 damage (v0.5.1; was 2). Lv.3: 2 damage, hit box 16 px in
   front instead of 10 (the sword sprite keeps its size).
 - Game over counts crops in the bag as the coins they sell for, so a full bag never ends the run.
+- Blood moon (v0.6, Caleb; docs/V0.6_PLAN.md): the night after Day 34, then every 4 to 6 nights at random.
+  The day before, the countdown warns "BLOOD MOON TOMORROW!"; on the day it reads "BLOOD MOON IN n" and
+  the sky turns red. No shop: a 90 s blood-red night of fast gold crows (one a second, 5 HP, 10 coins
+  each). Knockouts last 6 s and the 3rd ends the run ("THE BLOOD MOON WON"). Scarecrows fire at Lv.1
+  for the night. Crops do not grow. At dawn the crows fly away, +25 coins, and the shop opens in pink
+  morning light (no fireflies). Then the next day.
 - Dusk (v0.5, Caleb): the field fades toward sunset orange during the 15 s "DUSK IN n" countdown; the shop
   opens at night (dark blue field) with fireflies drifting and blinking around the window. Fireflies show
   only at night in the shop. The next day starts bright.
@@ -159,6 +165,6 @@ farmer is knocked out.
 - The field grows during a run: start with a small plot, new plots open on set days.
 - Fed crows snowballing is handled by balance (HP cap, numbers), not a new rule.
 - Crops eaten buff the crow. A day ends only when all crows die.
-- Days are endless; the test build ends at Day 20.
+- Days are endless (no Day 20 stop; Caleb, 2026-10-22).
 - Crows hurt the farmer and eat crops.
 - Turrets go on soil tiles and cost a crop slot.

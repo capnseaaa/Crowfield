@@ -51,7 +51,6 @@ numbers v0.1.0-v0.3.3 in commit subjects; those numbers are history only and hav
 - [x] v0.3.0: dusk shop window: sell crops for coins, buy seeds, next day (the farm is paused meanwhile)
 - [x] v0.3.0: shop and day checks in `test/crows.txt`
 - [x] v0.3.1: shop sells Sickle Lv.2/3 and Sword Lv.2/3; `test/shop.txt`
-- [ ] Test build caps at Day 20
 
 ## v0.4 — scarecrow turrets (done)
 - [x] Buy a turret and place it on a soil tile (uses a crop slot); SELECT places and picks up
@@ -74,6 +73,12 @@ numbers v0.1.0-v0.3.3 in commit subjects; those numbers are history only and hav
 - [x] `test/v05.txt`, `test/days_check.py`
 - [x] v0.5.1: colored seed icons in the HUD and shop; 2 more crows on Days 35-39; gold crows 5 HP (Caleb)
 
+## v0.6 — the blood moon (done; plan: docs/V0.6_PLAN.md, approved by Caleb)
+- [x] Blood moon the night after Day 34, then every 4-6 nights; warning and red countdown the day before
+- [x] 90 s night of fast gold crows (10 coins each); 6 s knockouts, the 3rd ends the run; scarecrows Lv.1
+- [x] Dawn: crows fly away, +25 coins, the shop in pink morning light
+- [x] `test/blood.txt`
+
 ## Next
 - [ ] Shop: EXPANSION page that makes the crop field bigger (Caleb; replaces the v0.4b plan below)
 - [ ] Shop: more weapons on the WEAPONS page that replace the current one (Caleb)
@@ -90,7 +95,6 @@ numbers v0.1.0-v0.3.3 in commit subjects; those numbers are history only and hav
 
 ## v0.6 — polish
 - [ ] Title screen ("Grow. Defend. Survive.")
-- [ ] Day 20 end screen for the test build ("A peaceful farm... for now.")
 
 ## v1.0 — release
 - [ ] Cover art (`tools/make_cover.py`) and `tools/package.sh` for the R36 SD card

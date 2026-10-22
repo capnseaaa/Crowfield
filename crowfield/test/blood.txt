@@ -1,0 +1,76 @@
+# blood moon (v0.6): the warning the day before, the red "BLOOD MOON IN n" countdown, the night (gold Lv.5
+# crows, scarecrows at Lv.1, no growth, 10 coins a kill, knockouts counted and 6 s long), dawn (crows fly
+# away, +25, scarecrow level back, dawn shop, next blood moon 4-6 nights later), and failing on the 3rd knockout.
+1 0
+# Day 33 ends: during its countdown "BLOOD MOON TOMORROW!" shows (seconds 12 to 10)
+1 0 !$day=33,$day_left=0,$scarecrow_lv=3,$coins=0
+200 0 b1_tomorrow.ppm
+1 0 @$day_done,$blood_next
+1 0 !$day_done=2
+6 0
+1 0 @$shop_open,$shop_dawn
+# NEXT DAY into Day 34; end it: the countdown reads "BLOOD MOON IN n" and the sky turns red
+1 128
+1 0
+1 128
+1 0
+1 128
+1 0
+1 1
+1 0 !$day_left=0
+450 0 b2_red_countdown.ppm
+1 0 @$day,$day_done
+# the countdown ends: no shop, the blood moon starts; scarecrows fire at Lv.1 tonight
+460 0 b3_blood.ppm
+1 0 @$blood_on,$shop_open,$scarecrow_lv,$blood_timer
+# gold Lv.5 crows come every second (5 HP = 10 half-points)
+120 0 b4_crows.ppm
+1 0 @$crow_lv,$crow_hp,$crow_lv+4
+# nothing grows tonight (the grow counter of tiles 50-51 holds)
+1 0 @$grow+100
+60 0
+1 0 @$grow+100
+# a kill pays 10 coins: crow 0 dies to one 5-HP sword hit (poked)
+1 0 !$spawning=0
+1 0 !$sword_damage=10,$px=2304,$py=1088,$pdir=3,$crow_state=2,$crow_timer=999,$crow_vx=0,$crow_vy=0,$crow_x=2560,$crow_y=1088,$crow_cool=999
+2 2
+3 0
+1 0 @$crow_state,$coins
+# a knockout counts and lasts 6 s: one heart left, a crow on the farmer (hurt_timer cleared, or an
+# earlier peck's blink would block this one; wait for the swing above to end, or it kills this crow)
+20 0
+1 0 !$hearts=1,$hurt_timer=0,$crow_state+4=1,$crow_hp+4=10,$crow_x+4=2304,$crow_y+4=1088,$crow_cool+4=0
+3 0 b5_ko.ppm
+1 0 @$ko_timer,$blood_kos,$hearts
+1 0 !$spawning=1
+380 0
+1 0 @$ko_timer,$hearts
+# jump to dawn: every crow flies away, +25 coins, scarecrows back to Lv.3
+1 0 !$blood_timer=2
+3 0 b6_dawn.ppm
+1 0 @$blood_on,$coins,$scarecrow_lv
+1 0 @$crow_state,$crow_state+4,$crow_state+8
+125 0 b7_dawn_shop.ppm
+1 0 @$shop_open,$shop_dawn,$blood_on,$blood_next
+# NEXT DAY: Day 35, a normal morning
+1 128
+1 0
+1 128
+1 0
+1 128
+1 0
+1 1
+3 0 b8_day35.ppm
+1 0 @$day,$shop_open,$shop_dawn
+# failing: make tonight a blood moon again, then 3 knockouts end the run ("THE BLOOD MOON WON")
+1 0 !$blood_next=35,$day_left=0,$ko_timer=0,$crow_state=0,$crow_state+4=0,$crow_state+8=0,$crow_state+12=0
+1 0 !$day_done=2
+6 0
+1 0 @$blood_on,$blood_kos
+1 0 !$blood_kos=2,$hearts=1,$hurt_timer=0,$spawning=0
+1 0 !$crow_state=1,$crow_lv=5,$crow_x=2304,$crow_y=1088,$crow_hp=10,$crow_cool=0,$crow_target=-1,$px=2304,$py=1088
+3 0
+1 0 @$blood_kos,$ko_timer,$game_over
+1 0 !$spawning=1
+370 0 b9_failed.ppm
+1 0 @$game_over
