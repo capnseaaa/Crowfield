@@ -59,16 +59,19 @@ typedef signed int     s32;
 #define MAP_SB   28
 
 enum { GRASS, GRASS_TUFT, DIRT, SOIL, SPROUT, CROP, CROP_RIPE, FENCE, BUSH,
-       FENCE_V, FENCE_TL, FENCE_TR, FENCE_BL, FENCE_BR, CROP_YOUNG, SCARECROW, SCARECROW_OFF };   // FENCE_V.. are looks only; the map stores FENCE
+       FENCE_V, FENCE_TL, FENCE_TR, FENCE_BL, FENCE_BR, CROP_YOUNG, SCARECROW, SCARECROW_OFF,
+       CARROT_GROWN, CARROT_RIPE, TOMATO_GROWN, TOMATO_RIPE, PUMPKIN_GROWN, PUMPKIN_RIPE };   // FENCE_V.. are looks only; the map stores FENCE
 enum { DIR_DOWN, DIR_UP, DIR_LEFT, DIR_RIGHT };
 // Sprite cells in sprites.png (4 tiles each in OBJ VRAM)
 enum { SPR_FARMER_DOWN, SPR_FARMER_UP, SPR_FARMER_SIDE, SPR_CROW_A, SPR_CROW_B, SPR_MARKER,
-       SPR_SWORD_RIGHT, SPR_SWORD_UP, SPR_PUFF_BIG, SPR_PUFF_SMALL, SPR_FARMER_KO, SPR_SWORD_DIAG, SPR_SHOT };
+       SPR_SWORD_RIGHT, SPR_SWORD_UP, SPR_PUFF_BIG, SPR_PUFF_SMALL, SPR_FARMER_KO, SPR_SWORD_DIAG, SPR_SHOT,
+       SPR_FIREFLY, SPR_FIREFLY_DIM };
 // put_sprite flags
 #define HFLIP 1
 #define VFLIP 2
 #define FLASH 0x10   // OBJ palette bank 1: all white
-#define FED   0x20   // OBJ palette bank 2: a crow that has eaten (red tint)
+#define BANK(n) ((n) << 4)   // OBJ palette bank n: 2 red crow, 3 purple crow, 4 gold crow, 5 fireflies
+#define BEHIND 0x100         // draw behind the text layer (BG0), e.g. fireflies behind the shop window
 
 // ---------- small helpers ----------
 static void copy32(volatile u32 *dst, const u32 *src, u32 words) {
@@ -205,7 +208,7 @@ static void update_message(void) {
 }
 
 // sin table, 64 steps per turn, scaled by 256
-static const signed short sin64[64] __attribute__((unused)) = {
+static const signed short sin64[64] = {
     0, 25, 50, 74, 98, 121, 142, 162, 181, 198, 213, 226, 237, 245, 251, 255,
     256, 255, 251, 245, 237, 226, 213, 198, 181, 162, 142, 121, 98, 74, 50, 25,
     0, -25, -50, -74, -98, -121, -142, -162, -181, -198, -213, -226, -237, -245, -251, -255,
@@ -223,13 +226,13 @@ static void oam_begin(void) { oam_used = 0; }
 static void oam_end(void) {
     for (u32 i = oam_used; i < 128; i++) oam_shadow[i * 4] = 0x0200;   // hidden
 }
-// 16x16 sprite at screen (x, y), cell from sprites.png. flags: HFLIP, VFLIP, FLASH.
+// 16x16 sprite at screen (x, y), cell from sprites.png. flags: HFLIP, VFLIP, FLASH, BANK(n), BEHIND.
 static void put_sprite(s32 x, s32 y, u32 cell, u32 flags) {
     if (oam_used >= 128) return;
     u16 *o = &oam_shadow[oam_used++ * 4];
     o[0] = (y & 0xFF);                                            // square shape
     o[1] = (x & 0x1FF) | (1 << 14) | ((flags & 3) << 12);         // 16x16, flips
-    o[2] = cell * 4 | ((flags >> 4) << 12);                       // tile index, priority 0, palette bank
+    o[2] = cell * 4 | (((flags >> 4) & 15) << 12) | ((flags & BEHIND) ? 1 << 10 : 0);   // tile, priority, bank
 }
 
 // ---------- farm ----------
@@ -271,26 +274,45 @@ static void set_tile(s32 mx, s32 my, u8 t) {
 }
 
 // ---------- crops ----------
-// Stages: SOIL (empty) -> SPROUT -> CROP_YOUNG -> CROP -> CROP_RIPE. Ripe crops wait to be harvested.
-#define GROW_FRAMES 480   // frames per stage (8 s at 60 fps). DESIGN.md first guess.
+// Four crops (v0.5). Stages: SOIL (empty) -> SPROUT -> CROP_YOUNG -> grown -> ripe. Sprout and young look the
+// same for every crop; grown and ripe have their own tiles (corn's are CROP and CROP_RIPE). crop_kind[]
+// remembers what each tile grows. Ripe crops wait to be harvested. Numbers: docs/V0.5_PLAN.md.
+enum { CORN, CARROT, TOMATO, PUMPKIN, KINDS };
+static const u8 grown_tile[KINDS] = { CROP, CARROT_GROWN, TOMATO_GROWN, PUMPKIN_GROWN };
+static const u8 ripe_tile[KINDS] = { CROP_RIPE, CARROT_RIPE, TOMATO_RIPE, PUMPKIN_RIPE };
+static const u16 grow_frames[KINDS] = { 480, 640, 800, 1120 };   // per stage; 3 stages: 24, 32, 40, 56 s
+static const s32 seed_price[KINDS] = { 1, 2, 3, 5 };
+static const s32 sell_price[KINDS] = { 2, 5, 8, 14 };   // Caleb: corn 3 -> 2 to balance the new crops
+static const s32 unlock_day[KINDS] = { 1, 5, 12, 20 };
+static const char *const crop_name[KINDS] = { "CORN", "CARROT", "TOMATO", "PUMPKIN" };
+static u8 crop_kind[MAP_W * MAP_H] __attribute__((aligned(4)));
 static u16 grow[MAP_W * MAP_H];   // frames since the tile's last stage change
 
-static u8 next_stage(u8 t) {
-    return t == SPROUT ? CROP_YOUNG : t == CROP_YOUNG ? CROP : t == CROP ? CROP_RIPE : t;
+static int is_grown(u8 t) { return t == CROP || t == CARROT_GROWN || t == TOMATO_GROWN || t == PUMPKIN_GROWN; }
+static int is_ripe(u8 t) { return t == CROP_RIPE || t == CARROT_RIPE || t == TOMATO_RIPE || t == PUMPKIN_RIPE; }
+static int is_crop(u8 t) { return t == SPROUT || t == CROP_YOUNG || is_grown(t) || is_ripe(t); }
+
+static u8 next_stage(s32 i) {
+    u8 t = farm[i];
+    return t == SPROUT ? CROP_YOUNG : t == CROP_YOUNG ? grown_tile[crop_kind[i]] : is_grown(t) ? ripe_tile[crop_kind[i]] : t;
+}
+static u8 eaten_stage(s32 i) {   // one crow bite takes a crop down one stage
+    u8 t = farm[i];
+    return is_ripe(t) ? grown_tile[crop_kind[i]] : is_grown(t) ? CROP_YOUNG : t == CROP_YOUNG ? SPROUT : SOIL;
 }
 
 static void update_crops(void) {
     for (s32 i = 0; i < MAP_W * MAP_H; i++) {
         u8 t = farm[i];
-        if (t != SPROUT && t != CROP_YOUNG && t != CROP) continue;
-        if (++grow[i] < GROW_FRAMES) continue;
+        if (t != SPROUT && t != CROP_YOUNG && !is_grown(t)) continue;
+        if (++grow[i] < grow_frames[crop_kind[i]]) continue;
         grow[i] = 0;
-        set_tile(i % MAP_W, i / MAP_W, next_stage(t));
+        set_tile(i % MAP_W, i / MAP_W, next_stage(i));
     }
 }
 
 static void reset_farm(void) {
-    for (u32 i = 0; i < MAP_W * MAP_H; i++) { farm[i] = farm_start[i]; grow[i] = 0; }
+    for (u32 i = 0; i < MAP_W * MAP_H; i++) { farm[i] = farm_start[i]; grow[i] = 0; crop_kind[i] = CORN; }
     for (s32 y = 0; y < MAP_H; y++)
         for (s32 x = 0; x < MAP_W; x++) draw_meta(x, y);
 }
@@ -340,7 +362,12 @@ static void update_farmer(void) {
 }
 
 // ---------- farm work (A button) ----------
-static s32 seeds, crops, coins, day;
+static s32 seeds[KINDS], crops[KINDS], coins, day;   // seeds and crops in the bag, per crop ($seeds = corn)
+static s32 sel_seed;                                 // the seed A plants; L cycles it (Caleb)
+
+static s32 crops_total(void) { s32 n = 0; for (s32 k = 0; k < KINDS; k++) n += crops[k]; return n; }
+static s32 crops_value(void) { s32 n = 0; for (s32 k = 0; k < KINDS; k++) n += crops[k] * sell_price[k]; return n; }
+static s32 seeds_total(void) { s32 n = 0; for (s32 k = 0; k < KINDS; k++) n += seeds[k]; return n; }
 static s32 tx, ty;   // the tile the farmer works on: just in front of his feet
 
 static void update_target(void) {
@@ -354,7 +381,7 @@ static void update_target(void) {
 }
 
 static int is_field(u8 t) {
-    return t == SOIL || t == SPROUT || t == CROP_YOUNG || t == CROP || t == CROP_RIPE || t == SCARECROW || t == SCARECROW_OFF;
+    return t == SOIL || is_crop(t) || t == SCARECROW || t == SCARECROW_OFF;
 }
 
 static void draw_hud(void);
@@ -391,13 +418,14 @@ static void farm_tiles(void) {
     s32 xs[3], ys[3], n = sickle_tiles(xs, ys), harvested = 0, planted = 0, wanted_seed = 0;
     for (s32 k = 0; k < n; k++) {
         u8 t = tile_at(xs[k], ys[k]);
-        if (t == CROP_RIPE) {
+        if (is_ripe(t)) {
             set_tile(xs[k], ys[k], SOIL);
-            crops++;
+            crops[crop_kind[ys[k] * MAP_W + xs[k]]]++;
             harvested++;
         } else if (t == SOIL) {
-            if (seeds <= 0) { wanted_seed = 1; continue; }
-            seeds--;
+            if (seeds[sel_seed] <= 0) { wanted_seed = 1; continue; }
+            seeds[sel_seed]--;
+            crop_kind[ys[k] * MAP_W + xs[k]] = sel_seed;
             grow[ys[k] * MAP_W + xs[k]] = 0;
             set_tile(xs[k], ys[k], SPROUT);
             planted++;
@@ -410,6 +438,18 @@ static void farm_tiles(void) {
         show_message("NO SEEDS!");
         play(SND_NOSEEDS);
     }
+}
+
+// L: plant the next unlocked seed (Caleb). Shows its name and count.
+static void seed_work(void) {
+    if (!HIT(KEY_L) || ko_timer) return;
+    do sel_seed = sel_seed + 1 < KINDS ? sel_seed + 1 : 0; while (day < unlock_day[sel_seed]);
+    char buf[24];
+    s32 n = copy_str(buf, crop_name[sel_seed]);
+    n += copy_str(buf + n, " SEEDS: ");
+    fmt_num(buf + n, seeds[sel_seed]);
+    show_message(buf);
+    draw_hud();
 }
 
 static void draw_marker(void) {
@@ -425,8 +465,8 @@ static void draw_hud(void) {
     put_text(1, 0, "DAY");
     fmt_num(buf, day);    put_text(5, 0, buf);
     put_text(9, 0, "$");  fmt_num(buf, coins); put_text(10, 0, buf);
-    put_text(15, 0, "&"); fmt_num(buf, crops); put_text(16, 0, buf);
-    put_text(20, 0, "^"); fmt_num(buf, seeds); put_text(21, 0, buf);
+    put_text(15, 0, "&"); fmt_num(buf, crops_total()); put_text(16, 0, buf);
+    put_text(20, 0, "^"); fmt_num(buf, seeds[sel_seed]); put_text(21, 0, buf);   // the chosen seed
     for (s32 i = 0; i < hearts && i < 5; i++) put_text(25 + i, 0, "*");
 }
 
@@ -442,8 +482,9 @@ static void draw_farmer(void) {
 
 // ---------- crows ----------
 // Each day, crows fly in one by one from the screen edges. Each flies to the nearest free crop, lands, and eats it one
-// stage per bite. Every bite makes it tougher (+1 HP up to double, red tint). With no crops left, crows go
-// for the farmer. Any crow pecks the farmer when he comes close.
+// stage per bite. Crows have levels (v0.5): Lv.1 black, Lv.2 red, Lv.3 purple, Lv.4 gold; the day table decides
+// how many of each come. A crow that has eaten its 3rd whole crop becomes Lv.3 (purple; Caleb). With no
+// crops left, crows go for the farmer. Any crow pecks the farmer when he comes close.
 #define MAX_CROWS 24
 enum { CROW_NONE, CROW_FLY, CROW_HURT, CROW_DEAD, CROW_EAT };
 // Separate arrays (not structs) so tests can poke $crow_hp+4 etc. Positions in 1/16 px, sprite top-left.
@@ -451,25 +492,24 @@ static s32 crow_state[MAX_CROWS], crow_x[MAX_CROWS], crow_y[MAX_CROWS], crow_hp[
 static s32 crow_vx[MAX_CROWS], crow_vy[MAX_CROWS], crow_timer[MAX_CROWS];
 static s32 crow_flash[MAX_CROWS], crow_cool[MAX_CROWS], crow_hit_by[MAX_CROWS];
 static s32 crow_target[MAX_CROWS];   // field index of its crop, or -1: the farmer
+static s32 crow_lv[MAX_CROWS];       // 1 black, 2 red, 3 purple, 4 gold (0, from a test poke, acts as 1)
+static s32 crow_ate[MAX_CROWS];      // whole crops eaten; the 3rd makes it Lv.3
 static s32 spawning;                 // 1: days run (tests set 0 and place crows by hand)
 static s32 day_left, spawn_timer;    // crows still to come today; frames toward the next one
 static s32 day_done;                 // > 0: all of today's crows are gone; frames until dusk
-#define CROW_SPEED 6       // 1/16 px per frame. Day 1 crows are slow (Caleb); later days speed up.
-#define CROW_HP 1          // Normal crow: 1 hit (DESIGN.md)
-#define CROW_HP_FED (2 * CROW_HP)   // bites raise HP up to this
+// Per level (index 0 = a poked crow, same as Lv.1): HP, speed in 1/16 px per frame, frames per bite.
+static const s32 crow_hp_of[5] = { 1, 1, 2, 3, 4 };
+static const s32 crow_speed_of[5] = { 6, 6, 7, 8, 9 };          // +15%, +30%, +45% (docs/V0.5_PLAN.md)
+static const s32 crow_bite_of[5] = { 120, 120, 120, 90, 60 };
+#define CROW_GOLD 4
+#define GOLD_COINS 5       // a gold crow drops 5 coins when killed
 #define PECK_COOL 90
-#define BITE_FRAMES 120    // 2 s per bite: a ripe crop is gone after 4 bites
+static s32 day_queue[MAX_CROWS];     // levels of today's crows still to come, spawned from the end
 #define DAY_START_DELAY 120   // 2 s from a new day to its first crow
 #define DAY_DONE_FRAMES 900   // 15 s to harvest and plant after the last crow, before dusk (Caleb)
 
 static s32 abs32(s32 v) { return v < 0 ? -v : v; }
 
-static int is_crop(u8 t) {
-    return t == SPROUT || t == CROP_YOUNG || t == CROP || t == CROP_RIPE;
-}
-static u8 eaten_stage(u8 t) {   // one bite takes a crop down one stage
-    return t == CROP_RIPE ? CROP : t == CROP ? CROP_YOUNG : t == CROP_YOUNG ? SPROUT : SOIL;
-}
 static int field_has_crops(void) {
     for (s32 i = 0; i < MAP_W * MAP_H; i++) if (is_crop(farm[i])) return 1;
     return 0;
@@ -502,7 +542,10 @@ static void spawn_crow(void) {
         s32 y = side == 2 ? -16 : side == 3 ? 160 : 24 + along % 112;
         crow_x[i] = x * 16; crow_y[i] = y * 16;
         crow_state[i] = CROW_FLY;
-        crow_hp[i] = CROW_HP;
+        crow_lv[i] = day_queue[day_left > 0 ? day_left - 1 : 0];
+        if (crow_lv[i] < 1) crow_lv[i] = 1;
+        crow_hp[i] = crow_hp_of[crow_lv[i]];
+        crow_ate[i] = 0;
         crow_flash[i] = 0; crow_cool[i] = 60; crow_vx[i] = crow_vy[i] = 0;
         crow_target[i] = pick_target(i);
         play(SND_CAW);
@@ -539,7 +582,8 @@ static int try_peck(s32 i, s32 reach) {
 static int fly_to(s32 i, s32 x, s32 y) {
     s32 dx = x - crow_x[i], dy = y - crow_y[i];
     s32 ax = abs32(dx), ay = abs32(dy);
-    s32 sx = ax >= ay / 2 ? CROW_SPEED : 0, sy = ay >= ax / 2 ? CROW_SPEED : 0;
+    s32 v = crow_speed_of[crow_lv[i]];
+    s32 sx = ax >= ay / 2 ? v : 0, sy = ay >= ax / 2 ? v : 0;
     if (ax > sx) crow_x[i] += dx > 0 ? sx : -sx; else crow_x[i] = x;
     if (ay > sy) crow_y[i] += dy > 0 ? sy : -sy; else crow_y[i] = y;
     if (dx) crow_vx[i] = dx;   // remembered for facing
@@ -548,16 +592,102 @@ static int fly_to(s32 i, s32 x, s32 y) {
 
 static void bite(s32 i) {
     s32 t = crow_target[i];
-    u8 left = eaten_stage(farm[t]);
+    u8 left = eaten_stage(t);
     grow[t] = 0;
     set_tile(t % MAP_W, t / MAP_W, left);
-    if (crow_hp[i] < CROW_HP_FED) crow_hp[i]++;
-    if (left == SOIL) { crow_state[i] = CROW_FLY; crow_target[i] = pick_target(i); }   // crop gone
+    if (left != SOIL) return;
+    crow_state[i] = CROW_FLY;                     // crop gone
+    crow_target[i] = pick_target(i);
+    if (++crow_ate[i] >= 3 && crow_lv[i] < 3) {   // its 3rd whole crop: it becomes Lv.3 (purple)
+        crow_hp[i] += crow_hp_of[3] - crow_hp_of[crow_lv[i]];
+        crow_lv[i] = 3;
+    }
+}
+
+// ---------- dusk look (v0.5, Caleb's pick) ----------
+// During the 15 s "DUSK IN n" countdown the field warms toward sunset orange; when the shop opens it is night
+// (dark blue) with fireflies around the window. The next day starts bright again.
+static u16 tint(u16 c, s32 warm, s32 night) {   // warm, night: 0..256
+    s32 r = c & 31, g = (c >> 5) & 31, b = (c >> 10) & 31;
+    r += ((31 - r) * warm >> 8) - (r * warm >> 10);   // toward orange: more red,
+    g += ((15 - g) * warm >> 8);                      // a middle green,
+    b -= (b * warm >> 8) * 2 / 3;                     // less blue
+    r -= r * night * 11 >> 12;                        // night: about 30% red, 45% green, 70% blue
+    g -= g * night * 9 >> 12;
+    b -= b * night * 5 >> 12;
+    b += 3 * night >> 8;
+    r = r < 0 ? 0 : r > 31 ? 31 : r;
+    g = g < 0 ? 0 : g > 31 ? 31 : g;
+    b = b < 0 ? 0 : b > 31 ? 31 : b;
+    return (u16)(r | (g << 5) | (b << 10));
+}
+static void set_light(s32 warm, s32 night) {   // field palette, and the farmer's while it is still day
+    for (u32 i = 0; i < 16; i++) {
+        PAL_BG[i] = tint(bg_pal[i], warm, night);
+        PAL_OBJ[i] = night ? obj_pal[i] : tint(obj_pal[i], warm, 0);
+    }
+}
+#define SUNSET_MAX 96    // how orange the field gets at the end of the countdown (of 256)
+
+#define FIREFLIES 9
+static const u8 fly_x[FIREFLIES] = { 6, 8, 224, 226, 220, 52, 150, 108, 190 };   // around the shop window
+static const u8 fly_y[FIREFLIES] = { 36, 96, 28, 88, 128, 138, 142, 6, 10 };
+static void draw_fireflies(void) {
+    for (s32 k = 0; k < FIREFLIES; k++) {
+        u32 t = frame + k * 37;
+        s32 x = fly_x[k] - 8 + (sin64[(t >> 3) & 63] * 6 >> 8);         // drift slowly
+        s32 y = fly_y[k] - 8 + (sin64[((t >> 2) + k * 9) & 63] * 4 >> 8);
+        u32 phase = (t >> 1) & 63;                                     // blink: bright, dim, dark
+        if (phase < 28) put_sprite(x, y, SPR_FIREFLY, BANK(5) | BEHIND);
+        else if (phase < 44) put_sprite(x, y, SPR_FIREFLY_DIM, BANK(5) | BEHIND);
+    }
 }
 
 static void open_shop(void);
 
-static s32 crows_today(void) { return 2 + day; }   // 3 on day 1 (Caleb: 6 was too many), +1 a day
+// Random number in [a, b] (b >= a).
+static s32 rand_in(s32 a, s32 b) { return b > a ? a + (s32)(rng() % (u32)(b - a + 1)) : a; }
+
+// Today's crows (docs/V0.5_PLAN.md day table): a random total in the day's range and a random mix of levels,
+// so runs differ. Days 1-9 black only; red from Day 10, purple from 20, gold from 30; black is a minority
+// from Day 25; from Day 40 all gold. Fills day_queue (shuffled) and returns the count.
+static s32 plan_day(s32 d) {
+    s32 n[5];   // crows per level; assigned one by one (an initializer would call memset)
+    n[0] = n[1] = n[2] = n[3] = n[4] = 0;
+    s32 lo, hi, total;
+    if (d >= 40) {
+        lo = 12 + (d - 40) / 2;
+        if (lo > 22) lo = 22;
+        hi = lo + 2 > MAX_CROWS ? MAX_CROWS : lo + 2;
+        n[4] = total = rand_in(lo, hi);
+    } else {
+        lo = 2 + d / 2;
+        hi = lo + (d < 10 ? 2 : d < 30 ? 3 : 4);
+        if (hi > MAX_CROWS) hi = MAX_CROWS;
+        total = rand_in(lo, hi);
+        if (d >= 20) n[3] = rand_in(1 + (d - 20) / 3, 1 + (d - 20) / 3 + (d >= 25));
+        if (d >= 30) n[4] = rand_in(1 + (d - 30) / 3, 1 + (d - 30) / 3 + (d >= 33));
+        if (d < 10) n[1] = total;
+        else if (d < 25) {
+            n[2] = rand_in(1 + (d - 10) / 2, d > 10 ? 2 + (d - 10) / 2 : 1);
+            n[1] = total - n[2] - n[3];
+        } else {
+            n[1] = rand_in(lo / 5, hi / 3);
+            n[2] = total - n[1] - n[3] - n[4];
+        }
+        for (s32 k = 1; k <= 2; k++) if (n[k] < 0) { n[3 - k] += n[k]; n[k] = 0; }   // never negative
+    }
+    s32 c = 0;
+    for (s32 lv = 1; lv <= 4; lv++)
+        for (s32 k = 0; k < n[lv] && c < MAX_CROWS; k++) day_queue[c++] = lv;
+    for (s32 k = c - 1; k > 0; k--) {   // shuffle
+        s32 j = rand_in(0, k), t = day_queue[k];
+        day_queue[k] = day_queue[j];
+        day_queue[j] = t;
+    }
+    return c;
+}
+
 static s32 spawn_gap(void) {                        // frames between crows: 2.5 s on day 1, then faster
     s32 g = 160 - 10 * day;
     return g < 45 ? 45 : g;
@@ -568,7 +698,7 @@ static void start_day(void) {
     fmt_num(buf + copy_str(buf, "DAY "), day);
     show_message(buf);
     draw_hud();
-    day_left = crows_today();
+    day_left = plan_day(day);
     spawn_timer = spawn_gap() - DAY_START_DELAY;    // first crow after 2 s
     day_done = 0;
 }
@@ -592,6 +722,8 @@ static void update_days(s32 alive) {
     }
     if (ko_timer) return;                     // wait until he is back on his feet
     if (--day_done > 0) {
+        if ((day_done & 3) == 0)              // the sun goes down
+            set_light((DAY_DONE_FRAMES - day_done) * SUNSET_MAX / DAY_DONE_FRAMES, 0);
         if (day_done % 60 == 0) {             // once a second: "DUSK IN n"
             char buf[16];
             fmt_num(buf + copy_str(buf, "DUSK IN "), day_done / 60);
@@ -626,7 +758,7 @@ static void update_crows(void) {
         if (st == CROW_EAT) {    // crows eat freely while the farmer is knocked out
             if (!is_crop(farm[t])) { crow_state[i] = CROW_FLY; crow_target[i] = pick_target(i); continue; }   // harvested
             if (!ko_timer && try_peck(i, 12)) continue;
-            if (--crow_timer[i] <= 0) { crow_timer[i] = BITE_FRAMES; bite(i); }
+            if (--crow_timer[i] <= 0) { crow_timer[i] = crow_bite_of[crow_lv[i]]; bite(i); }
             continue;
         }
         // Flying. Check the target: the crop may be gone, or a crow after the farmer may see new crops.
@@ -640,7 +772,7 @@ static void update_crows(void) {
         if (!ko_timer && try_peck(i, 10)) continue;
         if (fly_to(i, (t % MAP_W) * 256, (t / MAP_W) * 256 - 4 * 16)) {   // land on the crop, standing a bit high
             crow_state[i] = CROW_EAT;
-            crow_timer[i] = BITE_FRAMES;
+            crow_timer[i] = crow_bite_of[crow_lv[i]];
         }
     }
     update_days(alive);
@@ -654,6 +786,11 @@ static void hit_crow(s32 i, s32 dmg, s32 kvx, s32 kvy) {
         crow_state[i] = CROW_DEAD;
         crow_timer[i] = 16;
         play(SND_POOF);
+        if (crow_lv[i] == CROW_GOLD) {   // gold crows drop coins
+            coins += GOLD_COINS;
+            show_message("+5 COINS");
+            draw_hud();
+        }
         return;
     }
     crow_state[i] = CROW_HURT;
@@ -669,8 +806,8 @@ static int crow_targetable(s32 i) {
 
 // ---------- scarecrow turrets ----------
 // Bought at dusk, placed with SELECT on an empty soil tile (it takes that crop slot; SELECT again picks it
-// up). Each shoots a seed at the nearest crow in range; every shot uses 1 of the farmer's seeds (Caleb),
-// so with no seeds they stop. Holding B while facing one switches it off or on (Caleb); an off scarecrow
+// up). Each shoots a seed at the nearest crow in range; every shot uses 1 of the farmer's corn seeds (Caleb:
+// corn only), so with no corn seeds they stop. Holding B while facing one switches it off or on (Caleb); an off scarecrow
 // is the gray SCARECROW_OFF tile and does not shoot. Levels (shop) apply to every scarecrow.
 #define MAX_SCARECROWS 8
 #define MAX_SHOTS 12
@@ -684,7 +821,7 @@ static s32 shot_x[MAX_SHOTS], shot_y[MAX_SHOTS], shot_vx[MAX_SHOTS], shot_vy[MAX
 #define PLACE_HOLD 20          // frames of held A that place or pick up a scarecrow (Caleb: SELECT was not enough)
 static s32 a_hold;           // > 0: frames A has been held on a waiting tile; -1: this hold already acted
 static s32 sc_hold;          // frames B has been held while facing a scarecrow (stops counting after a switch)
-static s32 sc_warned;                    // 1: "SCARECROWS NEED SEEDS" shown; cleared once seeds come back
+static s32 sc_warned;                    // 1: "SCARECROWS NEED CORN" shown; cleared once corn comes back
 
 static s32 scarecrow_reload(void) { return scarecrow_lv >= 2 ? 50 : 90; }   // frames between shots
 static s32 scarecrow_range(void) { return scarecrow_lv >= 3 ? 88 : 64; }    // px
@@ -706,8 +843,8 @@ static s32 nearest_crow(s32 x, s32 y, s32 range, s32 skip) {
     return best;
 }
 
-static void fire_shot(s32 x, s32 y, s32 c) {   // from (x, y) px toward crow c's center; costs 1 seed
-    if (seeds <= 0) return;
+static void fire_shot(s32 x, s32 y, s32 c) {   // from (x, y) px toward crow c's center; costs 1 corn seed
+    if (seeds[CORN] <= 0) return;
     for (s32 k = 0; k < MAX_SHOTS; k++) {
         if (shot_life[k]) continue;
         s32 dx = (crow_x[c] >> 4) + 8 - x, dy = (crow_y[c] >> 4) + 8 - y;
@@ -717,7 +854,7 @@ static void fire_shot(s32 x, s32 y, s32 c) {   // from (x, y) px toward crow c's
         shot_vx[k] = dx * SHOT_SPEED / d;   // one division per shot, not per frame
         shot_vy[k] = dy * SHOT_SPEED / d;
         shot_life[k] = SHOT_LIFE;
-        seeds--;
+        seeds[CORN]--;
         draw_hud();
         return;
     }
@@ -730,8 +867,8 @@ static void update_scarecrows(void) {
         s32 x = sc_x[s] * 16 + 8, y = sc_y[s] * 16 + 5;   // the scarecrow's head
         s32 c = nearest_crow(x, y, scarecrow_range(), -1);
         if (c < 0) continue;
-        if (seeds <= 0) {        // out of ammo: tell him once
-            if (!sc_warned) { show_message("SCARECROWS NEED SEEDS"); sc_warned = 1; }
+        if (seeds[CORN] <= 0) {  // out of ammo: tell him once
+            if (!sc_warned) { show_message("SCARECROWS NEED CORN"); sc_warned = 1; }
             continue;
         }
         sc_warned = 0;
@@ -824,7 +961,7 @@ static void draw_crows(void) {
             put_sprite(x, y, crow_timer[i] > 8 ? SPR_PUFF_SMALL : SPR_PUFF_BIG, 0);
             continue;
         }
-        u32 flags = (crow_vx[i] < 0 ? HFLIP : 0) | (crow_flash[i] ? FLASH : crow_hp[i] > CROW_HP ? FED : 0);
+        u32 flags = (crow_vx[i] < 0 ? HFLIP : 0) | (crow_flash[i] ? FLASH : crow_lv[i] >= 2 ? BANK(crow_lv[i]) : 0);
         if (st == CROW_EAT) {    // wings folded; dips its head for the last few frames before a bite
             put_sprite(x, y + (crow_timer[i] < 10), SPR_CROW_B, flags);
             continue;
@@ -902,8 +1039,7 @@ static void draw_sword(void) {
 }
 
 // ---------- dusk shop ----------
-#define SEED_PRICE 1   // Caleb, 2026-10-22: 8 and 5 gave too much cash; a crop sells for 3, a seed costs 1
-#define CROP_PRICE 3
+// Seed and crop prices: seed_price[] and sell_price[] with the crops.
 // Upgrade prices for Lv.2 and Lv.3: about as many crops as the concept's 120 / 150 at 8 coins a crop.
 static const s32 sickle_price[2] = { 45, 90 };
 static const s32 sword_price[2] = { 60, 120 };
@@ -913,9 +1049,8 @@ static const s32 scarecrow_price[2] = { 60, 120 };
 // B goes back to the main page. EXPANSION (bigger field) comes later.
 enum { PAGE_MAIN, PAGE_SEEDS, PAGE_WEAPONS };
 enum { MAIN_SELL, MAIN_SEEDS, MAIN_WEAPONS, MAIN_NEXT, MAIN_ITEMS };
-enum { SEED_CORN, SEED_ITEMS };   // one crop so far; more seeds come later
 enum { W_SICKLE, W_SWORD, W_SCARECROW, W_SCARECROW_LV, W_ITEMS };
-static const s32 page_items[3] = { MAIN_ITEMS, SEED_ITEMS, W_ITEMS };
+static const s32 page_items[3] = { MAIN_ITEMS, KINDS, W_ITEMS };
 static s32 shop_open, shop_page, shop_cursor, main_cursor;
 // Window: text columns 3..26, rows 3..16 (centered between the HUD and the message row). One blank row
 // above the title and below "YOU HAVE", so nothing sits on the edge (Caleb). The hint goes on row 19.
@@ -965,21 +1100,37 @@ static void draw_shop(void) {
         copy_str(buf + n, " IS OVER.");
         shop_centered(SHOP_T + 1, buf);
         n = copy_str(buf, "SELL CROPS &");
-        fmt_num(buf + n, crops);
-        shop_item(MAIN_SELL, buf, crops * CROP_PRICE);
+        fmt_num(buf + n, crops_total());
+        shop_item(MAIN_SELL, buf, crops_value());
         shop_item(MAIN_SEEDS, "SEEDS", -2);
         shop_item(MAIN_WEAPONS, "WEAPONS", -2);
         shop_item(MAIN_NEXT, "NEXT DAY", -2);
     } else if (shop_page == PAGE_SEEDS) {
         shop_centered(SHOP_T + 1, "SEEDS");
-        shop_item(SEED_CORN, "CORN SEED  ^1", SEED_PRICE);
-        n = copy_str(buf, "    SELLS FOR $");
-        fmt_num(buf + n, CROP_PRICE);
-        shop_line(SHOP_T + 6, buf);
-        n = copy_str(buf, "    GROWS IN ");
-        n += fmt_num(buf + n, GROW_FRAMES * 3 / 60);   // sprout -> young -> grown -> ripe
-        copy_str(buf + n, " SEC");
-        shop_line(SHOP_T + 8, buf);
+        for (s32 k = 0; k < KINDS; k++) {   // "CORN    X3   = $1", or "PUMPKIN DAY 20" while locked
+            n = copy_str(buf, crop_name[k]);
+            while (n < 8) buf[n++] = ' ';
+            buf[n] = 0;
+            if (day < unlock_day[k]) {
+                fmt_num(buf + n + copy_str(buf + n, "DAY "), unlock_day[k]);
+                shop_item(k, buf, -2);
+            } else {
+                buf[n++] = 'X';
+                fmt_num(buf + n, seeds[k]);
+                shop_item(k, buf, seed_price[k]);
+            }
+        }
+        s32 k = shop_cursor;   // the bottom line tells about the seed under the cursor
+        if (day < unlock_day[k]) {
+            fmt_num(buf + copy_str(buf, "UNLOCKS ON DAY "), unlock_day[k]);
+        } else {
+            n = copy_str(buf, "SELLS $");
+            n += fmt_num(buf + n, sell_price[k]);
+            n += copy_str(buf + n, "  GROWS ");
+            n += fmt_num(buf + n, grow_frames[k] * 3 / 60);   // sprout -> young -> grown -> ripe
+            copy_str(buf + n, " SEC");
+        }
+        shop_centered(SHOP_T + 12, buf);
     } else {
         shop_centered(SHOP_T + 1, "WEAPONS");
         shop_level(W_SICKLE, "SICKLE LV", sickle_lv, sickle_price);
@@ -988,15 +1139,17 @@ static void draw_shop(void) {
         shop_level(W_SCARECROW_LV, "SCARECROW LV", scarecrow_lv, scarecrow_price);
     }
     put_text(SHOP_L + 1, SHOP_T + 4 + 2 * shop_cursor, ">");
-    n = copy_str(buf, "YOU HAVE $");
-    n += fmt_num(buf + n, coins);
-    n += copy_str(buf + n, " &");
-    n += fmt_num(buf + n, crops);
-    n += copy_str(buf + n, " ^");
-    n += fmt_num(buf + n, seeds);
-    n += copy_str(buf + n, " #");
-    fmt_num(buf + n, scarecrow_bag);
-    shop_centered(SHOP_T + 12, buf);
+    if (shop_page != PAGE_SEEDS) {   // (the SEEDS page uses this line for the seed under the cursor)
+        n = copy_str(buf, "YOU HAVE $");
+        n += fmt_num(buf + n, coins);
+        n += copy_str(buf + n, " &");
+        n += fmt_num(buf + n, crops_total());
+        n += copy_str(buf + n, " ^");
+        n += fmt_num(buf + n, seeds[sel_seed]);
+        n += copy_str(buf + n, " #");
+        fmt_num(buf + n, scarecrow_bag);
+        shop_centered(SHOP_T + 12, buf);
+    }
     clear_row(19);
     put_text(4, 19, shop_page == PAGE_MAIN ? "UP/DOWN PICK  A CHOOSE" : "A BUY  B BACK");
 }
@@ -1004,8 +1157,9 @@ static void draw_shop(void) {
 static void open_shop(void) {
     shop_open = 1;
     shop_page = PAGE_MAIN;
-    shop_cursor = crops ? MAIN_SELL : MAIN_SEEDS;
+    shop_cursor = crops_total() ? MAIN_SELL : MAIN_SEEDS;
     swing = 0;
+    set_light(0, 256);   // night
     msg_timer = 0;
     draw_shop();
 }
@@ -1014,6 +1168,7 @@ static void close_shop(void) {
     shop_open = 0;
     for (s32 r = SHOP_T; r < SHOP_T + SHOP_ROWS; r++) clear_row(r);
     clear_row(19);
+    set_light(0, 0);     // a new morning
     day++;
     start_day();
     if (scarecrow_bag) show_message("HOLD A ON SOIL: SCARECROW");
@@ -1041,7 +1196,10 @@ static void update_shop(void) {
     s32 ok = 1;
     if (shop_page == PAGE_MAIN) {
         if (shop_cursor == MAIN_SELL) {
-            if ((ok = crops > 0)) { coins += crops * CROP_PRICE; crops = 0; }
+            if ((ok = crops_total() > 0)) {
+                coins += crops_value();
+                for (s32 k = 0; k < KINDS; k++) crops[k] = 0;
+            }
         } else if (shop_cursor == MAIN_NEXT) {
             close_shop();
             return;
@@ -1053,7 +1211,8 @@ static void update_shop(void) {
             return;
         }
     } else if (shop_page == PAGE_SEEDS) {
-        if ((ok = coins >= SEED_PRICE)) { coins -= SEED_PRICE; seeds++; }
+        s32 k = shop_cursor;
+        if ((ok = day >= unlock_day[k] && coins >= seed_price[k])) { coins -= seed_price[k]; seeds[k]++; }
     } else if (shop_cursor == W_SICKLE) {
         ok = buy_level(&sickle_lv, sickle_price);
     } else if (shop_cursor == W_SWORD) {
@@ -1078,11 +1237,14 @@ static void new_run(void) {
     for (s32 i = 0; i < MAX_CROWS; i++) crow_state[i] = CROW_NONE;
     for (s32 r = 1; r < 20; r++) clear_row(r);
     msg_timer = 0;
+    set_light(0, 0);
     px = PLAYER_START_X * 16 * 16;
     py = PLAYER_START_Y * 16 * 16;
     pdir = DIR_UP;
     pvx = pvy = hurt_timer = ko_timer = swing = weapon_out = 0;
-    day = 1; seeds = 3; crops = 0; coins = 0; hearts = max_hearts = 3;   // DESIGN.md first guesses
+    for (s32 k = 0; k < KINDS; k++) seeds[k] = crops[k] = 0;
+    day = 1; seeds[CORN] = 3; coins = 0; hearts = max_hearts = 3;   // DESIGN.md first guesses
+    sel_seed = CORN;
     sickle_lv = 1;
     set_sword_lv(1);
     scarecrows = scarecrow_bag = sc_warned = 0;
@@ -1096,7 +1258,7 @@ static void new_run(void) {
 // Lose: no crops in the field, no seeds, and not enough coins for a seed (DESIGN.md). Crops in the bag
 // count as the coins they sell for at dusk.
 static void check_game_over(void) {
-    if (seeds > 0 || coins + crops * CROP_PRICE >= SEED_PRICE || field_has_crops()) return;
+    if (seeds_total() > 0 || coins + crops_value() >= seed_price[CORN] || field_has_crops()) return;
     char buf[24];
     fmt_num(buf + copy_str(buf, "YOU REACHED DAY "), day);
     game_over = 1;
@@ -1115,11 +1277,21 @@ int main(void) {
         PAL_BG[i] = bg_pal[i];
         PAL_OBJ[i] = obj_pal[i];
         PAL_OBJ[16 + i] = 0x7FFF;   // bank 1: hit flash, all white
-        PAL_OBJ[32 + i] = obj_pal[i];   // bank 2: fed crow, crow colors tinted red below
+        PAL_OBJ[32 + i] = obj_pal[i];   // bank 2: Lv.2 crow, crow colors tinted red below
     }
-    PAL_OBJ[32 + 1] = (9) | (3 << 5) | (3 << 10);      // body: dark red-black
+    PAL_OBJ[32 + 1] = (9) | (3 << 5) | (3 << 10);      // Lv.2 crow body: dark red-black
     PAL_OBJ[32 + 9] = (17) | (5 << 5) | (5 << 10);     // wing: deep red
     PAL_OBJ[32 + 10] = (24) | (9 << 5) | (8 << 10);    // sheen: red
+    for (u32 i = 0; i < 16; i++) { PAL_OBJ[48 + i] = obj_pal[i]; PAL_OBJ[64 + i] = obj_pal[i]; }
+    PAL_OBJ[48 + 1] = (7) | (2 << 5) | (10 << 10);     // Lv.3 crow body: dark purple
+    PAL_OBJ[48 + 9] = (13) | (5 << 5) | (19 << 10);    // wing: purple
+    PAL_OBJ[48 + 10] = (21) | (11 << 5) | (27 << 10);  // sheen: lilac
+    PAL_OBJ[64 + 1] = (14) | (10 << 5) | (2 << 10);    // gold crow body: dark gold
+    PAL_OBJ[64 + 9] = (26) | (20 << 5) | (4 << 10);    // wing: gold
+    PAL_OBJ[64 + 10] = (31) | (28 << 5) | (12 << 10);  // sheen: bright gold
+    for (u32 i = 0; i < 16; i++) PAL_OBJ[80 + i] = obj_pal[i];
+    PAL_OBJ[80 + 13] = (31) | (31 << 5) | (20 << 10);  // firefly core: pale yellow
+    PAL_OBJ[80 + 14] = (18) | (28 << 5) | (8 << 10);   // firefly glow: yellow-green
     PAL_BG[16 + 1] = (29) | (28 << 5) | (22 << 10);   // text: cream
     PAL_BG[16 + 2] = (3) | (4 << 5) | (6 << 10);      // text background: dark slate
     PAL_BG[16 + 3] = (28) | (8 << 5) | (6 << 10);     // heart red
@@ -1159,13 +1331,15 @@ int main(void) {
         }
         if (shop_open) {
             update_shop();
-            oam_begin();   // sprites hidden so they do not cover the window
+            oam_begin();   // only the fireflies; they sit behind the window
+            if (shop_open) draw_fireflies();
             oam_end();
             continue;
         }
         update_farmer();
         update_target();
         farm_work();
+        seed_work();
         scarecrow_work();
         update_sword();
         update_crows();

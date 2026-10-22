@@ -1,0 +1,81 @@
+# v0.5: crow levels and colors, gold coins, L seed cycling, a carrot from seed to harvest, selling mixed
+# crops, the SEEDS page with locked crops, the sunset during "DUSK IN n", and the night shop with fireflies.
+1 0 !$spawning=0
+30 0
+# four crows held still on the grass below the field: Lv.1 black, Lv.2 red, Lv.3 purple, Lv.4 gold
+1 0 !$crow_state=2,$crow_timer=9999,$crow_vx=0,$crow_vy=0,$crow_x=640,$crow_y=2112,$crow_lv=1,$crow_hp=1
+1 0 !$crow_state+4=2,$crow_timer+4=9999,$crow_vx+4=0,$crow_vy+4=0,$crow_x+4=1152,$crow_y+4=2112,$crow_lv+4=2,$crow_hp+4=2
+1 0 !$crow_state+8=2,$crow_timer+8=9999,$crow_vx+8=0,$crow_vy+8=0,$crow_x+8=2560,$crow_y+8=2112,$crow_lv+8=3,$crow_hp+8=3
+1 0 !$crow_state+12=2,$crow_timer+12=9999,$crow_vx+12=0,$crow_vy+12=0,$crow_x+12=3072,$crow_y+12=2112,$crow_lv+12=4,$crow_hp+12=1
+2 0 v1_levels.ppm
+# a gold crow drops 5 coins: the farmer stands left of it facing right and swings (gold HP set to 1 above)
+1 0 !$px=2816,$py=2112,$pdir=3,$coins=0
+2 2
+3 0 v2_gold.ppm
+1 0 @$crow_state+12,$coins,$msg_timer
+30 0
+1 0 !$crow_state=0,$crow_state+4=0,$crow_state+8=0
+# L cycles the seed: on day 12 corn, carrot, tomato are open (pumpkin from day 20), so L goes corn -> carrot
+# -> tomato -> corn
+1 0 !$day=12,$seeds+4=3,$seeds+8=2
+1 512
+1 0 @$sel_seed
+1 512
+1 0 @$sel_seed
+1 512
+1 0 @$sel_seed
+# plant a carrot on soil (9,3) = field index 54: L to carrot, face up from below, A
+1 512
+1 0 !$px=2304,$py=896,$pdir=1
+1 1
+2 0 @$sel_seed,$seeds+4,$crop_kind+52,$farm+52
+# it grows in 3 stages of 640 frames (32 s): sprout -> young -> grown -> ripe
+1930 0 v3_carrot.ppm
+1 0 @$farm+52
+1 1
+2 0
+1 0 @$crops,$crops+4,$farm+52
+# dusk: no crows to come or alive. "DAY 12 DONE!", then the sunset during the 15 s countdown
+1 0 !$spawning=1,$day_left=0,$crops=2
+450 0 v4_sunset_half.ppm
+440 0 v5_sunset_late.ppm
+1 0 @$day_done
+30 0 v6_night_shop.ppm
+1 0 @$shop_open,$shop_cursor
+# SELL: 2 corn x 2 + 1 carrot x 5 = 9 coins (after the 5 from the gold crow)
+1 1
+1 0 @$coins,$crops,$crops+4
+# the SEEDS page: corn, carrot, tomato open; pumpkin locked until day 20
+1 128
+1 0
+1 1
+3 0 v7_seeds_page.ppm
+1 0 @$shop_page
+# down to the locked pumpkin: the bottom line says when it unlocks; A is refused
+1 128
+1 0
+1 128
+1 0
+1 128
+1 0
+1 1
+3 0 v7b_pumpkin.ppm
+1 0 @$shop_cursor,$seeds+12,$coins
+1 64
+1 0
+1 64
+1 0
+1 64
+1 0
+# fireflies blink: a second night shot later
+40 0 v8_fireflies.ppm
+# B back, NEXT DAY: a bright morning again
+1 2
+1 0
+1 128
+1 0
+1 128
+1 0
+1 1
+3 0 v9_morning.ppm
+1 0 @$shop_open,$day

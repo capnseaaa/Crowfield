@@ -1,5 +1,5 @@
-# crows (v0.2) and days (v0.3): land on a crop, eat it stage by stage, grow tougher, re-target, chase the
-# farmer when no crops are left, game over, new run, day 1, dusk shop, day 2.
+# crows (v0.2, levels v0.5) and days (v0.3): land on a crop, eat it stage by stage, re-target, turn purple
+# after the 3rd crop, chase the farmer when no crops are left, game over, new run, day 1, dusk shop, day 2.
 # Field bytes: SOIL=3 SPROUT=4 CROP=5 CROP_RIPE=6 CROP_YOUNG=14. Ripe crop at (10,3) = field index 55.
 1 0 !$spawning=0
 30 0
@@ -7,19 +7,26 @@
 1 0 !$crow_state=1,$crow_x=2560,$crow_y=544,$crow_hp=1,$crow_cool=999,$crow_target=55
 40 0 e1_landed.ppm
 1 0 @$crow_state,$crow_x,$crow_y,$farm+52
-# one bite (2 s): ripe -> grown, HP 1 -> 2 (red tint)
+# one bite (2 s): ripe -> grown; a bite adds no HP (v0.5)
 120 0 e2_bite1.ppm
 1 0 @$crow_hp,$farm+52
-# three more bites: grown -> young -> sprout -> soil; HP stays at 2; it flies to the next crop (70)
+# three more bites: grown -> young -> sprout -> soil; 1 whole crop eaten; it flies to the next crop (70)
 360 0 e3_eaten.ppm
-1 0 @$crow_hp,$farm+52,$crow_state,$crow_target
-# B: a fed crow takes 2 hits. Farmer stands left of it, facing right.
+1 0 @$crow_hp,$farm+52,$crow_state,$crow_target,$crow_ate
+# B: the 3rd whole crop makes it Lv.3 (purple, 3 HP). Count it as 2 eaten; when tile 70 is gone it turns.
 60 0
 1 0 @$crow_state,$crow_x,$crow_y
-1 0 !$crow_cool=999
-1 0 !$px=2304,$py=1088,$pdir=3
+1 0 !$crow_ate=2,$crow_cool=999
+400 0 e4_purple.ppm
+1 0 @$crow_lv,$crow_hp,$crow_ate,$farm+68
+# a purple crow takes 3 sword hits: put it right of the farmer each time and swing
+1 0 !$px=2304,$py=1088,$pdir=3,$crow_state=1,$crow_x=2560,$crow_y=1088,$crow_cool=999
 2 2
-20 0 e4_hit1.ppm
+20 0
+1 0 @$crow_hp,$crow_state
+1 0 !$crow_x=2560,$crow_y=1088,$crow_state=1
+2 2
+20 0
 1 0 @$crow_hp,$crow_state
 1 0 !$crow_x=2560,$crow_y=1088,$crow_state=1
 2 2
@@ -32,7 +39,7 @@
 1 0 !$crow_state+4=1,$crow_x+4=320,$crow_y+4=1792,$crow_hp+4=1,$crow_cool+4=999,$crow_target+4=55
 40 0
 1 0 @$crow_target+4,$crow_x+4,$game_over
-# D: no seeds and no crops in the field, but 1 crop in the bag (sells for 3 at dusk): the run goes on
+# D: no seeds and no crops in the field, but 1 crop in the bag (sells for 2 at dusk): the run goes on
 1 0 !$seeds=0,$crops=1
 3 0
 1 0 @$game_over
@@ -44,7 +51,9 @@
 2 8
 3 0 e7_newrun.ppm
 1 0 @$game_over,$seeds,$farm+52,$crow_state+4,$day,$day_left
-# E: day 1. Crows at 2 s, then every 2.5 s. Give him 3 crops, clear the crows: "DAY 1 DONE!", then dusk.
+# E: day 1. Crows at 2 s, then every 2.5 s. Day 1 has 2-4 crows at random; fix it at 3 for this test.
+# Give him 3 crops, clear the crows: "DAY 1 DONE!", then dusk.
+1 0 !$day_left=3
 430 0 e8_day1.ppm
 1 0 @$day_left,$crow_state,$crow_state+4,$crow_state+8
 1 0 !$crow_state=0,$crow_state+4=0,$crow_state+8=0,$crops=3,$coins=0,$seeds=3,$hearts=3,$ko_timer=0
@@ -55,7 +64,7 @@
 1 0 @$day_done,$shop_open
 455 0 s1_shop.ppm
 1 0 @$shop_open,$shop_cursor,$grow+100
-# F: the shop. A sells all crops: 3 x 3 = 9 coins.
+# F: the shop. A sells all crops: 3 x 2 = 6 coins.
 1 1
 1 0 s2_sold.ppm
 1 0 @$coins,$crops
@@ -76,7 +85,7 @@
 # the farm is paused while the shop is open: no growth (grow counter of tile 51 holds)
 60 0
 1 0 @$grow+100
-# B back (cursor on SEEDS), down past WEAPONS to NEXT DAY, A: day 2 with 4 crows to come
+# B back (cursor on SEEDS), down past WEAPONS to NEXT DAY, A: day 2 with 3-5 crows to come
 1 2
 1 0
 1 128

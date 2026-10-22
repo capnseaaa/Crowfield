@@ -7,3 +7,4 @@ crowfield/test/.resolved.txt
 crowfield/test/*.ppm
 crowfield/src/sound.h
 crowfield/test/*.wav
+crowfield/test/.days.txt

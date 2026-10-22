@@ -71,8 +71,10 @@ All other numbers are open until playtests.
 | Big | large, red eye | 5 hits, eats 2 stages per bite, can peck the farmer. |
 | Swarm | flock of tiny crows | many weak crows that come as one group. |
 
-**Eating buffs crows.** Each crop stage a crow eats gives it more HP (first guess +1 HP per bite,
-capped at double its base HP). A fed crow is tinted red.
+**Crow levels and eating (v0.5, Caleb).** Lv.1 black (1 HP), Lv.2 red (2 HP, +15% speed), Lv.3 purple
+(3 HP, +30%, bites every 1.5 s), gold (4 HP, +45%, bites every 1 s, drops 5 coins when killed). A crow that
+has eaten its 3rd whole crop becomes Lv.3 (purple). Bites no longer add HP or tint a crow (v0.2-v0.4 did),
+so a crow's color always tells its level. The day table (random count and mix per day): docs/V0.5_PLAN.md.
 
 **v0.2 crow numbers (first guesses, tune by play):** flight 6/16 px per frame (the old sparring crows
 flew 10); one bite every 2 s, so a ripe crop is gone after 4 bites; each crow goes for the nearest crop
@@ -98,7 +100,12 @@ and new types unlock on later days (Fast day 3, Armored day 5, Big day 7, Swarm 
   seed with its price, what its crop sells for, and its grow time (corn: 1, 3, 24 s; the only crop so far).
   WEAPONS lists Sickle, Sword, Scarecrow, Scarecrow level. A opens a page or buys; B goes back.
   EXPANSION (a bigger field) is planned but not built.
-- Selling: each crop sells for 3 coins (Caleb, 2026-10-22; the first guess of 8 gave too much cash).
+- Crops (v0.5): corn (seed 1, sells 2, grows 24 s), carrot (2, 5, 32 s, from Day 5), tomato (3, 8, 40 s,
+  from Day 12), pumpkin (5, 14, 56 s, from Day 20). Corn went from 3 to 2 to balance the new crops (Caleb).
+  L cycles which unlocked seed A plants; the HUD seed count is for that seed. Scarecrows fire corn seeds
+  only (Caleb). The SEEDS page lists every seed (locked ones show their unlock day) and tells the sell
+  price and grow time of the seed under the cursor.
+- Selling: (v0.4) each crop sold for 3 coins (Caleb, 2026-10-22; the first guess of 8 gave too much cash).
   Sold at dusk: SELL CROPS sells the whole bag.
 - Seeds cost 1 coin each at dusk (Caleb; was 5). BUY SEED buys one per press.
 - Upgrade prices (v0.3.1), rescaled from the concept's Sickle 120 / Sword 150 (set against 8-coin crops) to
@@ -126,6 +133,9 @@ farmer is knocked out.
   arc at Lv.2 and bonus crop at Lv.3. Sword Lv.2: 2 damage (a fed crow dies in one hit). Lv.3: 2 damage, hit box 16 px in
   front instead of 10 (the sword sprite keeps its size).
 - Game over counts crops in the bag as the coins they sell for, so a full bag never ends the run.
+- Dusk (v0.5, Caleb): the field fades toward sunset orange during the 15 s "DUSK IN n" countdown; the shop
+  opens at night (dark blue field) with fireflies drifting and blinking around the window. Fireflies show
+  only at night in the shop. The next day starts bright.
 - Coins buy upgrades, seeds, and turrets. Crops in stock carry over.
 
 ## Look and feel

@@ -65,16 +65,16 @@ numbers v0.1.0-v0.3.3 in commit subjects; those numbers are history only and hav
 - [x] v0.4.1: shop split into a main page (SELL CROPS, SEEDS, WEAPONS, NEXT DAY) and SEEDS / WEAPONS pages (Caleb: the list was too long)
 - [x] `test/turret.txt`
 
-## Next update (Caleb, 2026-10-22: add it with the next batch of features)
-- [ ] Dusk looks different: a visual change when the day ends (look not chosen yet)
-- [ ] Harder crows over time (Caleb, 2026-10-22: at Day 20 with 3 scarecrows he was "chilling"):
-      - from Day 10, Lv.2 crows (the red ones) spawn naturally, about 1 more per day
-      - Day 20 adds a Lv.3 crow (a new color)
-      - from Day 25, Lv.1 crows become a minority
-      - Day 30 adds a gold crow, and so on
-      (numbers for HP, speed, and counts: not set; ask Caleb)
+## v0.5 — harder crows, more crops, dusk (done; plan: docs/V0.5_PLAN.md, approved by Caleb)
+- [x] Crow levels: black, red, purple, gold (drops 5 coins); a crow turns purple after its 3rd crop
+- [x] Day table: a random crow count and mix every day; red from Day 10, purple 20, gold 30, all gold from 40
+- [x] Carrot, tomato, pumpkin (unlock Days 5, 12, 20); corn sells for 2; L cycles seeds; corn-only ammo
+- [x] SEEDS page lists every seed; details for the one under the cursor
+- [x] Dusk: sunset fade during the countdown; night with fireflies in the shop
+- [x] `test/v05.txt`, `test/days_check.py`
+
+## Next
 - [ ] Shop: EXPANSION page that makes the crop field bigger (Caleb; replaces the v0.4b plan below)
-- [ ] Shop: more seed types on the SEEDS page, each with its own sell price and grow time (Caleb)
 - [ ] Shop: more weapons on the WEAPONS page that replace the current one (Caleb)
 
 ## v0.4b — field growth

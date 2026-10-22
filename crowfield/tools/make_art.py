@@ -24,7 +24,7 @@ BG_PAL = [
     (90, 58, 34),     # 7 wood dark
     (150, 104, 62),   # 8 wood light
     (122, 120, 116),  # 9 rock
-    (58, 150, 214),   # 10 water
+    (232, 128, 40),   # 10 orange (carrot, pumpkin; was an unused water blue)
     (214, 74, 48),    # 11 red
     (232, 200, 84),   # 12 wheat gold
     (40, 92, 52),     # 13 leaf deep
@@ -54,7 +54,8 @@ OBJ_PAL = [
 
 # Metatile order. Must match build_data.py and the enum in main.c.
 META = ["GRASS", "GRASS_TUFT", "DIRT", "SOIL", "SPROUT", "CROP", "CROP_RIPE", "FENCE", "BUSH",
-        "FENCE_V", "FENCE_TL", "FENCE_TR", "FENCE_BL", "FENCE_BR", "CROP_YOUNG", "SCARECROW", "SCARECROW_OFF"]
+        "FENCE_V", "FENCE_TL", "FENCE_TR", "FENCE_BL", "FENCE_BR", "CROP_YOUNG", "SCARECROW", "SCARECROW_OFF",
+        "CARROT_GROWN", "CARROT_RIPE", "TOMATO_GROWN", "TOMATO_RIPE", "PUMPKIN_GROWN", "PUMPKIN_RIPE"]
 # Scarecrow turret on tilled soil. F outline, G straw (hat, arm ends), C sack head, R red shirt,
 # W light wood, w dark wood; "." keeps the soil.
 SCARECROW = [
@@ -76,6 +77,43 @@ SCARECROW = [
     "......FwwF......",
 ]
 SCARECROW_COLORS = {"F": 15, "G": 12, "C": 14, "R": 11, "W": 8, "w": 7}
+# v0.5 crops: grown and ripe looks, drawn on tilled soil ("."). 1/2/3 greens, D deep leaf, 7 wood, A orange,
+# R red, C gold, E cream, F outline.
+CROP_COLORS = {"1": 1, "2": 2, "3": 3, "7": 7, "A": 10, "R": 11, "C": 12, "D": 13, "E": 14, "F": 15}
+CROP_ART = {
+    "CARROT_GROWN": [
+        "................", "................", "................", "................",
+        "......2...2.....", ".....2.2.2.2....", "......2.2.2.....", ".......222......",
+        "......21212.....", ".......212......", "........1.......", "........1.......",
+        "................", "................", "................", "................"],
+    "CARROT_RIPE": [
+        "................", "................", "................", "......2...2.....",
+        ".....2.2.2.2....", "......2.2.2.....", ".......222......", "......21212.....",
+        ".......212......", "......FAAAF.....", "......FAAAF.....", ".......FAF......",
+        ".......FAF......", "........F.......", "................", "................"],
+    "TOMATO_GROWN": [
+        "................", "................", "..........7.....", "......2...7.....",
+        ".....222..7.....", "......2D2.7.....", ".....2223.7.....", "......2..27.....",
+        ".....2D22.7.....", "......23..7.....", ".....222..7.....", "......D...7.....",
+        ".......D..7.....", "..........7.....", "................", "................"],
+    "TOMATO_RIPE": [
+        "................", "................", "..........7.....", "......2...7.....",
+        "....RR22..7.....", "....RE.D2.7.....", ".....222RR7.....", "......2.RE7.....",
+        ".....2D22.7.....", "...RR.2...7.....", "...RE222..7.....", "......D...7.....",
+        ".......D..7.....", "..........7.....", "................", "................"],
+    "PUMPKIN_GROWN": [
+        "................", "................", "................", "................",
+        "................", "................", "................", ".......2........",
+        "....22.2.22.....", "...2D22.22D2....", "....2.22.2......", "......CC........",
+        "......CC........", "................", "................", "................"],
+    "PUMPKIN_RIPE": [
+        "................", "................", "................", "................",
+        ".......77.......", "........7.2.....", "....FFFFFFFF....", "...FAARAARAAF...",
+        "..FAAARAARAAAF..", "..FAAARAARAAAF..", "..FAAARAARAAAF..", "..FAAARAARAAAF..",
+        "...FAARAARAAF...", "....FFFFFFFF....", "................", "................"],
+}
+for _name, _rows in CROP_ART.items():
+    assert len(_rows) == 16 and all(len(r) == 16 for r in _rows), _name
 SCARECROW_OFF_COLORS = {"F": 15, "G": 9, "C": 14, "R": 9, "W": 8, "w": 7}   # switched off: gray hat and shirt
 # Fence pieces by which neighbors they join: up, down, left, right. FENCE is the horizontal piece.
 FENCE_JOIN = {"FENCE": "lr", "FENCE_V": "ud", "FENCE_TL": "rd", "FENCE_TR": "ld", "FENCE_BL": "ru", "FENCE_BR": "lu"}
@@ -153,6 +191,11 @@ def draw_terrain():
                     px[y][o + 8] = 12
         if name in FENCE_JOIN:
             draw_fence(px, o, FENCE_JOIN[name])
+        if name in CROP_ART:
+            for y, row in enumerate(CROP_ART[name]):
+                for x, c in enumerate(row):
+                    if c != ".":
+                        px[y][o + x] = CROP_COLORS[c]
         if name in ("SCARECROW", "SCARECROW_OFF"):
             colors = SCARECROW_COLORS if name == "SCARECROW" else SCARECROW_OFF_COLORS
             for y, row in enumerate(SCARECROW):
@@ -170,9 +213,10 @@ def draw_terrain():
 def draw_sprites():
     """Cells: 0 farmer down, 1 farmer up, 2 farmer side (right uses hflip), 3 crow wings up, 4 crow wings down,
     5 target marker, 6 sword pointing right, 7 sword pointing up, 8 puff big, 9 puff small,
-    10 farmer knocked out, 11 sword pointing up-right, 12 corn kernel (scarecrow shot). Flips give the other directions.
+    10 farmer knocked out, 11 sword pointing up-right, 12 corn kernel (scarecrow shot), 13 firefly bright,
+    14 firefly dim (fireflies use OBJ palette bank 5, set in main.c). Flips give the other directions.
     The hand grips the sword at (2, 8) right, (8, 13) up, (4, 13) up-right (main.c grip_x/grip_y)."""
-    px = blank(13)
+    px = blank(15)
 
     def farmer(o, face):
         rows = [
@@ -307,6 +351,12 @@ def draw_sprites():
         for x, c in enumerate(row):
             if c != ".":
                 px[6 + y][192 + x] = {"1": 1, "D": 13, "3": 3, "B": 11}[c]
+    for y, row in enumerate([".....E.....", "....EDE....", "...EDDDE...", "....EDE....", ".....E....."]):
+        for x, c in enumerate(row):   # firefly: D bright core (13), E glow (14), centered
+            if c != ".":
+                px[5 + y][208 + 2 + x] = {"D": 13, "E": 14}[c]
+    for x, y in ((7, 7), (8, 7), (7, 8), (8, 8)):   # dim firefly: a small glow
+        px[y][224 + x] = 14
     return px
 
 
