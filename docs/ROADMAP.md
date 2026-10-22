@@ -86,24 +86,27 @@ numbers v0.1.0-v0.3.3 in commit subjects; those numbers are history only and hav
 - [x] Sprites behind messages and windows
 - [x] `test/finale.txt`
 
-## Next
-- [ ] Shop: EXPANSION page that makes the crop field bigger (Caleb; replaces the v0.4b plan below)
-- [ ] Shop: more weapons on the WEAPONS page that replace the current one (Caleb)
+## Plan to v1.0 (Caleb, 2026-10-22)
 
-## v0.4b — field growth
-- [ ] Start map: one small plot, open grass reserved for later plots
-- [ ] New plots open on set days (first guess 4, 8, 12, 16)
-- [ ] `test/field.txt`
+## v0.8 — weapons and the farm expansion
+- [ ] Shop: more weapons on the WEAPONS page; a new weapon replaces the current one (which weapons: ask Caleb)
+- [ ] Shop: EXPANSION page that makes the crop field bigger (sizes and prices: ask Caleb)
+- [ ] Tests for both
 
-## v0.5 — crow types and scaling
-- [ ] Fast, Armored, Big, Swarm crows with their own palettes and sprites
-- [ ] Wave table per day
-- [ ] Sprite budget check with a full swarm (see TECH.md)
-
-## v0.6 — polish
+## v0.9 — music and a title screen
+- [ ] Music: a looping tune (how many songs, and when each plays: ask Caleb)
 - [ ] Title screen ("Grow. Defend. Survive.")
+- [ ] Stats page on the title screen once a run has been played: each lost (or won) run's results go there
+      (highest day, crops grown, crows defeated), so the player sees how earlier runs went. This needs the
+      results saved on the cart (SRAM); the runs themselves still start fresh (the "no saves" rule is about
+      runs, not this history; confirm with Caleb)
 
-## v1.0 — release
+## v1.0 — full release
+- [ ] Last touch-ups from Caleb's play
 - [ ] Cover art (`tools/make_cover.py`) and `tools/package.sh` for the R36 SD card
 - [ ] Balance pass from playtests
 - [ ] README for players
+
+## Old plans (replaced)
+- v0.4b field growth by day: replaced by the EXPANSION shop page (Caleb).
+- Old crow types (Fast, Armored, Big, Swarm): replaced by the v0.5 levels and the white crows.
