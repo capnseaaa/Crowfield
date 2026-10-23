@@ -1887,6 +1887,7 @@ static void update_shop(void) {
 
 // ---------- run: start and game over ----------
 static s32 game_over;
+static s32 run_saved, dev_run;   // this run is in the history already; this run came from dev mode (v0.9)
 
 static void new_run(void) {
     reset_farm();
@@ -1917,6 +1918,7 @@ static void new_run(void) {
     finale = finale_pending = shop_last = stat_crops = stat_kills = bless_pending = 0;
     blood_next = BLOOD_FIRST;
     game_over = 0;
+    run_saved = dev_run = 0;
     start_day();
 }
 
@@ -1928,6 +1930,63 @@ static void check_game_over(void) {
 }
 
 // The end of a run, in the shop window: what happened, the highest day, crops grown, crows defeated.
+// ---------- run history (v0.9, Caleb: best run + last 5) ----------
+// Only this history is saved; every run still starts fresh. Battery-backed SRAM at 0x0E000000, one byte at a
+// time; the "SRAM_V113" tag tells emulators (and the R36) to keep a save file. Layout: magic, runs played,
+// the best run, the last 5 runs (newest first), a checksum. A run is two words: day | crops << 16 and
+// crows | ending << 16 (each capped at 65535). Dev mode runs are not recorded.
+#define SRAM ((volatile u8 *)0x0E000000)
+__attribute__((used, aligned(4))) static const char save_tag[] = "SRAM_V113";
+#define STATS_MAGIC 0x31534643   // "CFS1"
+#define HISTORY 5
+static u32 runs_played, best_a, best_b, hist_a[HISTORY], hist_b[HISTORY];
+
+static void sram_put32(u32 at, u32 v) { for (u32 k = 0; k < 4; k++) SRAM[at + k] = (u8)(v >> (8 * k)); }
+static u32 sram_get32(u32 at) {
+    u32 v = 0;
+    for (u32 k = 0; k < 4; k++) v |= (u32)SRAM[at + k] << (8 * k);
+    return v;
+}
+static u32 stats_sum(void) {
+    u32 sum = runs_played * 7 + best_a * 3 + best_b * 5;
+    for (u32 i = 0; i < HISTORY; i++) sum += hist_a[i] * (11 + i) + hist_b[i] * (17 + i);
+    return sum;
+}
+static void stats_load(void) {
+    runs_played = 0;
+    if (sram_get32(0) != STATS_MAGIC) return;
+    runs_played = sram_get32(4);
+    best_a = sram_get32(8); best_b = sram_get32(12);
+    for (u32 i = 0; i < HISTORY; i++) { hist_a[i] = sram_get32(16 + 8 * i); hist_b[i] = sram_get32(20 + 8 * i); }
+    if (sram_get32(16 + 8 * HISTORY) != stats_sum()) runs_played = 0;   // damaged: start the history over
+}
+static void stats_save(void) {
+    sram_put32(0, 0);   // invalid while writing
+    sram_put32(4, runs_played);
+    sram_put32(8, best_a); sram_put32(12, best_b);
+    for (u32 i = 0; i < HISTORY; i++) { sram_put32(16 + 8 * i, hist_a[i]); sram_put32(20 + 8 * i, hist_b[i]); }
+    sram_put32(16 + 8 * HISTORY, stats_sum());
+    sram_put32(0, STATS_MAGIC);   // written last: a cut-off save never looks valid
+}
+static u32 cap16(s32 v) { return v < 0 ? 0 : v > 65535 ? 65535 : (u32)v; }
+// Better run: a win beats any loss, then the higher day, then more crows defeated.
+static int run_better(u32 a1, u32 b1, u32 a2, u32 b2) {
+    int w1 = (b1 >> 16) == END_WON, w2 = (b2 >> 16) == END_WON;
+    if (w1 != w2) return w1;
+    if ((a1 & 0xFFFF) != (a2 & 0xFFFF)) return (a1 & 0xFFFF) > (a2 & 0xFFFF);
+    return (b1 & 0xFFFF) > (b2 & 0xFFFF);
+}
+static void record_run(s32 kind) {
+    if (run_saved || dev_run) return;
+    run_saved = 1;
+    u32 a = cap16(day) | cap16(stat_crops) << 16, b = cap16(stat_kills) | (u32)kind << 16;
+    for (s32 i = HISTORY - 1; i > 0; i--) { hist_a[i] = hist_a[i - 1]; hist_b[i] = hist_b[i - 1]; }
+    hist_a[0] = a; hist_b[0] = b;
+    if (runs_played == 0 || run_better(a, b, best_a, best_b)) { best_a = a; best_b = b; }
+    runs_played++;
+    stats_save();
+}
+
 #define END_START_ROW (SHOP_T + 12)    // "PRESS START" blinks here
 static void end_line(s32 row, const char *label, s32 value) {
     char buf[26];
@@ -1937,6 +1996,7 @@ static void end_line(s32 row, const char *label, s32 value) {
 static s32 end_kind;   // the last ending, to redraw it after the dev window closes
 static void end_screen(s32 kind) {
     end_kind = kind;
+    record_run(kind);
     static const char *const title[4] = { "THE FARM IS LOST", "THE BLOOD MOON WON", "THE LAST MOON WON", "YOU WON!" };
     static const char *const sub[4] = { "YOU DID YOUR BEST", "YOU DID YOUR BEST", "YOU DID YOUR BEST",
                                         "THANK YOU FOR PLAYING!" };
@@ -1967,7 +2027,9 @@ static const s32 dev_min[DEV_ITEMS] = { 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0 };
 static const s32 dev_max[DEV_ITEMS] = { 99, WEAPONS - 1, 3, 3, 3, MAX_SCARECROWS, MAX_CANNONS, 3, 99, FINALE_AFTER, 2, 1, 1 };
 static s32 dev_open, dev_cursor, dev_val[DEV_ITEMS];
 static s32 title_on;   // the title screen is showing (v0.9; below)
+static s32 title_choice, stats_open;   // with a history: 0 PLAY, 1 STATS; the STATS page is showing
 static void title_text(void);
+static void draw_stats(void);
 
 static void draw_dev(void) {
     static const char *const label[DEV_ITEMS] = { "DAY", "WEAPON", "WEAPON LV", "SICKLE LV", "SCARE LV",
@@ -2019,7 +2081,8 @@ static void close_dev(void) {
     dev_open = 0;
     for (s32 r = SHOP_T; r < SHOP_T + SHOP_ROWS; r++) clear_row(r);
     clear_row(19);
-    if (title_on) title_text();
+    if (title_on && stats_open) draw_stats();
+    else if (title_on) title_text();
     else if (game_over) end_screen_again();
     else if (shop_open) draw_shop();
 }
@@ -2029,6 +2092,7 @@ static void dev_start(void) {
     dev_open = 0;
     title_on = 0;
     new_run();
+    dev_run = 1;   // not recorded in the run history
     day = dev_val[DEV_DAY];
     weapon = dev_val[DEV_WEAPON];
     set_sword_lv(dev_val[DEV_SWORD]);
@@ -2099,11 +2163,51 @@ static void title_text(void) {
         for (s32 tx = 0; tx < BANNER_W; tx++)
             SCREENBLOCK(TEXT_SB)[(3 + ty) * 32 + 6 + tx] = (BANNER_BASE + ty * BANNER_W + tx) | (3 << 12);
     put_text(4, 8, "GROW. DEFEND. SURVIVE.");
-    put_text(9, TITLE_START_ROW, "PRESS START");
+    if (!runs_played) { put_text(9, TITLE_START_ROW, "PRESS START"); return; }
+    put_text(11, 13, title_choice == 0 ? "> PLAY " : "  PLAY ");   // a history: PLAY or STATS
+    put_text(11, 15, title_choice == 1 ? "> STATS" : "  STATS");
+}
+
+// One history line: label, then day, crops, crows, and how it ended, in fixed columns.
+static void stats_line(s32 row, const char *label, u32 a, u32 b) {
+    static const char *const how[4] = { "FARM", "MOON", "LAST", "WON" };
+    char buf[26], num[8];
+    s32 n = copy_str(buf, label);
+    u32 v[3] = { a & 0xFFFF, a >> 16, b & 0xFFFF };
+    static const u8 right[3] = { 6, 11, 16 };   // last column of each number: 22 wide, clear of the edge
+    for (s32 k = 0; k < 3; k++) {
+        s32 len = fmt_num(num, v[k]);
+        while (n < right[k] + 1 - len) buf[n++] = ' ';
+        n += copy_str(buf + n, num);
+    }
+    buf[n++] = ' ';
+    n += copy_str(buf + n, how[(b >> 16) & 3]);
+    buf[n] = 0;
+    shop_line(row, buf);
+}
+
+// STATS: the best run and the last 5 (newest first, numbered by run). B, A, or START goes back.
+static void draw_stats(void) {
+    char buf[26];
+    for (s32 r = 0; r < 20; r++) clear_row(r);
+    for (s32 r = SHOP_T; r < SHOP_T + SHOP_ROWS; r++) shop_line(r, "");
+    shop_centered(SHOP_T + 1, "PAST RUNS");
+    shop_line(SHOP_T + 3, "RUN DAY CROP CROW END");
+    stats_line(SHOP_T + 5, "BEST", best_a, best_b);
+    for (u32 i = 0; i < HISTORY && i < runs_played; i++) {
+        s32 n = fmt_num(buf, runs_played - i);
+        buf[n] = 0;
+        stats_line(SHOP_T + 7 + i, buf, hist_a[i], hist_b[i]);
+    }
+    s32 n = copy_str(buf, "RUNS PLAYED ");
+    fmt_num(buf + n, runs_played);
+    shop_centered(SHOP_INFO, buf);
+    put_text(1, 19, "B BACK");
 }
 
 static void title_screen(void) {
     title_on = 1;
+    stats_open = title_choice = 0;
     game_over = shop_open = 0;
     for (s32 i = 0; i < MAX_CROWS; i++) crow_state[i] = CROW_NONE;
     reset_farm();
@@ -2113,6 +2217,19 @@ static void title_screen(void) {
 
 // START: Day 1. Returns 1 when the run began this frame.
 static int update_title(void) {
+    if (stats_open) {
+        if (HIT(KEY_A | KEY_B | KEY_START)) { stats_open = 0; title_text(); }
+        return 0;
+    }
+    if (runs_played) {   // the PLAY / STATS menu
+        if (HIT(KEY_UP | KEY_DOWN)) { title_choice ^= 1; title_text(); }
+        if (HIT(KEY_A | KEY_START)) {
+            if (title_choice == 0) { title_on = 0; new_run(); return 1; }
+            stats_open = 1;
+            draw_stats();
+        }
+        return 0;
+    }
     if (HIT(KEY_START)) { title_on = 0; new_run(); return 1; }
     if (((frame >> 5) & 1) != ((frame - 1) >> 5 & 1))   // blink PRESS START
         for (s32 c = 0; c < 11; c++)   // off: clear cells (no dark bar), on: the text
@@ -2189,6 +2306,7 @@ int main(void) {
     PAL_BG[48 + 3] = (9) | (5 << 5) | (3 << 10);      // shadow: dark brown
     copy32(CHARBLOCK(1) + BANNER_BASE * 8, banner_tiles, sizeof(banner_tiles) / 4);
     sound_init();
+    stats_load();
     new_run();
     if (TITLE_SKIP != TITLE_SKIP_MAGIC) title_screen();
 
@@ -2218,7 +2336,7 @@ int main(void) {
         if (title_on) {
             if (!update_title()) {
                 oam_begin();
-                draw_title_crows();
+                if (!stats_open) draw_title_crows();
                 oam_end();
             }
             continue;

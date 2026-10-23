@@ -86,3 +86,9 @@ saves `.ppm` screenshots, prints memory (`@`), writes memory (`!`), and power-cy
   The sound clips keep DirectSound A, so music never cuts them.
 - `pick_song()` runs every frame: title, end screen (quiet), shop (dusk), final nights, blood moon, else day.
 - Check: `HARNESS_WAV=/abs/rec.wav sh test/run.sh test/music.txt && python3 test/music_check.py /abs/rec.wav`.
+
+## Run history (v0.9)
+- SRAM at 0x0E000000, byte access; the ROM carries the `SRAM_V113` tag. Layout: magic "CFS1", runs played, best
+  run, last 5 runs (newest first), checksum; magic written last. A run = two words: day | crops << 16,
+  crows | ending << 16. Change the layout: bump the magic (old histories then start over).
+- Harness `^` power cycles keep save memory, so `test/stats.txt` checks the history survives a reset.
