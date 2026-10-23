@@ -24,6 +24,7 @@ typedef signed int     s32;
 #define REG_VCOUNT    REG16(0x04000006)
 #define REG_BG0CNT    REG16(0x04000008)
 #define REG_BG1CNT    REG16(0x0400000A)
+#define REG_BG2CNT    REG16(0x0400000C)
 #define REG_KEYINPUT  REG16(0x04000130)
 #define REG32(a) (*(volatile u32*)(a))
 #define REG_SNDCNT_L  REG16(0x04000080)
@@ -2083,6 +2084,7 @@ static s32 title_on;   // the title screen is showing (v0.9; below)
 static s32 title_choice, stats_open;   // with a history: 0 PLAY, 1 STATS; the STATS page is showing
 static void title_text(void);
 static void draw_stats(void);
+static void title_display(int on);
 
 static void draw_dev(void) {
     static const char *const label[DEV_ITEMS] = { "DAY", "WEAPON", "WEAPON LV", "SICKLE LV", "SCARE LV",
@@ -2148,6 +2150,7 @@ static void close_dev(void) {
 static void dev_start(void) {
     dev_open = 0;
     title_on = 0;
+    title_display(0);
     new_run();
     dev_run = 1;   // not recorded in the run history
     day = dev_val[DEV_DAY];
@@ -2206,24 +2209,36 @@ static void dev_tick(void) {
 }
 
 // ---------- main ----------
-// ---------- title screen (v0.9) ----------
-// The farm behind, crows circling, the CROWFIELD banner, the tagline, PRESS START. START begins Day 1; every
-// ending comes back here. Test scripts write TITLE_SKIP_MAGIC into TITLE_SKIP before the game boots
+// ---------- title screen (v0.9; new look v0.9.2, Caleb's picks) ----------
+// A red dusk with the blood moon on BG2 (art/title_bg.png), crow silhouettes flying left to right over it
+// (sprites), and in front of them on BG0 the CROWFIELD letters with a crow perched on the D, the tagline
+// (art/title_logo.png) and PRESS START or the PLAY / STATS menu (art/title_words.png); tools/make_title.py
+// draws them. The farm (BG1) is hidden meanwhile. START begins Day 1; every ending comes back here. Test scripts write TITLE_SKIP_MAGIC into TITLE_SKIP before the game boots
 // (`0 0 !0203FFF0=1413829460`): EWRAM is unused, so crt0 leaves it alone, and the game then starts at once
 // as it did before v0.9.
 #define TITLE_SKIP (*(volatile u32 *)0x0203FFF0)
 #define TITLE_SKIP_MAGIC 0x54455354   // "TEST"
-#define TITLE_START_ROW 14
+#define TITLE_SB 24          // BG2's map while the title shows
+#define TITLE_START_ROW 16   // PRESS START (two tile rows); with a history PLAY on 15 and STATS on 17
+enum { W_PRESS_START, W_PLAY_SEL, W_PLAY, W_STATS_SEL, W_STATS };   // the strips in title_words.png
 
+static u16 title_entry(u16 t) { return t ? (TITLE_FG_BASE + t) | (3 << 12) : 0; }   // BG palette bank 3
+static void title_word(s32 w, s32 row) {   // a 2-row strip; -1 clears the rows
+    for (s32 r = 0; r < 2; r++)
+        for (s32 c = 0; c < 30; c++)
+            SCREENBLOCK(TEXT_SB)[(row + r) * 32 + c] = w < 0 ? 0 : title_entry(title_word_map[(w * 2 + r) * 30 + c]);
+}
 static void title_text(void) {
-    for (s32 r = 0; r < 20; r++) clear_row(r);
-    for (s32 ty = 0; ty < 3; ty++)
-        for (s32 tx = 0; tx < BANNER_W; tx++)
-            SCREENBLOCK(TEXT_SB)[(3 + ty) * 32 + 6 + tx] = (BANNER_BASE + ty * BANNER_W + tx) | (3 << 12);
-    put_text(4, 8, "GROW. DEFEND. SURVIVE.");
-    if (!runs_played) { put_text(9, TITLE_START_ROW, "PRESS START"); return; }
-    put_text(11, 13, title_choice == 0 ? "> PLAY " : "  PLAY ");   // a history: PLAY or STATS
-    put_text(11, 15, title_choice == 1 ? "> STATS" : "  STATS");
+    for (s32 r = 0; r < 20; r++)
+        for (s32 c = 0; c < 32; c++)
+            SCREENBLOCK(TEXT_SB)[r * 32 + c] = c < 30 ? title_entry(title_logo_map[r * 30 + c]) : 0;
+    if (!runs_played) { title_word(W_PRESS_START, TITLE_START_ROW); return; }
+    title_word(title_choice == 0 ? W_PLAY_SEL : W_PLAY, 15);   // a history: PLAY or STATS
+    title_word(title_choice == 1 ? W_STATS_SEL : W_STATS, 17);
+}
+// The title's layers: BG0 (text), BG2 (the dusk), sprites; or the game's: BG0, BG1 (the farm), sprites.
+static void title_display(int on) {
+    REG_DISPCNT = (1 << 6) | (1 << 8) | (1 << 12) | (on ? 1 << 10 : 1 << 9);
 }
 
 // One history line: label, then day, crops, crows, and how it ended, in fixed columns.
@@ -2270,8 +2285,16 @@ static void title_screen(void) {
     game_over = shop_open = 0;
     for (s32 i = 0; i < MAX_CROWS; i++) crow_state[i] = CROW_NONE;
     reset_farm();
-    set_light(SUNSET_MAX, 160);   // an evening farm, so the banner stands out
+    set_light(0, 0);
+    title_display(1);
     title_text();
+}
+
+static void title_start(void) {   // leave the title: Day 1
+    title_on = 0;
+    for (s32 r = 0; r < 20; r++) clear_row(r);
+    title_display(0);
+    new_run();
 }
 
 // START: Day 1. Returns 1 when the run began this frame.
@@ -2283,25 +2306,29 @@ static int update_title(void) {
     if (runs_played) {   // the PLAY / STATS menu
         if (HIT(KEY_UP | KEY_DOWN)) { title_choice ^= 1; title_text(); }
         if (HIT(KEY_A | KEY_START)) {
-            if (title_choice == 0) { title_on = 0; new_run(); return 1; }
+            if (title_choice == 0) { title_start(); return 1; }
             stats_open = 1;
             draw_stats();
         }
         return 0;
     }
-    if (HIT(KEY_START)) { title_on = 0; new_run(); return 1; }
-    if (((frame >> 5) & 1) != ((frame - 1) >> 5 & 1))   // blink PRESS START
-        for (s32 c = 0; c < 11; c++)   // off: clear cells (no dark bar), on: the text
-            SCREENBLOCK(TEXT_SB)[TITLE_START_ROW * 32 + 9 + c] = (frame >> 5) & 1 ? 0 : glyph_entry("PRESS START"[c]);
+    if (HIT(KEY_START)) { title_start(); return 1; }
+    u32 b = frame % 68;   // blink PRESS START: 34 frames on, 34 off (68 divides the crows' 544, so it all loops)
+    if (b == 0 || b == 34) title_word(b ? -1 : W_PRESS_START, TITLE_START_ROW);
     return 0;
 }
 
-// Five crows circling the banner, wings flapping, each facing the way it flies.
+// Five crow silhouettes (OBJ bank 9) flying left to right across the sky, wings flapping, each at its own
+// height and speed, with a gentle rise and fall; they wrap round off the edges. Everything repeats every 544
+// frames (the slow ones cross the 272 px in 544, the fast ones twice), so the title loops cleanly.
+static const u8 tcrow_y[5] = { 18, 36, 58, 76, 94 };
+static const s16 tcrow_x0[5] = { 0, 150, 70, 210, 120 };
 static void draw_title_crows(void) {
     for (s32 k = 0; k < 5; k++) {
-        s32 a = ((frame >> 2) + k * 13) & 63;
-        s32 x = 120 + (sin64[(a + 16) & 63] * 108 >> 8), y = 76 + (sin64[a] * 52 >> 8);
-        put_sprite(x - 8, y - 8, ((frame >> 3) + k) & 1 ? SPR_CROW_A : SPR_CROW_B, sin64[a] > 0 ? HFLIP : 0);
+        s32 t = k & 1 ? frame : frame >> 1;   // odd crows fly 1 px a frame, even ones half that
+        s32 x = (tcrow_x0[k] + t) % 272 - 16;
+        s32 y = tcrow_y[k] + (sin64[(x >> 2) & 63] * 3 >> 8);
+        put_sprite(x - 8, y - 8, ((frame >> 3) + k) & 1 ? SPR_CROW_A : SPR_CROW_B, BANK(9));
     }
 }
 
@@ -2360,16 +2387,23 @@ int main(void) {
     for (u32 i = 0; i < 32 * 32; i++) SCREENBLOCK(TEXT_SB)[i] = 0;
     REG_BG0CNT = 0 | (1 << 2) | (TEXT_SB << 8);   // text: priority 0
     REG_BG1CNT = 2 | (0 << 2) | (MAP_SB << 8);    // map: priority 2, 32x32 tiles
-    PAL_BG[48 + 1] = (30) | (24 << 5) | (8 << 10);   // title banner: straw gold
-    PAL_BG[48 + 2] = (4) | (3 << 5) | (2 << 10);      // outline: near black
-    PAL_BG[48 + 3] = (9) | (5 << 5) | (3 << 10);      // shadow: dark brown
-    copy32(CHARBLOCK(1) + BANNER_BASE * 8, banner_tiles, sizeof(banner_tiles) / 4);
+    for (u32 i = 0; i < 16; i++) {   // the title (v0.9.2): logo and words in BG bank 3, the dusk in bank 4
+        PAL_BG[48 + i] = title_fg_pal[i];
+        PAL_BG[64 + i] = title_bg_pal[i];
+        PAL_OBJ[144 + i] = i == 11 ? obj_pal[i] : (2) | (1 << 5) | (2 << 10);   // bank 9: crow silhouettes, gold beak
+    }
+    copy32(CHARBLOCK(1) + TITLE_FG_BASE * 8, title_fg_tiles, sizeof(title_fg_tiles) / 4);
+    copy32(CHARBLOCK(2), title_bg_tiles, sizeof(title_bg_tiles) / 4);
+    for (u32 r = 0; r < 20; r++)
+        for (u32 c = 0; c < 32; c++)
+            SCREENBLOCK(TITLE_SB)[r * 32 + c] = c < 30 ? title_bg_map[r * 30 + c] | (4 << 12) : 0;
+    REG_BG2CNT = 3 | (2 << 2) | (TITLE_SB << 8);   // the title's dusk: priority 3, charblock 2
     sound_init();
     stats_load();
     new_run();
     if (TITLE_SKIP != TITLE_SKIP_MAGIC) title_screen();
 
-    REG_DISPCNT = 0x0000 | (1 << 6) | (1 << 8) | (1 << 9) | (1 << 12);   // mode 0, 1D OBJ, BG0, BG1, OBJ
+    title_display(title_on);   // mode 0, 1D OBJ, BG0, OBJ, and BG1 (the farm) or BG2 (the title)
 
     for (;;) {
         vsync();
@@ -2393,11 +2427,10 @@ int main(void) {
         if (dev_combo()) { open_dev(); continue; }
         dev_tick();
         if (title_on) {
-            if (!update_title()) {
-                oam_begin();
-                if (!stats_open) draw_title_crows();
-                oam_end();
-            }
+            update_title();
+            oam_begin();   // after START no title crows linger over the farm
+            if (title_on && !stats_open) draw_title_crows();
+            oam_end();
             continue;
         }
         if (game_over) {

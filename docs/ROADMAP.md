@@ -118,7 +118,8 @@ numbers v0.1.0-v0.3.3 in commit subjects; those numbers are history only and hav
 - [x] Final night 3: no purple or lower crows; LAST TEN SECONDS, white crows only
 - [x] New song picks (eight songs), a grungy night 3, every song loops
 - [x] Dev mode RECORD RUN
-- [ ] A new title logo (proposals sent; Caleb picks)
+- [x] v0.9.2: a new title (Caleb's picks): the blood moon logo with a crow on the D, a red dusk with the field
+      in silhouette, crow silhouettes flying left to right; the black text bars are gone
 
 ## v1.0 — full release
 - [ ] Last touch-ups from Caleb's play

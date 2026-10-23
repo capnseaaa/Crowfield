@@ -74,9 +74,15 @@ None. Caleb decided Crowfield has no saves; every run starts fresh.
 saves `.ppm` screenshots, prints memory (`@`), writes memory (`!`), and power-cycles (`^`).
 `test/resolve.py` swaps `$symbol` for its address from `build/crowfield.elf`.
 
-## Title screen (v0.9)
-- Banner tiles (`banner_tiles`, build_data.py) sit in charblock 1 after the font (`BANNER_BASE`), 18 x 3 tiles,
-  BG palette bank 3 (1 gold, 2 outline, 3 shadow).
+## Title screen (v0.9; new look v0.9.2)
+- `tools/make_title.py` (run by build.sh; draws only missing PNGs, `--force` redraws) writes art/title_bg.png (BG2,
+  the dusk and the moon, BG bank 4), art/title_logo.png and art/title_words.png (BG0 over the sprites, BG bank 3,
+  one palette). build_data.py dedupes them into tiles: the dusk in charblock 2 with its map in screenblock 24
+  (`TITLE_SB`), the logo and words in charblock 1 after the font (`TITLE_FG_BASE`).
+- `title_display(on)`: BG0 + BG2 + sprites on the title, BG0 + BG1 + sprites in the game.
+- Title crows: crow sprites in OBJ bank 9 (all colors near black, beak gold), five at fixed heights flying left
+  to right at 1 or 1/2 px a frame over 272 px; PRESS START blinks every 34 frames, so the title repeats exactly
+  every 544 frames.
 - Test hook: a script's first line `0 0 !0203FFF0=1413829460` writes "TEST" into unused EWRAM before boot;
   the game then skips the title and starts Day 1 at once, exactly as before v0.9.
 

@@ -3,6 +3,7 @@
 set -e
 cd "$(dirname "$0")"
 python3 tools/make_art.py
+python3 tools/make_title.py
 python3 tools/build_data.py
 python3 tools/make_sound.py
 python3 tools/make_music.py

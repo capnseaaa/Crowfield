@@ -117,40 +117,50 @@ def font_words():
     return words
 
 
-# ---- title banner (v0.9): "CROWFIELD" at 3x scale, letters 1 (gold) with a dark outline 2 and shadow 3 ----
-BANNER_TEXT = "CROWFIELD"
-
-
-def banner_words():
-    """Each letter fills a 16x24 cell (2 x 3 tiles). Tiles go row by row: tile row 0 of every letter, then 1, 2."""
-    w, h = 16 * len(BANNER_TEXT), 24
-    px = [[0] * w for _ in range(h)]
-    ink = set()
-    for i, ch in enumerate(BANNER_TEXT):
-        for ry, row in enumerate(FONT[ch].split()):
-            for rx, bit in enumerate(row):
-                if bit == "1":
-                    for yy in range(3):
-                        for xx in range(3):
-                            ink.add((i * 16 + 1 + rx * 3 + xx, 1 + ry * 3 + yy))
-    for (x, y) in ink:   # shadow one pixel down and right
-        if (x + 1, y + 1) not in ink and x + 1 < w and y + 1 < h:
-            px[y + 1][x + 1] = 3
-    for (x, y) in ink:   # outline on the empty 4-neighbors
-        for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
-            if 0 <= nx < w and 0 <= ny < h and (nx, ny) not in ink and px[ny][nx] == 0:
-                px[ny][nx] = 2
-    for (x, y) in ink:
-        px[y][x] = 1
+# ---- title screen (v0.9.2): art/title_bg.png (BG2), art/title_logo.png and art/title_words.png (BG0) ----
+def tile_set(images):
+    """Deduplicated 8x8 tiles over the images (tile 0 = all clear), and each image's map of tile numbers."""
+    tiles, index, maps = [], {}, []
+    blank = tuple([0] * 64)
+    if images[0][1]:   # transparent layers: tile 0 is the empty tile
+        tiles.append(blank); index[blank] = 0
+    for img, _ in images:
+        px = img.load()
+        m = []
+        for ty in range(img.height // 8):
+            for tx in range(img.width // 8):
+                t = tuple(px[tx * 8 + x, ty * 8 + y] for y in range(8) for x in range(8))
+                if t not in index:
+                    index[t] = len(tiles); tiles.append(t)
+                m.append(index[t])
+        maps.append(m)
     words = []
-    for ty in range(3):
-        for tx in range(w // 8):
-            for y in range(8):
-                v = 0
-                for x in range(8):
-                    v |= px[ty * 8 + y][tx * 8 + x] << (4 * x)
-                words.append(v)
-    return words
+    for t in tiles:
+        for y in range(8):
+            v = 0
+            for x in range(8):
+                v |= t[y * 8 + x] << (4 * x)
+            words.append(v)
+    return words, maps
+
+
+def title_data(fg_base):
+    bg = Image.open(os.path.join(ART, "title_bg.png"))
+    logo = Image.open(os.path.join(ART, "title_logo.png"))
+    words = Image.open(os.path.join(ART, "title_words.png"))
+    bg_tiles, (bg_map,) = tile_set([(bg, False)])
+    fg_tiles, (logo_map, word_map) = tile_set([(logo, True), (words, True)])
+    assert len(bg_tiles) // 8 <= 512 and fg_base + len(fg_tiles) // 8 <= 512
+    return [
+        c_array("title_bg_pal", "unsigned short", palette(bg)),
+        c_array("title_fg_pal", "unsigned short", palette(logo)),
+        c_array("title_bg_tiles", "unsigned int", bg_tiles),
+        c_array("title_fg_tiles", "unsigned int", fg_tiles),
+        "#define TITLE_FG_BASE %d   /* first title tile in charblock 1, after the font */" % fg_base,
+        c_array("title_bg_map", "unsigned short", bg_map, 30),
+        c_array("title_logo_map", "unsigned short", logo_map, 30),
+        c_array("title_word_map", "unsigned short", word_map, 30),   # 5 words, 2 rows of 30 each
+    ]
 
 
 def bgr555(rgb):
@@ -210,10 +220,8 @@ def main():
         c_array("farm_start", "unsigned char", farm, 15),
         c_array("font_tiles", "unsigned int", font_words()),
         "static const char FONT_CHARS[] = \"%s\";" % FONT_CHARS.replace("\\", "\\\\"),
-        c_array("banner_tiles", "unsigned int", banner_words()),
-        "#define BANNER_BASE %d   /* first banner tile in charblock 1, after the font */" % (len(font_words()) // 8),
-        "#define BANNER_W %d" % (2 * len(BANNER_TEXT)),
     ]
+    out += title_data(len(font_words()) // 8)
     with open(OUT, "w") as f:
         f.write("\n".join(out) + "\n")
     print("wrote", os.path.relpath(OUT, ROOT))
