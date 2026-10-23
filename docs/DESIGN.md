@@ -170,9 +170,9 @@ farmer is knocked out.
   | Weapon | Buy | Dmg Lv.1/2/3 | Ups | Swing | Hit box |
   |---|---|---|---|---|---|
   | Wooden sword | start | 1 / 1.5 / 2 | 40 / 80 | 12 | 10 px ahead (16 at Lv.3), +-14 along, +-14 side |
-  | Iron sword | 100 | 3 / 3.5 / 4 | 70 / 140 | 18 | 10 ahead, +-14, +-14 |
+  | Iron sword | 100 | 3 / 3.5 / 4 | 70 / 140 | 18 | 14 ahead (v0.9; was 10), +-14, +-14 |
   | Spear | 80 | 2 / 2.5 / 3 | 60 / 120 | 10 | 22 ahead, +-14 along, +-6 side (a jab) |
-  | Scythe | 110 | 1.5 / 2 / 2.5 | 80 / 160 | 18 | 8 ahead, +-10 along, +-24 side (a sweep) |
+  | Scythe | 110 | 1.5 / 2 / 2.5 | 80 / 160 | 18 | 8 ahead, +-12 along, +-32 side (a sweep; v0.9, was 10 / 24) |
   | Slingshot | 120 | 2 / 2.5 / 3 | 80 / 160 | 8 + 22 reload | a stone flies straight ahead (4 px/frame, 1 s) |
   The weapon in hand shows its upgrade line; the others show BUY. Buying one you had before costs its buy
   price again and brings it back at its old level (Caleb). ATTACK UP blessings add to every weapon.

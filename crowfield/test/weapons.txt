@@ -114,3 +114,23 @@
 30 0 !$pdir=0
 1 2
 3 0 w8_sling_down.ppm
+# v0.8.4 (Caleb): the iron sword reaches further (a crow 26 px ahead: hit; the wooden sword misses it) and
+# the scythe sweeps wider (a crow 28 px to the side, 8 ahead: hit)
+30 0
+1 0 !$weapon=0,$sword_lv=1,$sword_damage=2,$sword_reach=10,$swing_len=12,$pdir=3
+1 0 !$crow_hp=20,$crow_x=2720,$crow_y=1088,$crow_state=2,$crow_timer=999,$crow_vx=0,$crow_vy=0,$crow_cool=999
+1 2
+15 0
+1 0 @$crow_hp
+20 0
+1 0 !$weapon=1,$sword_damage=6,$sword_reach=14,$swing_len=18
+1 0 !$crow_hp=20,$crow_x=2720,$crow_y=1088,$crow_state=2,$crow_timer=999,$crow_vx=0,$crow_vy=0,$crow_cool=999
+1 2
+20 0
+1 0 @$crow_hp
+20 0
+1 0 !$weapon=3,$sword_damage=3,$sword_reach=8,$swing_len=18
+1 0 !$crow_hp=20,$crow_x=2432,$crow_y=1536,$crow_state=2,$crow_timer=999,$crow_vx=0,$crow_vy=0,$crow_cool=999
+1 2
+20 0
+1 0 @$crow_hp

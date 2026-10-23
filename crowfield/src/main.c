@@ -1272,9 +1272,9 @@ static const s32 weapon_up[WEAPONS][2] = { { 40, 80 }, { 70, 140 }, { 60, 120 },
 static const u8 weapon_dmg[WEAPONS][3] = { { 2, 3, 4 }, { 6, 7, 8 }, { 4, 5, 6 }, { 3, 4, 5 }, { 4, 5, 6 } };
 static const u8 weapon_swing[WEAPONS] = { 12, 18, 10, 18, 8 };   // frames a swing (or a shot) lasts
 // The hit box: its center this far ahead of the farmer, and half its size along and across his facing.
-static const u8 weapon_fwd[WEAPONS] = { 10, 10, 22, 8, 0 };      // wood Lv.3 reaches 16
-static const u8 weapon_along[WEAPONS] = { 14, 14, 14, 10, 0 };
-static const u8 weapon_side[WEAPONS] = { 14, 14, 6, 24, 0 };     // spear narrow, scythe wide
+static const u8 weapon_fwd[WEAPONS] = { 10, 14, 22, 8, 0 };      // wood Lv.3 reaches 16; iron 14 (v0.8.4, Caleb)
+static const u8 weapon_along[WEAPONS] = { 14, 14, 14, 12, 0 };
+static const u8 weapon_side[WEAPONS] = { 14, 14, 6, 32, 0 };     // spear narrow, scythe wide (32 since v0.8.4, Caleb)
 #define SLING_RELOAD 22         // + the 8-frame shot: one stone every 0.5 s
 #define STONE_SPEED 64          // 4 px a frame
 #define STONE_LIFE 60
