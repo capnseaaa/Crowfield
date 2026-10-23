@@ -1,3 +1,5 @@
+# skip the title screen (v0.9): the game starts at once, as before
+0 0 !0203FFF0=1413829460
 # crows (v0.2, levels v0.5) and days (v0.3): land on a crop, eat it stage by stage, re-target, turn purple
 # after the 3rd crop, chase the farmer when no crops are left, game over, new run, day 1, dusk shop, day 2.
 # Field bytes: SOIL=3 SPROUT=4 CROP=5 CROP_RIPE=6 CROP_YOUNG=14. Ripe crop at (10,3) = field index 55.
@@ -48,6 +50,9 @@
 3 0 e6_lost.ppm
 1 0 @$game_over
 # START: a new run with 3 seeds, the field back, day 1 with 3 crows to come
+# START: back to the title (v0.9); START again: a new run
+1 8
+1 0
 2 8
 3 0 e7_newrun.ppm
 1 0 @$game_over,$seeds,$farm+52,$crow_state+4,$day,$day_left

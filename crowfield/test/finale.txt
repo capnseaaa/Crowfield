@@ -1,3 +1,5 @@
+# skip the title screen (v0.9): the game starts at once, as before
+0 0 !0203FFF0=1413829460
 # the final blood moons (v0.7): the 5th blood moon unlocks them; "THE FINAL NIGHTS COME"; the last shop with
 # +150; 3 nights in a row with white and gold crows; a white crow takes 4 hits from a Lv.3 sword; 5 knockouts
 # shared by the 3 nights; the win screen with stats; and a loss on the 5th knockout ("YOU DID YOUR BEST").
@@ -79,7 +81,10 @@
 3 0 f6_won.ppm
 1 0 @$game_over,$stat_crops,$stat_kills,$day
 # START: a new run. Then a final night lost on the 5th knockout.
-2 8
+# START: back to the title (v0.9); START again: a new run
+1 8
+1 0
+1 8
 3 0
 1 0 @$game_over,$day,$finale,$stat_kills
 1 0 !$finale=2,$blood_next=1,$day_left=0

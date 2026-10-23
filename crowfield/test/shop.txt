@@ -1,3 +1,5 @@
+# skip the title screen (v0.9): the game starts at once, as before
+0 0 !0203FFF0=1413829460
 # shop upgrades (v0.3.1, sickle rule v0.4.0): buy sickle and sword levels, refuse when broke or maxed;
 # the sickle working 3 and 2 tiles ahead (harvest and plant), and the sword's damage and reach.
 # Skip day 1's crows: with none to come and none alive, the day ends and the shop opens.

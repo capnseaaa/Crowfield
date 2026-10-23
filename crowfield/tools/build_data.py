@@ -117,6 +117,42 @@ def font_words():
     return words
 
 
+# ---- title banner (v0.9): "CROWFIELD" at 3x scale, letters 1 (gold) with a dark outline 2 and shadow 3 ----
+BANNER_TEXT = "CROWFIELD"
+
+
+def banner_words():
+    """Each letter fills a 16x24 cell (2 x 3 tiles). Tiles go row by row: tile row 0 of every letter, then 1, 2."""
+    w, h = 16 * len(BANNER_TEXT), 24
+    px = [[0] * w for _ in range(h)]
+    ink = set()
+    for i, ch in enumerate(BANNER_TEXT):
+        for ry, row in enumerate(FONT[ch].split()):
+            for rx, bit in enumerate(row):
+                if bit == "1":
+                    for yy in range(3):
+                        for xx in range(3):
+                            ink.add((i * 16 + 1 + rx * 3 + xx, 1 + ry * 3 + yy))
+    for (x, y) in ink:   # shadow one pixel down and right
+        if (x + 1, y + 1) not in ink and x + 1 < w and y + 1 < h:
+            px[y + 1][x + 1] = 3
+    for (x, y) in ink:   # outline on the empty 4-neighbors
+        for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
+            if 0 <= nx < w and 0 <= ny < h and (nx, ny) not in ink and px[ny][nx] == 0:
+                px[ny][nx] = 2
+    for (x, y) in ink:
+        px[y][x] = 1
+    words = []
+    for ty in range(3):
+        for tx in range(w // 8):
+            for y in range(8):
+                v = 0
+                for x in range(8):
+                    v |= px[ty * 8 + y][tx * 8 + x] << (4 * x)
+                words.append(v)
+    return words
+
+
 def bgr555(rgb):
     r, g, b = (v >> 3 for v in rgb[:3])
     return r | (g << 5) | (b << 10)
@@ -174,6 +210,9 @@ def main():
         c_array("farm_start", "unsigned char", farm, 15),
         c_array("font_tiles", "unsigned int", font_words()),
         "static const char FONT_CHARS[] = \"%s\";" % FONT_CHARS.replace("\\", "\\\\"),
+        c_array("banner_tiles", "unsigned int", banner_words()),
+        "#define BANNER_BASE %d   /* first banner tile in charblock 1, after the font */" % (len(font_words()) // 8),
+        "#define BANNER_W %d" % (2 * len(BANNER_TEXT)),
     ]
     with open(OUT, "w") as f:
         f.write("\n".join(out) + "\n")

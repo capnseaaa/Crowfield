@@ -29,7 +29,7 @@ def plan(d):
 
 
 def script():
-    lines = ["1 0", "1 0 !$spawning=1,$blood_next=9999"]   # no blood moons here: blood.txt tests those
+    lines = ["0 0 !0203FFF0=1413829460", "1 0", "1 0 !$spawning=1,$blood_next=9999"]   # skip the title (v0.9); no blood moons here: blood.txt tests those
     for _ in range(ROUNDS):
         for d in DAYS:
             # end the current day: no crows to come or alive, dusk in 2 frames; then NEXT DAY into day d

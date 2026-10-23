@@ -1,3 +1,5 @@
+# skip the title screen (v0.9): the game starts at once, as before
+0 0 !0203FFF0=1413829460
 # blood moon (v0.6): the warning the day before, the red "BLOOD MOON IN n" countdown, the night (gold Lv.5
 # crows, scarecrows at Lv.1, no growth, 10 coins a kill, knockouts counted and 6 s long), dawn (crows fly
 # away, +25, scarecrow level back, dawn shop, next blood moon 4-6 nights later), losing a practice night (its

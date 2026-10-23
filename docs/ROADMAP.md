@@ -105,7 +105,9 @@ numbers v0.1.0-v0.3.3 in commit subjects; those numbers are history only and hav
 
 ## v0.9 — music and a title screen
 - [ ] Music: a looping tune (how many songs, and when each plays: ask Caleb)
-- [ ] Title screen ("Grow. Defend. Survive.")
+- [x] Title screen ("Grow. Defend. Survive."): banner, circling crows, evening farm; every ending returns to it
+      (`test/title.txt`). Tests skip it with `0 0 !0203FFF0=1413829460` as their first line.
+- Plan and open questions: `docs/V0.9_PLAN.md`
 - [ ] Stats page on the title screen once a run has been played: each lost (or won) run's results go there
       (highest day, crops grown, crows defeated), so the player sees how earlier runs went. This needs the
       results saved on the cart (SRAM); the runs themselves still start fresh (the "no saves" rule is about

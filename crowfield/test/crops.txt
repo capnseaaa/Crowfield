@@ -1,3 +1,5 @@
+# skip the title screen (v0.9): the game starts at once, as before
+0 0 !0203FFF0=1413829460
 # crops: plant, grow, harvest, run out of seeds
 1 0 !$spawning=0
 30 0

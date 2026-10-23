@@ -1,3 +1,5 @@
+# skip the title screen (v0.9): the game starts at once, as before
+0 0 !0203FFF0=1413829460
 # hold A on a seed to keep buying (v0.7.2): one on the press, then after 20 frames one every 4 frames,
 # until A is let go or the coins run out.
 1 0 !$day_left=0,$coins=20

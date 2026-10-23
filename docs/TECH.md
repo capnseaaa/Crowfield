@@ -73,3 +73,9 @@ None. Caleb decided Crowfield has no saves; every run starts fresh.
 `test/harness.c` runs the ROM in libmgba with no window. It reads a script, presses keys,
 saves `.ppm` screenshots, prints memory (`@`), writes memory (`!`), and power-cycles (`^`).
 `test/resolve.py` swaps `$symbol` for its address from `build/crowfield.elf`.
+
+## Title screen (v0.9)
+- Banner tiles (`banner_tiles`, build_data.py) sit in charblock 1 after the font (`BANNER_BASE`), 18 x 3 tiles,
+  BG palette bank 3 (1 gold, 2 outline, 3 shadow).
+- Test hook: a script's first line `0 0 !0203FFF0=1413829460` writes "TEST" into unused EWRAM before boot;
+  the game then skips the title and starts Day 1 at once, exactly as before v0.9.

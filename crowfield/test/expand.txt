@@ -1,3 +1,5 @@
+# skip the title screen (v0.9): the game starts at once, as before
+0 0 !0203FFF0=1413829460
 # farm expansion (v0.8; v0.8.1 put CROW CANNON above it): FARM page, FIELD 7X4 (60), 9X4 (120), 9X5 (200), then MAX. The fence moves out,
 # crops inside stay, the gate stays at the bottom middle; a farmer standing where the fence goes is moved.
 1 0 !$day_left=0,$coins=400

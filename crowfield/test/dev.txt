@@ -1,3 +1,5 @@
+# skip the title screen (v0.9): the game starts at once, as before
+0 0 !0203FFF0=1413829460
 # dev mode (v0.7.1; FIELD v0.8; WEAPON, CANNONS v0.8.1): L+R+B opens it; set every line with presses;
 # A starts Day 35 with that gear; invincible, unlimited money, a blood moon tonight; B closes without changes.
 1 0

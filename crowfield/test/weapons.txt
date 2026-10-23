@@ -1,3 +1,5 @@
+# skip the title screen (v0.9): the game starts at once, as before
+0 0 !0203FFF0=1413829460
 # weapons (v0.8.1): the WEAPONS page (in hand: its upgrade line; else BUY), switching back keeps a weapon's
 # level, and each weapon's hit: the spear reaches 30 px ahead (the sword does not), the scythe 20 px to the
 # side (the sword does not), the slingshot's stone kills a crow 70 px away.

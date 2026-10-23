@@ -1,0 +1,29 @@
+# title screen (v0.9): the farm with circling crows, the banner, PRESS START blinking; nothing moves on the
+# farm (no crows spawn); dev mode opens and B brings the title back; START begins Day 1; the end screen's
+# START returns to the title, and START again starts a fresh run.
+40 0 t1_title.ppm
+1 0 @$title_on,$day,$day_left,$crow_state,$frame
+300 0
+1 0 @$title_on,$crow_state,$crow_state+4,$day_left
+1 0 t2_blink.ppm
+1 770
+1 0 t3_dev.ppm
+1 0 @$dev_open,$title_on
+1 2
+1 0 t4_back.ppm
+1 0 @$dev_open,$title_on
+1 8
+30 0 t5_day1.ppm
+1 0 @$title_on,$day,$spawning,$game_over
+# lose: no crops, no seeds, no coins -> THE FARM IS LOST; START -> title; START -> Day 1 again
+1 0 !$spawning=0,$seeds=0,$coins=0
+# empty the field (words computed by a script from the starting field: every crop tile -> SOIL)
+1 0 !$farm+44=2056,$farm+48=50529031,$farm+52=50529027,$farm+56=134217735,$farm+60=117440520,$farm+64=50529027,$farm+68=117637891,$farm+72=134742272,$farm+76=50790400,$farm+80=50529027,$farm+84=459523,$farm+88=17303552
+5 0 t6_lost.ppm
+1 0 @$game_over,$title_on
+1 8
+3 0 t7_title_again.ppm
+1 0 @$game_over,$title_on
+1 8
+3 0
+1 0 @$title_on,$day,$seeds,$game_over

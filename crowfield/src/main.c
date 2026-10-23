@@ -1924,6 +1924,8 @@ enum { TONIGHT_NORMAL, TONIGHT_BLOOD, TONIGHT_FINAL };
 static const s32 dev_min[DEV_ITEMS] = { 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0 };
 static const s32 dev_max[DEV_ITEMS] = { 99, WEAPONS - 1, 3, 3, 3, MAX_SCARECROWS, MAX_CANNONS, 3, 99, FINALE_AFTER, 2, 1, 1 };
 static s32 dev_open, dev_cursor, dev_val[DEV_ITEMS];
+static s32 title_on;   // the title screen is showing (v0.9; below)
+static void title_text(void);
 
 static void draw_dev(void) {
     static const char *const label[DEV_ITEMS] = { "DAY", "WEAPON", "WEAPON LV", "SICKLE LV", "SCARE LV",
@@ -1975,13 +1977,15 @@ static void close_dev(void) {
     dev_open = 0;
     for (s32 r = SHOP_T; r < SHOP_T + SHOP_ROWS; r++) clear_row(r);
     clear_row(19);
-    if (game_over) end_screen_again();
+    if (title_on) title_text();
+    else if (game_over) end_screen_again();
     else if (shop_open) draw_shop();
 }
 
 // A: a fresh run on the chosen day with the chosen gear.
 static void dev_start(void) {
     dev_open = 0;
+    title_on = 0;
     new_run();
     day = dev_val[DEV_DAY];
     weapon = dev_val[DEV_WEAPON];
@@ -2038,6 +2042,51 @@ static void dev_tick(void) {
 }
 
 // ---------- main ----------
+// ---------- title screen (v0.9) ----------
+// The farm behind, crows circling, the CROWFIELD banner, the tagline, PRESS START. START begins Day 1; every
+// ending comes back here. Test scripts write TITLE_SKIP_MAGIC into TITLE_SKIP before the game boots
+// (`0 0 !0203FFF0=1413829460`): EWRAM is unused, so crt0 leaves it alone, and the game then starts at once
+// as it did before v0.9.
+#define TITLE_SKIP (*(volatile u32 *)0x0203FFF0)
+#define TITLE_SKIP_MAGIC 0x54455354   // "TEST"
+#define TITLE_START_ROW 14
+
+static void title_text(void) {
+    for (s32 r = 0; r < 20; r++) clear_row(r);
+    for (s32 ty = 0; ty < 3; ty++)
+        for (s32 tx = 0; tx < BANNER_W; tx++)
+            SCREENBLOCK(TEXT_SB)[(3 + ty) * 32 + 6 + tx] = (BANNER_BASE + ty * BANNER_W + tx) | (3 << 12);
+    put_text(4, 8, "GROW. DEFEND. SURVIVE.");
+    put_text(9, TITLE_START_ROW, "PRESS START");
+}
+
+static void title_screen(void) {
+    title_on = 1;
+    game_over = shop_open = 0;
+    for (s32 i = 0; i < MAX_CROWS; i++) crow_state[i] = CROW_NONE;
+    reset_farm();
+    set_light(SUNSET_MAX, 160);   // an evening farm, so the banner stands out
+    title_text();
+}
+
+// START: Day 1. Returns 1 when the run began this frame.
+static int update_title(void) {
+    if (HIT(KEY_START)) { title_on = 0; new_run(); return 1; }
+    if (((frame >> 5) & 1) != ((frame - 1) >> 5 & 1))   // blink PRESS START
+        for (s32 c = 0; c < 11; c++)   // off: clear cells (no dark bar), on: the text
+            SCREENBLOCK(TEXT_SB)[TITLE_START_ROW * 32 + 9 + c] = (frame >> 5) & 1 ? 0 : glyph_entry("PRESS START"[c]);
+    return 0;
+}
+
+// Five crows circling the banner, wings flapping, each facing the way it flies.
+static void draw_title_crows(void) {
+    for (s32 k = 0; k < 5; k++) {
+        s32 a = ((frame >> 2) + k * 13) & 63;
+        s32 x = 120 + (sin64[(a + 16) & 63] * 108 >> 8), y = 76 + (sin64[a] * 52 >> 8);
+        put_sprite(x - 8, y - 8, ((frame >> 3) + k) & 1 ? SPR_CROW_A : SPR_CROW_B, sin64[a] > 0 ? HFLIP : 0);
+    }
+}
+
 int main(void) {
     REG_DISPCNT = 0x0080;   // forced blank while loading
 
@@ -2086,8 +2135,13 @@ int main(void) {
     for (u32 i = 0; i < 32 * 32; i++) SCREENBLOCK(TEXT_SB)[i] = 0;
     REG_BG0CNT = 0 | (1 << 2) | (TEXT_SB << 8);   // text: priority 0
     REG_BG1CNT = 2 | (0 << 2) | (MAP_SB << 8);    // map: priority 2, 32x32 tiles
+    PAL_BG[48 + 1] = (30) | (24 << 5) | (8 << 10);   // title banner: straw gold
+    PAL_BG[48 + 2] = (4) | (3 << 5) | (2 << 10);      // outline: near black
+    PAL_BG[48 + 3] = (9) | (5 << 5) | (3 << 10);      // shadow: dark brown
+    copy32(CHARBLOCK(1) + BANNER_BASE * 8, banner_tiles, sizeof(banner_tiles) / 4);
     sound_init();
     new_run();
+    if (TITLE_SKIP != TITLE_SKIP_MAGIC) title_screen();
 
     REG_DISPCNT = 0x0000 | (1 << 6) | (1 << 8) | (1 << 9) | (1 << 12);   // mode 0, 1D OBJ, BG0, BG1, OBJ
 
@@ -2110,8 +2164,16 @@ int main(void) {
         }
         if (dev_combo()) { open_dev(); continue; }
         dev_tick();
+        if (title_on) {
+            if (!update_title()) {
+                oam_begin();
+                draw_title_crows();
+                oam_end();
+            }
+            continue;
+        }
         if (game_over) {
-            if (HIT(KEY_START)) new_run();
+            if (HIT(KEY_START)) title_screen();
             else if (((frame >> 5) & 1) != ((frame - 1) >> 5 & 1))   // blink PRESS START
                 put_text(9, END_START_ROW, (frame >> 5) & 1 ? "           " : "PRESS START");
             oam_begin();   // no sprites over the end window

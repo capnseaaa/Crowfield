@@ -1,3 +1,5 @@
+# skip the title screen (v0.9): the game starts at once, as before
+0 0 !0203FFF0=1413829460
 # crow cannon (v0.8.1): buy two on the FARM page (a third is refused), SELL ALL keeps pumpkins, A next to
 # a cannon loads it from outside the field (inside, A farms), and a pumpkin burst hits every crow near its target.
 1 0 !$day_left=0,$coins=1000,$crops=5,$crops+12=12
