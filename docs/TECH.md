@@ -86,7 +86,10 @@ saves `.ppm` screenshots, prints memory (`@`), writes memory (`!`), and power-cy
   The sound clips keep DirectSound A, so music never cuts them.
 - `pick_song()` runs every frame: title, end screen (quiet), the last shop, other shops (dusk), final nights,
   blood moon, the work day before the final nights (`finale_pending`), else day. Seven songs since v0.9.1.
-- Each song may set `env` (melody volume, fade step; 0 holds) and `bar` (6 for a waltz) in make_music.py.
+- Each song may set `env` (melody volume, fade step; 0 holds) and `bar` (6 for a waltz) in make_music.py, and
+  (v0.9.1) `duty`, `double` (the melody again on channel 1, a few register steps sharp), `bass_wave` saw (wave
+  RAM bank 1; bank 0 is the sine), `bass_loud`, and `noise` (a per-step pattern on channel 4). The 3rd final
+  night (`SONG_FINAL3`) uses all of them. SNDCNT_L 0xFF77: channels 1-4 on.
 - Check: `HARNESS_WAV=/abs/rec.wav sh test/run.sh test/music.txt && python3 test/music_check.py /abs/rec.wav`.
 
 ## Run history (v0.9)

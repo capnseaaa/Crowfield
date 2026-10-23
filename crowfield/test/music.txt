@@ -23,3 +23,7 @@
 1 0 !$shop_open=0,$shop_last=0,$finale_pending=1
 360 0
 1 0 @$song
+# v0.9.1: the 3rd final night plays the grungy version
+1 0 !$finale_pending=0,$finale=3,$blood_on=1,$blood_timer=9999,$dev_god=1
+360 0
+1 0 @$song

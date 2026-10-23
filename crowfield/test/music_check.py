@@ -15,7 +15,7 @@ import make_music as mm  # noqa: E402
 
 RATE = 32768
 SPF = RATE / 59.7275          # samples per GBA frame
-STARTS = [1, 363, 725, 1087, 1449, 1811, 2173]   # nominal first frame of each song in music.txt
+STARTS = [1, 363, 725, 1087, 1449, 1811, 2173, 2535]   # nominal first frame of each song in music.txt
 
 
 def load(path):

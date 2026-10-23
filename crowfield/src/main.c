@@ -30,7 +30,12 @@ typedef signed int     s32;
 #define REG_SNDCNT_H  REG16(0x04000082)
 #define REG_SNDCNT_X  REG16(0x04000084)
 #define REG_FIFO_A    0x040000A0
+#define REG_SND1SWEEP REG16(0x04000060)
+#define REG_SND1CNT   REG16(0x04000062)
+#define REG_SND1FREQ  REG16(0x04000064)
 #define REG_SND2CNT   REG16(0x04000068)
+#define REG_SND4CNT   REG16(0x04000078)
+#define REG_SND4FREQ  REG16(0x0400007C)
 #define REG_SND2FREQ  REG16(0x0400006C)
 #define REG_SND3SEL   REG16(0x04000070)
 #define REG_SND3CNT   REG16(0x04000072)
@@ -123,13 +128,16 @@ static u32 snd_count;                       // sounds started; tests read it
 
 static void sound_init(void) {
     REG_SNDCNT_X = 0x0080;   // master on
-    REG_SNDCNT_L = 0x6677;   // tone channels 2 (melody) and 3 (bass) on both sides, full volume (v0.9 music)
+    REG_SNDCNT_L = 0xFF77;   // tone channels 1-4 on both sides, full volume: melody 2, bass 3, and (v0.9.1) a doubled
+                             // melody on 1 and noise hits on 4 for the grungy songs
     REG_SNDCNT_H = 0x0B04 | 0x0002;   // DMA A 100%, left + right, timer 0, FIFO reset; PSG 100%
     REG_TM0CNT_L = (u16)(65536 - 1254);   // 1254 cycles per sample = 280896 per frame / MIX_LEN
     REG_TM0CNT_H = 0x0080;
-    REG_SND3SEL = 0x0040;    // the bass wave goes into the bank that is not playing (bank 1 selected)
+    REG_SND1SWEEP = 0x0008;  // no sweep
+    REG_SND3SEL = 0x0040;    // wave RAM writes go to the bank that is not playing: bank 0 gets the round bass
     for (u32 i = 0; i < 8; i++) WAVE_RAM[i] = bass_wave[2 * i] | (bass_wave[2 * i + 1] << 8);
-    REG_SND3SEL = 0x0000;
+    REG_SND3SEL = 0x0000;    // and bank 1 the rough sawtooth (v0.9.1)
+    for (u32 i = 0; i < 8; i++) WAVE_RAM[i] = saw_wave[2 * i] | (saw_wave[2 * i + 1] << 8);
 }
 static void sound_vblank(void) {
     if (mix_playing == 0) {   // the DMA ran through both halves: restart at the first
@@ -181,22 +189,36 @@ static void play(u32 snd) {
 // the final nights; tools/make_music.py writes them.
 static s32 song = -1;
 static u32 voice_pos[2], voice_left[2];   // note index and frames left, per voice
+static u32 noise_pos, noise_left;         // the noise pattern's step and frames left (v0.9.1)
 static void music_note(s32 v, u16 freq) {
     if (v == 0) {
-        if (!freq) { REG_SND2CNT = 0; REG_SND2FREQ = 0x8000; return; }   // rest: silence
-        REG_SND2CNT = song_env[song] | (2 << 6);                       // the song's fade (make_music.py), 50% duty
+        if (!freq) {   // rest: silence (and the doubled melody)
+            REG_SND2CNT = 0; REG_SND2FREQ = 0x8000;
+            if (song_double[song]) { REG_SND1CNT = 0; REG_SND1FREQ = 0x8000; }
+            return;
+        }
+        REG_SND2CNT = song_env[song] | (song_duty[song] << 6);   // the song's fade and square shape (make_music.py)
         REG_SND2FREQ = freq | 0x8000;
+        if (song_double[song]) {   // the same note a little sharp on channel 1, 50% duty: a gritty chorus
+            u32 f = freq + song_double[song];
+            REG_SND1CNT = song_env[song] | (2 << 6);
+            REG_SND1FREQ = (f > 2047 ? 2047 : f) | 0x8000;
+        }
     } else {
         if (!freq) { REG_SND3SEL = 0; return; }
-        REG_SND3SEL = 0x0080;                                          // on, 32-sample bank 0
-        REG_SND3CNT = 2 << 13;                                         // 50% volume
+        REG_SND3SEL = 0x0080 | (song_bass[song] & 0x40);                 // on, 32 samples, bank 0 round / 1 saw
+        REG_SND3CNT = song_bass[song] & 0x100 ? 1 << 13 : 2 << 13;      // full or half volume
         REG_SND3FREQ = freq | 0x8000;
     }
 }
 static void music_play(s32 s) {   // -1: silence. The same song keeps playing.
     if (s == song) return;
+    REG_SND1CNT = 0; REG_SND1FREQ = 0x8000;   // the extras stop; the new song starts them again if it has them
+    REG_SND4CNT = 0; REG_SND4FREQ = 0x8000;
     song = s;
-    for (s32 v = 0; v < 2; v++) { voice_pos[v] = 0; voice_left[v] = 0; music_note(v, 0); }
+    noise_pos = noise_left = 0;
+    for (s32 v = 0; v < 2; v++) { voice_pos[v] = 0; voice_left[v] = 0; if (s >= 0) music_note(v, 0); }
+    if (s < 0) { REG_SND2CNT = 0; REG_SND2FREQ = 0x8000; REG_SND3SEL = 0; }
 }
 static void music_tick(void) {
     if (song < 0) return;
@@ -206,6 +228,17 @@ static void music_tick(void) {
         music_note(v, song_freq[song][v][i]);
         voice_left[v] = song_len[song][v][i] * song_fps[song] - 1;
         voice_pos[v] = i + 1 == song_count[song][v] ? 0 : i + 1;
+    }
+    const char *pat = song_noise[song];
+    if (pat) {   // one pattern letter per step: x a heavy crunch, o a light tick
+        if (noise_left) noise_left--;
+        else {
+            char c = pat[noise_pos];
+            if (c == 'x') { REG_SND4CNT = (12 << 12) | (2 << 8); REG_SND4FREQ = (5 << 4) | 2 | 0x8000; }
+            else if (c == 'o') { REG_SND4CNT = (7 << 12) | (1 << 8); REG_SND4FREQ = (2 << 4) | 1 | 0x8000; }
+            noise_left = song_fps[song] - 1;
+            noise_pos = pat[noise_pos + 1] ? noise_pos + 1 : 0;
+        }
     }
 }
 
@@ -2268,7 +2301,7 @@ static void draw_title_crows(void) {
 static void pick_song(void) {
     if (dev_open) return;
     music_play(title_on ? SONG_TITLE : game_over ? -1 : shop_open ? (shop_last ? SONG_LAST_SHOP : SONG_DUSK) :
-               finale ? SONG_FINAL : blood_on ? SONG_BLOOD : finale_pending ? SONG_LAST_DAY : SONG_DAY);
+               finale >= FINALE_NIGHTS ? SONG_FINAL3 : finale ? SONG_FINAL : blood_on ? SONG_BLOOD : finale_pending ? SONG_LAST_DAY : SONG_DAY);
 }
 
 int main(void) {
