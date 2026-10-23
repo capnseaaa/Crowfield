@@ -22,12 +22,15 @@
 1 1
 1 0 u1_sickle_max.ppm
 1 0 @$coins,$sickle_lv
-# B back (cursor on FARM), up to WEAPONS, A opens it on SWORD: Lv.2 for 40 (110 -> 70); Lv.3 costs 80: refused
+# B back (cursor on FARM), up to WEAPONS, A opens it on WOOD SWORD EQUIPPED; down to its drop-down line (v1.0):
+# UPGRADE TO LV2 for 40 (110 -> 70); Lv.3 costs 80: refused
 1 2
 1 0
 1 64
 1 0
 1 1
+1 0
+1 128
 1 0
 1 1
 1 0 @$coins,$sword_lv,$sword_damage,$sword_reach

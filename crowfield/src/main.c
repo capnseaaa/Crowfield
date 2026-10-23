@@ -1770,7 +1770,7 @@ static void draw_shop(void) {
         s32 w = w_of_slot(shop_cursor);   // the bottom line: what the weapon under the cursor does
         if (w < 0 || w == weapon) {
             s32 d = sword_damage;
-            n = copy_str(buf, "EQUIPPED  DAMAGE ");
+            n = copy_str(buf, "CURRENT DMG: ");   // (Caleb, v1.0)
             n += fmt_num(buf + n, d / 2);
             copy_str(buf + n, d & 1 ? ".5" : "");
         } else copy_str(buf, what[w]);
