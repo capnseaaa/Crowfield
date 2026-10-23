@@ -16,3 +16,10 @@
 1 0 !$finale=1
 360 0
 1 0 @$song
+# v0.9.1: the last shop, and the work day before the final nights
+1 0 !$finale=0,$blood_on=0,$shop_open=1,$shop_last=1
+360 0
+1 0 @$song
+1 0 !$shop_open=0,$shop_last=0,$finale_pending=1
+360 0
+1 0 @$song

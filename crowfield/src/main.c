@@ -177,7 +177,8 @@ static void play(u32 snd) {
 }
 
 // ---------- music (v0.9): melody on tone channel 2, bass on channel 3; the clips keep DirectSound A ----------
-// Five songs (Caleb): title, day, dusk shop, blood moon, final nights; tools/make_music.py writes them.
+// Seven songs (Caleb): title, day, dusk shop, blood moon, final nights, the last shop, and the work day before
+// the final nights; tools/make_music.py writes them.
 static s32 song = -1;
 static u32 voice_pos[2], voice_left[2];   // note index and frames left, per voice
 static void music_note(s32 v, u16 freq) {
@@ -2266,8 +2267,8 @@ static void draw_title_crows(void) {
 // Which song fits what is on screen. The dev window keeps whatever played before it.
 static void pick_song(void) {
     if (dev_open) return;
-    music_play(title_on ? SONG_TITLE : game_over ? -1 : shop_open ? SONG_DUSK :
-               finale ? SONG_FINAL : blood_on ? SONG_BLOOD : SONG_DAY);
+    music_play(title_on ? SONG_TITLE : game_over ? -1 : shop_open ? (shop_last ? SONG_LAST_SHOP : SONG_DUSK) :
+               finale ? SONG_FINAL : blood_on ? SONG_BLOOD : finale_pending ? SONG_LAST_DAY : SONG_DAY);
 }
 
 int main(void) {

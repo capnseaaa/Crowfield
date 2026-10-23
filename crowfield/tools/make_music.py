@@ -1,6 +1,7 @@
 """Crowfield's music (v0.9): five songs written as notes, turned into src/music.h, plus WAV previews.
 
-Caleb picked five songs: the title, a normal day, the dusk shop, a blood moon, and the final nights.
+Songs: the title, a normal day, the dusk shop, a blood moon, the final nights, and (v0.9.1) the last shop and
+the work day before the final nights. Caleb picks each tune.
 Each song has two voices that loop together:
   melody -> GBA sound channel 2 (square wave, plucked envelope)
   bass   -> GBA sound channel 3 (4-bit wave, a round tone)
@@ -21,20 +22,24 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "src", "music.h")
 
 SONGS = {
-    # The title: a folk tune in G major, easy going.
-    "title": {
-        "frames_per_step": 14,
+    # The title (v0.9.1, Caleb's pick): "Harvest Waltz", a slow waltz in F, swaying like a barn dance.
+    'title': {
+        "frames_per_step": 12, "env": (9, 6), "bar": 6,
         "melody": """
-            D5 2 G5 2 B5 2 A5 2 | G5 3 E5 1 D5 4 | E5 2 G5 2 A5 2 B5 2 | A5 6 r 2 |
-            D5 2 G5 2 B5 2 D6 2 | C6 2 B5 2 A5 2 G5 2 | A5 2 B5 1 A5 1 G5 2 F#5 2 | G5 6 r 2 |
+            C5 4 A4 2 | F5 4 E5 2 | D5 2 E5 2 F5 2 | C5 6 |
+            A4 4 C5 2 | A#4 4 G4 2 | A4 2 G4 2 E4 2 | F4 6 |
+            C5 4 A4 2 | F5 4 G5 2 | A5 2 G5 2 F5 2 | D5 6 |
+            C5 4 A4 2 | A#4 2 A4 2 G4 2 | E4 4 G4 2 | F4 6 |
         """,
         "bass": """
-            G2 4 D3 4 | C3 4 G2 4 | E2 4 C3 4 | D3 4 D2 4 |
-            G2 4 B2 4 | C3 4 E3 4 | D3 4 D2 4 | G2 8 |
+            F2 2 C3 4 | F2 2 C3 4 | A#2 2 F3 4 | F2 2 C3 4 |
+            F2 2 C3 4 | C3 2 G2 4 | C3 2 G2 4 | F2 6 |
+            F2 2 C3 4 | D3 2 A2 4 | A#2 2 F3 4 | D3 2 A2 4 |
+            F2 2 C3 4 | A#2 2 F3 4 | C3 2 G2 4 | F2 6 |
         """,
     },
-    # A normal day: a quick, jaunty D major tune for farming and fighting.
-    "day": {
+    # A normal day: the first v0.9 tune, a quick D major jig. Placeholder until Caleb picks a new day tune.
+    'day': {
         "frames_per_step": 10,
         "melody": """
             A4 1 D5 1 F#5 1 A5 1 F#5 2 D5 2 | E5 1 F#5 1 G5 2 E5 2 C#5 2 | D5 1 E5 1 F#5 2 A5 2 B5 2 | A5 4 F#5 2 r 2 |
@@ -45,21 +50,20 @@ SONGS = {
             G2 2 D3 2 G2 2 D3 2 | A2 2 E3 2 A2 2 C#3 2 | G2 2 D3 2 A2 2 E3 2 | D3 2 A2 2 D3 4 |
         """,
     },
-    # The dusk shop: slow and calm, C major, under the fireflies.
-    "dusk": {
-        "frames_per_step": 20,
+    # The dusk shop (v0.9.1, Caleb's pick): "Sunny Rows", a bright C major tune over long, still bass notes.
+    'dusk': {
+        "frames_per_step": 12, "env": (8, 7),
         "melody": """
-            E5 4 G5 4 | A5 4 G5 2 E5 2 | F5 4 E5 2 D5 2 | E5 8 |
-            C5 4 E5 4 | D5 4 C5 2 A4 2 | B4 4 D5 2 B4 2 | C5 8 |
+            E5 2 G5 2 A5 2 G5 2 | E5 3 D5 1 C5 4 | D5 2 E5 2 G5 2 E5 2 | D5 8 |
+            E5 2 G5 2 A5 2 C6 2 | A5 3 G5 1 E5 4 | D5 2 C5 2 D5 2 E5 2 | C5 8 |
         """,
         "bass": """
-            C3 8 | F2 8 | D3 4 G2 4 | C3 8 |
-            A2 8 | F2 8 | G2 8 | C3 8 |
+            C3 8 | A2 8 | F2 8 | G2 8 |
+            C3 8 | A2 8 | G2 8 | C3 8 |
         """,
     },
-    # A blood moon: D minor with a sharp seventh over a pounding bass (v0.9.1: Caleb moved the first final-nights
-    # tune here, in place of the first blood moon tune).
-    "blood": {
+    # A blood moon (v0.9.1, Caleb): the first final-nights tune, D minor over a pounding bass.
+    'blood': {
         "frames_per_step": 8,
         "melody": """
             D5 1 D5 1 F5 1 A5 1 G#5 2 A5 2 | F5 1 E5 1 D5 2 C#5 4 | D5 1 F5 1 A5 1 D6 1 C#6 2 A5 2 | A#5 2 A5 2 G5 2 E5 2 |
@@ -72,17 +76,44 @@ SONGS = {
             A2 1 A3 1 A2 1 A3 1 A2 1 A3 1 A2 1 A3 1 | D2 1 D3 1 D2 1 D3 1 D2 1 D3 1 D2 2 |
         """,
     },
+    # The final nights: placeholder until Caleb picks from the v0.9.1 final-fight options (option A, Last Stand).
+    'final': {
+        "frames_per_step": 10, "env": (11, 7),
+        "melody": """
+            D5 4 A5 4 | G5 2 F5 2 E5 4 | F5 2 G5 2 A5 2 C6 2 | A5 8 |
+            A#5 4 A5 2 G5 2 | F5 2 E5 2 D5 4 | E5 2 F5 2 G5 2 E5 2 | D5 8 |
+        """,
+        "bass": """
+            D3 2 A2 2 D3 2 F3 2 | C3 2 G2 2 C3 2 E3 2 | F2 2 C3 2 F3 2 A2 2 | A2 2 E3 2 A2 2 C#3 2 |
+            A#2 2 F3 2 A#2 2 D3 2 | A2 2 E3 2 A2 2 F2 2 | G2 2 D3 2 A2 2 C#3 2 | D3 4 D2 4 |
+        """,
+    },
+    # The last shop before the final nights (Caleb's pick): "Dawn Must Come", dark E minor lifting into G major.
+    'last_shop': {
+        "frames_per_step": 11, "env": (11, 7),
+        "melody": """
+            E5 4 F#5 2 G5 2 | B5 6 A5 2 | G5 2 F#5 2 E5 2 D5 2 | E5 8 |
+            C6 4 B5 2 A5 2 | B5 4 G5 4 | A5 2 B5 2 C6 2 D6 2 | B5 8 |
+        """,
+        "bass": """
+            E3 8 | G2 8 | C3 4 D3 4 | E3 8 |
+            C3 8 | G2 8 | A2 4 D3 4 | G2 8 |
+        """,
+    },
+    # The work day before the final nights (Caleb's pick): "Crow King", an A minor march with dotted steps.
+    'last_day': {
+        "frames_per_step": 9, "env": (11, 6),
+        "melody": """
+            A4 3 C5 1 E5 4 | D5 3 C5 1 B4 4 | C5 3 D5 1 E5 2 A5 2 | G#5 8 |
+            A5 3 G5 1 F5 2 E5 2 | F5 3 E5 1 D5 2 C5 2 | B4 2 C5 2 D5 2 B4 2 | A4 8 |
+        """,
+        "bass": """
+            A2 4 E3 4 | G2 4 D3 4 | F2 4 C3 4 | E2 4 B2 4 |
+            F2 4 C3 4 | D3 4 A2 4 | E2 4 G#2 4 | A2 8 |
+        """,
+    },
 }
-# The final nights: a placeholder until Caleb picks one of the v0.9.1 options (this is option A, "Last Stand":
-# a D minor anthem over a walking bass).
-SONGS["final"] = {
-    "frames_per_step": 10, "env": (11, 7),
-    "melody": """D5 4 A5 4 | G5 2 F5 2 E5 4 | F5 2 G5 2 A5 2 C6 2 | A5 8 |
-                 A#5 4 A5 2 G5 2 | F5 2 E5 2 D5 4 | E5 2 F5 2 G5 2 E5 2 | D5 8 |""",
-    "bass": """D3 2 A2 2 D3 2 F3 2 | C3 2 G2 2 C3 2 E3 2 | F2 2 C3 2 F3 2 A2 2 | A2 2 E3 2 A2 2 C#3 2 |
-               A#2 2 F3 2 A#2 2 D3 2 | A2 2 E3 2 A2 2 F2 2 | G2 2 D3 2 A2 2 C#3 2 | D3 4 D2 4 |""",
-}
-SONG_ORDER = ["title", "day", "dusk", "blood", "final"]
+SONG_ORDER = ["title", "day", "dusk", "blood", "final", "last_shop", "last_day"]
 # Each song may set "env": (volume 0-15, fade step 0-7) for the melody; step 0 holds the note, 7 fades slowest.
 DEFAULT_ENV = (9, 5)
 
