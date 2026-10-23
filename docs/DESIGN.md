@@ -221,3 +221,5 @@ farmer is knocked out.
 - v0.9.1 music: title Harvest Waltz, day Pitchfork Polka, dusk shop Sunny Rows, blood moons the old final-nights
   tune, the work day before the final nights Crow King, the last shop Dawn Must Come, final nights The Flock
   Descends, night 3 a grungy version of it. Every song loops (checked over two full loops in a recording).
+- v1.0 (Caleb): a weapon you owned before is equipped again for free ("EQUIP SPEAR LV2"). The weapon in hand shows
+  "UPGRADE TO LVn = $x", or "NAME EQUIPPED" at Lv.3; the bottom line says "EQUIPPED  DAMAGE x" on it.

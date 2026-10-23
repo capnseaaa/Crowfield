@@ -1733,11 +1733,19 @@ static void draw_shop(void) {
         static const char *const what[WEAPONS] = { "QUICK, ALL-ROUND", "BIG HITS, SLOWER", "REACHES 2 TILES",
                                                    "HITS 3 TILES WIDE", "SHOOTS ANY DISTANCE" };
         shop_centered(SHOP_T + 1, "WEAPONS");
-        for (s32 w = 0; w < WEAPONS; w++) {   // in hand: its upgrade line; else BUY (Caleb)
+        for (s32 w = 0; w < WEAPONS; w++) {   // in hand: UPGRADE TO LVn, or EQUIPPED at Lv.3; owned: EQUIP; else BUY
             if (w == weapon) {
-                n = copy_str(buf, weapon_name[w]);
-                copy_str(buf + n, " LV");
-                shop_level(w, buf, sword_lv, weapon_up[w]);
+                if (sword_lv >= 3) {
+                    n = copy_str(buf, weapon_name[w]);
+                    copy_str(buf + n, " EQUIPPED");
+                    shop_item(w, buf, -2);
+                } else shop_level(w, "UPGRADE TO LV", sword_lv, weapon_up[w]);
+            } else if (weapon_lv[w]) {   // owned before (v1.0, Caleb): equip it again for free
+                n = copy_str(buf, "EQUIP ");
+                n += copy_str(buf + n, weapon_name[w]);
+                n += copy_str(buf + n, " LV");
+                fmt_num(buf + n, weapon_lv[w]);
+                shop_item(w, buf, -2);
             } else {
                 n = copy_str(buf, "BUY ");
                 copy_str(buf + n, weapon_name[w]);
@@ -1747,13 +1755,9 @@ static void draw_shop(void) {
         s32 w = shop_cursor;   // the bottom line: what the weapon under the cursor does
         if (w == weapon) {
             s32 d = sword_damage;
-            n = copy_str(buf, "IN HAND  DAMAGE ");
+            n = copy_str(buf, "EQUIPPED  DAMAGE ");
             n += fmt_num(buf + n, d / 2);
             copy_str(buf + n, d & 1 ? ".5" : "");
-        } else if (weapon_lv[w]) {
-            n = copy_str(buf, what[w]);
-            n += copy_str(buf + n, " LV");
-            fmt_num(buf + n, weapon_lv[w]);
         } else copy_str(buf, what[w]);
         shop_centered(SHOP_INFO, buf);
         info = 0;
@@ -1793,7 +1797,8 @@ static void draw_shop(void) {
         shop_centered(SHOP_INFO, n <= SHOP_W - 2 ? buf : buf + 9);
     }
     clear_row(19);
-    put_text(4, 19, shop_page == PAGE_MAIN ? "UP/DOWN PICK  A CHOOSE" : shop_page == PAGE_BLESS ? "UP/DOWN PICK  A TAKE" : "A BUY  B BACK");
+    put_text(4, 19, shop_page == PAGE_MAIN ? "UP/DOWN PICK  A CHOOSE" : shop_page == PAGE_BLESS ? "UP/DOWN PICK  A TAKE" :
+             shop_page == PAGE_WEAPONS ? "A CHOOSE  B BACK" : "A BUY  B BACK");
 }
 
 static void open_shop(void) {
@@ -1910,6 +1915,9 @@ static void update_shop(void) {
         if (w == weapon) {           // upgrade the weapon in hand
             s32 lv = sword_lv;
             if ((ok = buy_level(&lv, weapon_up[w]))) set_sword_lv(lv);
+        } else if (weapon_lv[w]) {   // owned before: equip it for free, at its own level (Caleb, v1.0)
+            take_weapon(w);
+            ok = 1;
         } else if ((ok = coins >= weapon_buy[w])) {   // buy another: it replaces the one in hand
             coins -= weapon_buy[w];
             take_weapon(w);
