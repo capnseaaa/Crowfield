@@ -1569,24 +1569,30 @@ enum { F_SICKLE, F_SCARECROW, F_SCARECROW_LV, F_CANNON, F_EXPAND, F_ITEMS };
 enum { B_ATTACK, B_SCARE, B_HEART, B_ITEMS };
 static const s32 page_items[6] = { MAIN_ITEMS, SELL_ITEMS, KINDS, W_ITEMS, F_ITEMS, B_ITEMS };
 static s32 shop_open, shop_page, shop_cursor, main_cursor;
-// Window: text columns 3..26, rows 2..17 (centered between the HUD and the message row). A blank row above
-// the title, two under it, items every 2nd row (rows 6-14), the bottom line on row 16, a blank row 17, so
-// nothing sits on the edge (Caleb). The hint goes on row 19.
-#define SHOP_L 3
-#define SHOP_W 24
+// Window: columns 2..27 (26 wide, centered; v0.9.1 widened it from 3..26 so big numbers fit), rows 2..17
+// (between the HUD and the message row). A blank row above the title, two under it, items every 2nd row
+// (rows 6-14), the bottom line on row 16, a blank row 17. Text never reaches the box's own edge columns
+// (Caleb): at most 24 letters, columns 3..26 (test/menu_check.py checks every window). The hint goes on row 19.
+#define SHOP_L 2
+#define SHOP_W 26
 #define SHOP_T 2
 #define SHOP_ROWS 16
-#define SHOP_EQ 16     // column of "=" in an item line
+#define SHOP_EQ 17     // column of "=" in an item line (v0.9.1: one space after the longest name)
 #define SHOP_INFO (SHOP_T + 14)   // the bottom line: YOU HAVE, or about the line under the cursor
 
+// A number for a window line, shown as at most `max` (999 for counts, 99999 for coins), so a line keeps its width.
+static s32 fmt_cap(char *buf, s32 n, s32 max) { return fmt_num(buf, n < 0 ? 0 : n > max ? max : n); }
+#define COUNT_MAX 999
+#define COINS_MAX 99999
+
 static void shop_line(s32 row, const char *s) {
-    put_text(SHOP_L, row, "                        ");
+    put_text(SHOP_L, row, "                          ");
     put_text(SHOP_L + 1, row, s);
 }
 static void shop_centered(s32 row, const char *s) {   // a line centered in the window
     s32 n = 0;
     while (s[n]) n++;
-    put_text(SHOP_L, row, "                        ");
+    put_text(SHOP_L, row, "                          ");
     put_text(SHOP_L + (SHOP_W - n) / 2, row, s);
 }
 // Item line k (rows 6, 8, .. 14): "  NAME" padded to SHOP_EQ, then "= $price" (price >= 0) or "MAX" (-1);
@@ -1598,7 +1604,12 @@ static void shop_item(s32 k, const char *name, s32 price) {
     if (price != -2) while (n < SHOP_EQ) buf[n++] = ' ';
     buf[n] = 0;
     if (price == -1) copy_str(buf + n, "MAX");
-    else if (price >= 0) fmt_num(buf + n + copy_str(buf + n, "= $"), price);
+    else if (price >= 0) {   // "= $123"; a 5-digit price drops the space so the line keeps to 24 letters
+        char num[8];
+        s32 len = fmt_cap(num, price, COINS_MAX);
+        n += copy_str(buf + n, n + 3 + len <= SHOP_W - 2 ? "= $" : "=$");
+        copy_str(buf + n, num);
+    }
     shop_line(SHOP_T + 4 + 2 * k, buf);
 }
 // A tool line: "SICKLE LV2" and its price, or "SICKLE LV3" and MAX.
@@ -1630,7 +1641,7 @@ static void draw_shop(void) {
         }
         shop_centered(SHOP_T + 1, buf);
         n = copy_str(buf, "SELL  &");
-        fmt_num(buf + n, crops_total());
+        fmt_cap(buf + n, crops_total(), COUNT_MAX);
         shop_item(MAIN_SELL, buf, -2);
         shop_item(MAIN_SEEDS, "SEEDS", -2);
         shop_item(MAIN_WEAPONS, "WEAPONS", -2);
@@ -1639,7 +1650,7 @@ static void draw_shop(void) {
     } else if (shop_page == PAGE_SELL) {
         shop_centered(SHOP_T + 1, "SELL");
         n = copy_str(buf, "ALL   &");
-        fmt_num(buf + n, sell_all_count());
+        fmt_cap(buf + n, sell_all_count(), COUNT_MAX);
         shop_item(SELL_ALL, buf, sell_all_value());
         for (s32 k = 0; k < KINDS; k++) {   // "^ CORN   &3 = $9"
             n = copy_str(buf, seed_icon[k]);
@@ -1647,7 +1658,7 @@ static void draw_shop(void) {
             n += copy_str(buf + n, crop_name[k]);
             while (n < 10) buf[n++] = ' ';
             buf[n++] = '&';
-            fmt_num(buf + n, crops[k]);
+            fmt_cap(buf + n, crops[k], COUNT_MAX);
             shop_item(1 + k, buf, crops[k] * sell_price[k]);
         }
     } else if (shop_page == PAGE_SEEDS) {
@@ -1663,7 +1674,7 @@ static void draw_shop(void) {
                 shop_item(k, buf, -2);
             } else {
                 buf[n++] = 'X';
-                fmt_num(buf + n, seeds[k]);
+                fmt_cap(buf + n, seeds[k], COUNT_MAX);
                 shop_item(k, buf, seed_price[k]);
             }
         }
@@ -1730,16 +1741,17 @@ static void draw_shop(void) {
     }
     put_text(SHOP_L + 1, SHOP_T + 4 + 2 * shop_cursor, ">");
     if (info) {
-        n = copy_str(buf, "YOU HAVE $");
-        n += fmt_num(buf + n, coins);
+        n = copy_str(buf, "YOU HAVE ");   // dropped when the numbers alone fill the line
+        n += copy_str(buf + n, "$");
+        n += fmt_cap(buf + n, coins, COINS_MAX);
         n += copy_str(buf + n, " &");
-        n += fmt_num(buf + n, crops_total());
+        n += fmt_cap(buf + n, crops_total(), COUNT_MAX);
         n += copy_str(buf + n, " ");
         n += copy_str(buf + n, seed_icon[sel_seed]);
-        n += fmt_num(buf + n, seeds[sel_seed]);
+        n += fmt_cap(buf + n, seeds[sel_seed], COUNT_MAX);
         n += copy_str(buf + n, " #");
-        fmt_num(buf + n, scarecrow_bag);
-        shop_centered(SHOP_INFO, buf);
+        n += fmt_num(buf + n, scarecrow_bag);
+        shop_centered(SHOP_INFO, n <= SHOP_W - 2 ? buf : buf + 9);
     }
     clear_row(19);
     put_text(4, 19, shop_page == PAGE_MAIN ? "UP/DOWN PICK  A CHOOSE" : shop_page == PAGE_BLESS ? "UP/DOWN PICK  A TAKE" : "A BUY  B BACK");
@@ -2172,9 +2184,10 @@ static void title_text(void) {
 static void stats_line(s32 row, const char *label, u32 a, u32 b) {
     static const char *const how[4] = { "FARM", "MOON", "LAST", "WON" };
     char buf[26], num[8];
-    s32 n = copy_str(buf, label);
+    s32 n = copy_str(buf, " ");   // the 22-wide table sits in the middle of the 24 letters
+    n += copy_str(buf + n, label);
     u32 v[3] = { a & 0xFFFF, a >> 16, b & 0xFFFF };
-    static const u8 right[3] = { 6, 11, 16 };   // last column of each number: 22 wide, clear of the edge
+    static const u8 right[3] = { 7, 12, 17 };   // last column of each number (after the leading space)
     for (s32 k = 0; k < 3; k++) {
         s32 len = fmt_num(num, v[k]);
         while (n < right[k] + 1 - len) buf[n++] = ' ';
@@ -2192,15 +2205,15 @@ static void draw_stats(void) {
     for (s32 r = 0; r < 20; r++) clear_row(r);
     for (s32 r = SHOP_T; r < SHOP_T + SHOP_ROWS; r++) shop_line(r, "");
     shop_centered(SHOP_T + 1, "PAST RUNS");
-    shop_line(SHOP_T + 3, "RUN DAY CROP CROW END");
+    shop_line(SHOP_T + 3, " RUN DAY CROP CROW END");
     stats_line(SHOP_T + 5, "BEST", best_a, best_b);
     for (u32 i = 0; i < HISTORY && i < runs_played; i++) {
-        s32 n = fmt_num(buf, runs_played - i);
+        s32 n = fmt_cap(buf, runs_played - i, 9999);   // the run column is 4 wide
         buf[n] = 0;
         stats_line(SHOP_T + 7 + i, buf, hist_a[i], hist_b[i]);
     }
     s32 n = copy_str(buf, "RUNS PLAYED ");
-    fmt_num(buf + n, runs_played);
+    fmt_cap(buf + n, runs_played, COINS_MAX);
     shop_centered(SHOP_INFO, buf);
     put_text(1, 19, "B BACK");
 }

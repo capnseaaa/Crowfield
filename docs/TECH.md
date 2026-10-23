@@ -92,3 +92,10 @@ saves `.ppm` screenshots, prints memory (`@`), writes memory (`!`), and power-cy
   run, last 5 runs (newest first), checksum; magic written last. A run = two words: day | crops << 16,
   crows | ending << 16. Change the layout: bump the magic (old histories then start over).
 - Harness `^` power cycles keep save memory, so `test/stats.txt` checks the history survives a reset.
+
+## Window text (v0.9.1)
+- Every window (shop, dev mode, end screens, stats) is columns 2..27, rows 2..17. Text stays in columns 3..26:
+  never on the box's own edge, never outside it (Caleb). Numbers in window lines are capped (`fmt_cap`: 999 for
+  counts, 99999 for coins) so a line keeps its width.
+- `test/menu_check.py` reads the text map from video memory in 90 window states with the biggest numbers and fails
+  on any letter in an edge column or outside the box. Run it after any change to a window's text.

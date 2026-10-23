@@ -9,3 +9,4 @@ crowfield/src/sound.h
 crowfield/src/music.h
 crowfield/test/*.wav
 crowfield/test/.days.txt
+crowfield/test/.menus.txt
