@@ -213,3 +213,6 @@ farmer is knocked out.
 - Days are endless (no Day 20 stop; Caleb, 2026-10-22).
 - Crows hurt the farmer and eat crops.
 - Turrets go on soil tiles and cost a crop slot.
+- v0.9.1 (Caleb): the 3rd final night has no purple or lower crows (lineup gold 30, white 15; the 8 purple became
+  gold). In its last 10 s "LAST TEN SECONDS" shows and every crow that comes is white. The blood moons now play
+  the first final-nights tune; the final nights get a new, more epic one (Caleb picks from options).

@@ -183,7 +183,7 @@ static u32 voice_pos[2], voice_left[2];   // note index and frames left, per voi
 static void music_note(s32 v, u16 freq) {
     if (v == 0) {
         if (!freq) { REG_SND2CNT = 0; REG_SND2FREQ = 0x8000; return; }   // rest: silence
-        REG_SND2CNT = (9 << 12) | (5 << 8) | (2 << 6);                 // a pluck that fades, 50% duty
+        REG_SND2CNT = song_env[song] | (2 << 6);                       // the song's fade (make_music.py), 50% duty
         REG_SND2FREQ = freq | 0x8000;
     } else {
         if (!freq) { REG_SND3SEL = 0; return; }
@@ -874,6 +874,7 @@ static s32 blood_night(void) { return blood_on != 0; }
 #define FINALE_NIGHTS 3
 #define FINALE_COINS 150
 #define BREAK_FRAMES 300        // 5 s between the final nights
+#define LAST_TEN 600            // the last 10 s of the 3rd final night: "LAST TEN SECONDS", white crows only (Caleb, v0.9.1)
 static s32 finale_pending;      // 1: the next dusk is the last shop
 static s32 shop_last;           // 1: this is the last shop
 
@@ -882,7 +883,7 @@ static s32 shop_last;           // 1: this is the last shop
 // Columns: black, red, purple, gold, white. Rows: blood moons 1-5, final nights 1-3.
 static const u8 bm_lineup[8][5] = {
     { 4, 8, 7, 5, 0 }, { 2, 8, 9, 7, 0 }, { 0, 8, 10, 9, 1 }, { 0, 6, 11, 11, 2 }, { 0, 4, 12, 13, 3 },
-    { 0, 0, 12, 18, 6 }, { 0, 0, 10, 20, 10 }, { 0, 0, 8, 22, 15 } };
+    { 0, 0, 12, 18, 6 }, { 0, 0, 10, 20, 10 }, { 0, 0, 0, 30, 15 } };   // night 3: no purple or lower (Caleb, v0.9.1)
 static const u8 bm_level[5] = { 1, 2, 3, 4, CROW_WHITE };
 static const u8 bm_coins[7] = { 2, 2, 4, 6, 10, 10, 15 };   // coins per kill in a blood moon, by crow level
 #define BM_MAX 48
@@ -969,8 +970,11 @@ static void update_blood_moon(void) {
     }
     if (blood_on == 1) {
         if (--blood_timer > 0) {
+            s32 last_ten = finale >= FINALE_NIGHTS && blood_timer <= LAST_TEN;   // only white crows from now on
+            if (finale >= FINALE_NIGHTS && blood_timer == LAST_TEN) { show_message("LAST TEN SECONDS"); msg_timer = 180; }
             if (--spurt_timer <= 0 && spurt_no < spurts - 1) { spurt_no++; spurt_timer = spurt_len; }
-            if (bm_sent < spurt_target(spurt_no) && ++spawn_timer >= SPURT_GAP && spawn_crow_lv(bm_queue[bm_sent])) {
+            if (bm_sent < spurt_target(spurt_no) && ++spawn_timer >= SPURT_GAP &&
+                spawn_crow_lv(last_ten ? CROW_WHITE : bm_queue[bm_sent])) {
                 spawn_timer = 0;
                 bm_sent++;
             }

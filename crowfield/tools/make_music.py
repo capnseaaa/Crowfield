@@ -57,22 +57,9 @@ SONGS = {
             A2 8 | F2 8 | G2 8 | C3 8 |
         """,
     },
-    # A blood moon: tense E minor over a pounding bass.
+    # A blood moon: D minor with a sharp seventh over a pounding bass (v0.9.1: Caleb moved the first final-nights
+    # tune here, in place of the first blood moon tune).
     "blood": {
-        "frames_per_step": 9,
-        "melody": """
-            E5 2 r 1 E5 1 G5 2 F#5 2 | E5 2 D5 2 B4 4 | C5 2 r 1 C5 1 E5 2 D5 2 | B4 6 r 2 |
-            E5 2 G5 2 B5 2 A5 2 | G5 2 F#5 2 E5 2 D5 2 | C5 2 B4 2 A4 2 B4 2 | E5 6 r 2 |
-        """,
-        "bass": """
-            E2 1 E3 1 E2 1 E3 1 E2 1 E3 1 E2 1 E3 1 | E2 1 E3 1 E2 1 E3 1 E2 1 E3 1 E2 1 E3 1 |
-            C3 1 C4 1 C3 1 C4 1 C3 1 C4 1 C3 1 C4 1 | B2 1 B3 1 B2 1 B3 1 B2 1 B3 1 B2 1 B3 1 |
-            E2 1 E3 1 E2 1 E3 1 E2 1 E3 1 E2 1 E3 1 | C3 1 C4 1 C3 1 C4 1 C3 1 C4 1 C3 1 C4 1 |
-            A2 1 A3 1 A2 1 A3 1 A2 1 A3 1 A2 1 A3 1 | B2 1 B3 1 B2 1 B3 1 B2 1 B3 1 B2 1 B3 1 |
-        """,
-    },
-    # The final nights: faster still, D minor with a sharp seventh, the last stand.
-    "final": {
         "frames_per_step": 8,
         "melody": """
             D5 1 D5 1 F5 1 A5 1 G#5 2 A5 2 | F5 1 E5 1 D5 2 C#5 4 | D5 1 F5 1 A5 1 D6 1 C#6 2 A5 2 | A#5 2 A5 2 G5 2 E5 2 |
@@ -86,7 +73,18 @@ SONGS = {
         """,
     },
 }
+# The final nights: a placeholder until Caleb picks one of the v0.9.1 options (this is option A, "Last Stand":
+# a D minor anthem over a walking bass).
+SONGS["final"] = {
+    "frames_per_step": 10, "env": (11, 7),
+    "melody": """D5 4 A5 4 | G5 2 F5 2 E5 4 | F5 2 G5 2 A5 2 C6 2 | A5 8 |
+                 A#5 4 A5 2 G5 2 | F5 2 E5 2 D5 4 | E5 2 F5 2 G5 2 E5 2 | D5 8 |""",
+    "bass": """D3 2 A2 2 D3 2 F3 2 | C3 2 G2 2 C3 2 E3 2 | F2 2 C3 2 F3 2 A2 2 | A2 2 E3 2 A2 2 C#3 2 |
+               A#2 2 F3 2 A#2 2 D3 2 | A2 2 E3 2 A2 2 F2 2 | G2 2 D3 2 A2 2 C#3 2 | D3 4 D2 4 |""",
+}
 SONG_ORDER = ["title", "day", "dusk", "blood", "final"]
+# Each song may set "env": (volume 0-15, fade step 0-7) for the melody; step 0 holds the note, 7 fades slowest.
+DEFAULT_ENV = (9, 5)
 
 NOTE_INDEX = {"C": 0, "C#": 1, "D": 2, "D#": 3, "E": 4, "F": 5, "F#": 6, "G": 7, "G#": 8, "A": 9, "A#": 10, "B": 11}
 
@@ -117,7 +115,8 @@ def check(name, song):
     m = sum(s for _, s in parse(song["melody"]))
     b = sum(s for _, s in parse(song["bass"]))
     assert m == b, f"{name}: melody is {m} steps, bass is {b}; they must loop together"
-    assert m % 8 == 0, f"{name}: {m} steps is not whole bars"
+    bar = song.get("bar", 8)
+    assert m % bar == 0, f"{name}: {m} steps is not whole bars of {bar}"
 
 
 def write_header():
@@ -144,6 +143,9 @@ def write_header():
     lines.append("static const unsigned short song_count[NUM_SONGS][2] = {")
     lines += [f"    {{ {len(parse(SONGS[n]['melody']))}, {len(parse(SONGS[n]['bass']))} }}," for n in SONG_ORDER]
     lines.append("};")
+    lines.append("static const unsigned short song_env[NUM_SONGS] = { "   # channel 2 envelope bits
+                 + ", ".join(str((SONGS[n].get("env", DEFAULT_ENV)[0] << 12) | (SONGS[n].get("env", DEFAULT_ENV)[1] << 8))
+                             for n in SONG_ORDER) + " };")
     lines.append("static const unsigned char song_fps[NUM_SONGS] = { "
                  + ", ".join(str(SONGS[n]["frames_per_step"]) for n in SONG_ORDER) + " };")
     # the bass wave: 32 samples, 4 bits each, one smooth sine cycle
@@ -172,7 +174,9 @@ def write_wav(name, song, wave, path, loops=2):
                     if f == 0:
                         buf.append(0.0)
                     elif voice == "melody":
-                        env = max(0.0, 0.45 - t * 0.6)
+                        vol, step = song.get("env", DEFAULT_ENV)
+                        level = vol if step == 0 else max(0.0, vol - t * 64 / step)   # one volume step per step/64 s
+                        env = 0.45 * level / 9
                         buf.append(env * (1 if (t * f) % 1 < 0.5 else -1))
                     else:
                         buf.append(0.35 * (wave[int((t * f) % 1 * 32)] / 7.5 - 1))
