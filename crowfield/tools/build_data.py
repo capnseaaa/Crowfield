@@ -100,7 +100,7 @@ FONT_CHARS = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789%:!.?'+/-,*$&^>=#{}|<"
 
 def font_words(underline=False, low=False):
     """Tile 0 is transparent. Glyph tiles: color 2 background, text in color 1 (or GLYPH_COLOR); "2" pixels green.
-    underline (v1.0): the same glyphs (without the empty tile 0) with a thin gold line (color 4) on the bottom row,
+    underline (v1.0): the same glyphs (without the empty tile 0) with a thin line in the text's color (1) on the bottom row,
     for the equipped weapon's name. low (v1.0): the glyphs one pixel lower, so a line drawn under an underlined
     one keeps a gap."""
     words = [] if underline or low else [0] * 8
@@ -117,7 +117,7 @@ def font_words(underline=False, low=False):
                 elif 1 <= x <= 5 and 0 <= gy < 7 and rows[gy][x - 1] == "2":
                     c = 5   # leaf green (text palette color 5)
                 if underline and y == 7:
-                    c = 4   # coin gold
+                    c = 1   # the text's own cream (Caleb)
                 w |= c << (4 * x)
             words.append(w)
     return words

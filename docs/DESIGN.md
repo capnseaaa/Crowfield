@@ -223,4 +223,4 @@ farmer is knocked out.
   Descends, night 3 a grungy version of it. Every song loops (checked over two full loops in a recording).
 - v1.0 (Caleb): a weapon you owned before is equipped again for free ("EQUIP SPEAR LV2"). The weapon in hand reads
   "NAME EQUIPPED", with a drop-down line under it, "UPGRADE TO LVn = $x" (gone at Lv.3). On it the bottom line
-  reads "CURRENT DMG: x". A thin gold line underlines the equipped weapon's name.
+  reads "CURRENT DMG: x". A thin line in the text's color underlines the whole equipped line.

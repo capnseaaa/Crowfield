@@ -1758,9 +1758,9 @@ static void draw_shop(void) {
         for (s32 w = 0; w < WEAPONS; w++) {   // in hand: EQUIPPED, and under it UPGRADE TO LVn; owned: EQUIP; else BUY
             if (w == weapon) {
                 n = copy_str(buf, weapon_name[w]);
-                copy_str(buf + n, " EQUIPPED");
+                n += copy_str(buf + n, " EQUIPPED");
                 shop_item_at(W_ROW(w), buf, -2);
-                restyle_text(SHOP_L + 3, W_ROW(w), n, FONT_UL_BASE);   // a thin gold line under its name (Caleb, v1.0)
+                restyle_text(SHOP_L + 3, W_ROW(w), n, FONT_UL_BASE);   // a thin line under the whole line, in the text's color (Caleb, v1.0)
                 if (sword_lv < 3) {   // the drop-down line, right under it
                     n = copy_str(buf, "UPGRADE TO LV");
                     fmt_num(buf + n, sword_lv + 1);
