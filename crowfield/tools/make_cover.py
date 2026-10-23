@@ -185,6 +185,16 @@ def menu():
     path = os.path.join(mt.ART, "menu_cover.png")
     img.save(path)
     print("wrote", os.path.relpath(path, os.path.dirname(mt.ART)))
+    # a portrait cover without the white strip, 250x360 (Onion OS's limit): the box art's scene, centered
+    pc = (62, 60)
+    port = draw_art(nw=125, nh=180, cx=62, moon_c=pc,
+                    crows=((4, 12, 3, False), (96, 8, 4, False), (100, 92, 3, False), (34, 100, 4, False)),
+                    sx=18).resize((250, 360), Image.NEAREST)
+    port.paste(big3 := logo.resize((logo.width * LOGO_SCALE, logo.height * LOGO_SCALE), Image.NEAREST),
+               (125 - big3.width // 2, pc[1] * 2 - (base + 5) * LOGO_SCALE - 1), big3)
+    path = os.path.join(mt.ART, "portrait_cover.png")
+    port.save(path)
+    print("wrote", os.path.relpath(path, os.path.dirname(mt.ART)))
 
 
 if __name__ == "__main__":

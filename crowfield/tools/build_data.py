@@ -98,20 +98,26 @@ GLYPH_COLOR = {"*": 3, "$": 4, "&": 5, "^": 4, ">": 4, "#": 4, "{": 6, "}": 3, "
 FONT_CHARS = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789%:!.?'+/-,*$&^>=#{}|<"
 
 
-def font_words():
-    """Tile 0 is transparent. Glyph tiles: color 2 background, text in color 1 (or GLYPH_COLOR); "2" pixels green."""
-    words = [0] * 8
+def font_words(underline=False, low=False):
+    """Tile 0 is transparent. Glyph tiles: color 2 background, text in color 1 (or GLYPH_COLOR); "2" pixels green.
+    underline (v1.0): the same glyphs (without the empty tile 0) with a thin gold line (color 4) on the bottom row,
+    for the equipped weapon's name. low (v1.0): the glyphs one pixel lower, so a line drawn under an underlined
+    one keeps a gap."""
+    words = [] if underline or low else [0] * 8
     for ch in FONT_CHARS:
         rows = FONT[ch].split()
         ink = GLYPH_COLOR.get(ch, 1)
         for y in range(8):
             w = 0
+            gy = y - 1 if low else y   # the glyph row drawn on this pixel row
             for x in range(8):
                 c = 2
-                if 1 <= x <= 5 and y < 7 and rows[y][x - 1] == "1":
+                if 1 <= x <= 5 and 0 <= gy < 7 and rows[gy][x - 1] == "1":
                     c = ink
-                elif 1 <= x <= 5 and y < 7 and rows[y][x - 1] == "2":
+                elif 1 <= x <= 5 and 0 <= gy < 7 and rows[gy][x - 1] == "2":
                     c = 5   # leaf green (text palette color 5)
+                if underline and y == 7:
+                    c = 4   # coin gold
                 w |= c << (4 * x)
             words.append(w)
     return words
@@ -222,6 +228,8 @@ def main():
         "static const char FONT_CHARS[] = \"%s\";" % FONT_CHARS.replace("\\", "\\\\"),
     ]
     out += title_data(len(font_words()) // 8)
+    out.append(c_array("font_ul_tiles", "unsigned int", font_words(underline=True)))
+    out.append(c_array("font_low_tiles", "unsigned int", font_words(low=True)))
     with open(OUT, "w") as f:
         f.write("\n".join(out) + "\n")
     print("wrote", os.path.relpath(OUT, ROOT))

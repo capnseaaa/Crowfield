@@ -249,6 +249,16 @@ static u16 glyph_entry(char c) {
         if (FONT_CHARS[i] == c) return (1 + i) | (1 << 12);   // palette bank 1
     return 1 | (1 << 12);
 }
+// The underlined copy of the font (v1.0: the equipped weapon) sits in charblock 1 after the title's tiles.
+// A copy one pixel lower follows it, for the line right under an underlined one (so the two keep a gap).
+#define FONT_UL_BASE (TITLE_FG_BASE + sizeof(title_fg_tiles) / 32)
+#define FONT_LOW_BASE (FONT_UL_BASE + sizeof(font_ul_tiles) / 32)
+static void restyle_text(s32 col, s32 row, s32 n, u32 base) {   // swap n written cells for that copy's glyphs
+    for (s32 c = col; c < col + n && c < 30; c++) {
+        u16 e = SCREENBLOCK(TEXT_SB)[row * 32 + c] & 0x3FF;
+        if (e >= 1 && e <= sizeof(FONT_CHARS) - 1) SCREENBLOCK(TEXT_SB)[row * 32 + c] = (base + e - 1) | (1 << 12);
+    }
+}
 static void put_text(s32 col, s32 row, const char *s) {
     for (; *s && col < 30; s++, col++) SCREENBLOCK(TEXT_SB)[row * 32 + col] = glyph_entry(*s);
 }
@@ -1750,10 +1760,12 @@ static void draw_shop(void) {
                 n = copy_str(buf, weapon_name[w]);
                 copy_str(buf + n, " EQUIPPED");
                 shop_item_at(W_ROW(w), buf, -2);
+                restyle_text(SHOP_L + 3, W_ROW(w), n, FONT_UL_BASE);   // a thin gold line under its name (Caleb, v1.0)
                 if (sword_lv < 3) {   // the drop-down line, right under it
                     n = copy_str(buf, "UPGRADE TO LV");
                     fmt_num(buf + n, sword_lv + 1);
                     shop_item_at(W_ROW(w) + 1, buf, weapon_up[w][sword_lv - 1]);
+                    restyle_text(SHOP_L + 1, W_ROW(w) + 1, SHOP_W - 2, FONT_LOW_BASE);   // a pixel lower: a gap under the line
                 }
             } else if (weapon_lv[w]) {   // owned before (v1.0, Caleb): equip it again for free
                 n = copy_str(buf, "EQUIP ");
@@ -2420,6 +2432,8 @@ int main(void) {
         PAL_OBJ[144 + i] = i == 11 ? obj_pal[i] : (2) | (1 << 5) | (2 << 10);   // bank 9: crow silhouettes, gold beak
     }
     copy32(CHARBLOCK(1) + TITLE_FG_BASE * 8, title_fg_tiles, sizeof(title_fg_tiles) / 4);
+    copy32(CHARBLOCK(1) + FONT_UL_BASE * 8, font_ul_tiles, sizeof(font_ul_tiles) / 4);
+    copy32(CHARBLOCK(1) + FONT_LOW_BASE * 8, font_low_tiles, sizeof(font_low_tiles) / 4);
     copy32(CHARBLOCK(2), title_bg_tiles, sizeof(title_bg_tiles) / 4);
     for (u32 r = 0; r < 20; r++)
         for (u32 c = 0; c < 32; c++)
