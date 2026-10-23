@@ -1,9 +1,10 @@
 # skip the title screen (v0.9): the game starts at once, as before
 0 0 !0203FFF0=1413829460
-# weapons (v0.8.1; v1.0 shop lines): the WEAPONS page (in hand: UPGRADE TO LVn, or NAME EQUIPPED at Lv.3;
-# owned before: EQUIP NAME LVn, free; else BUY), switching back keeps a weapon's level and costs nothing (v1.0;
-# coins stay 720 when the spear is equipped again), and each weapon's hit: the spear reaches 30 px ahead (the sword does not), the scythe 20 px to the
-# side (the sword does not), the slingshot's stone kills a crow 70 px away.
+# weapons (v0.8.1; v1.0 shop lines, Caleb): the WEAPONS page lists each weapon. The one in hand reads
+# NAME EQUIPPED, with a drop-down line under it, UPGRADE TO LVn = price (gone at Lv.3). A weapon owned before
+# reads EQUIP NAME LVn and equips for free at its own level; others read BUY NAME = price. Cursor slots count
+# the drop-down line. Then each weapon's hit: the spear reaches 30 px ahead (the sword does not), the scythe
+# 20 px to the side (the sword does not), the slingshot's stone kills a crow 70 px away.
 1 0 !$day_left=0,$coins=1000
 905 0
 1 0 @$shop_open,$shop_cursor
@@ -13,6 +14,8 @@
 1 0
 1 0 w0_page.ppm
 1 0 @$shop_page,$weapon,$sword_lv
+1 128
+1 0
 1 1
 1 0
 1 0 @$coins,$weapon,$sword_lv,$sword_damage
@@ -23,11 +26,17 @@
 1 0 @$coins,$weapon,$sword_lv,$sword_damage,$swing_len
 1 128
 1 0
+1 128
+1 0
 1 1
+1 0
+1 128
 1 0
 1 1
 1 0
 1 0 @$coins,$weapon,$sword_lv,$sword_damage,$sword_reach
+1 64
+1 0
 1 64
 1 0
 1 64
@@ -39,27 +48,35 @@
 1 0
 1 128
 1 0
+1 128
+1 0
 1 1
 1 0
 1 0 @$coins,$weapon,$sword_lv
 1 128
 1 0
+1 128
+1 0
 1 1
+1 0
+1 128
 1 0
 1 128
 1 0
 1 1
 1 0
 1 0 w1_bought.ppm
+1 0 @$shop_cursor
 1 0 !$sword_lv=3,$weapon_lv+16=3
+1 64
+1 0
 1 128
 1 0
-1 64
 1 0 w1b_equipped.ppm
 1 0 !$sword_lv=1,$weapon_lv+16=1
-1 128
-1 0
 1 64
+1 0
+1 128
 1 0
 1 0 @$coins,$weapon,$sword_lv,$sword_damage,$weapon_lv,$weapon_lv+4,$weapon_lv+8,$weapon_lv+12,$weapon_lv+16
 1 2

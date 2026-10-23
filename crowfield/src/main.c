@@ -1636,7 +1636,9 @@ static void shop_centered(s32 row, const char *s) {   // a line centered in the 
 }
 // Item line k (rows 6, 8, .. 14): "  NAME" padded to SHOP_EQ, then "= $price" (price >= 0) or "MAX" (-1);
 // price -2: the name only.
-static void shop_item(s32 k, const char *name, s32 price) {
+static void shop_item_at(s32 row, const char *name, s32 price);
+static void shop_item(s32 k, const char *name, s32 price) { shop_item_at(SHOP_T + 4 + 2 * k, name, price); }
+static void shop_item_at(s32 row, const char *name, s32 price) {   // the same line on any row
     char buf[26];
     s32 n = copy_str(buf, "  ");
     n += copy_str(buf + n, name);
@@ -1649,8 +1651,18 @@ static void shop_item(s32 k, const char *name, s32 price) {
         n += copy_str(buf + n, n + 3 + len <= SHOP_W - 2 ? "= $" : "=$");
         copy_str(buf + n, num);
     }
-    shop_line(SHOP_T + 4 + 2 * k, buf);
+    shop_line(row, buf);
 }
+
+// The WEAPONS page (v1.0, Caleb): one line per weapon, and under the equipped one (until Lv.3) a drop-down line
+// "UPGRADE TO LVn". Cursor slots count that line too: slot weapon + 1 is the upgrade.
+static s32 w_up_slot(void) { return sword_lv < 3 ? weapon + 1 : -1; }
+static s32 w_slots(void) { return WEAPONS + (w_up_slot() >= 0); }
+static s32 w_of_slot(s32 k) { s32 u = w_up_slot(); return u >= 0 && k >= u ? (k == u ? -1 : k - 1) : k; }   // -1: upgrade
+// Weapon lines start a row higher than other pages (row 5), every 2nd row; the drop-down sits right under the
+// equipped weapon and the lines after it move down a row, so it has a blank row on both sides (rows 5..14 at most).
+#define W_ROW(w) (SHOP_T + 3 + 2 * (w) + (w_up_slot() >= 0 && (w) > weapon))
+static s32 w_slot_row(s32 k) { s32 w = w_of_slot(k); return w < 0 ? W_ROW(weapon) + 1 : W_ROW(w); }
 // A tool line: "SICKLE LV2" and its price, or "SICKLE LV3" and MAX.
 static void shop_level(s32 k, const char *name, s32 lv, const s32 *price) {
     char buf[20];
@@ -1733,27 +1745,30 @@ static void draw_shop(void) {
         static const char *const what[WEAPONS] = { "QUICK, ALL-ROUND", "BIG HITS, SLOWER", "REACHES 2 TILES",
                                                    "HITS 3 TILES WIDE", "SHOOTS ANY DISTANCE" };
         shop_centered(SHOP_T + 1, "WEAPONS");
-        for (s32 w = 0; w < WEAPONS; w++) {   // in hand: UPGRADE TO LVn, or EQUIPPED at Lv.3; owned: EQUIP; else BUY
+        for (s32 w = 0; w < WEAPONS; w++) {   // in hand: EQUIPPED, and under it UPGRADE TO LVn; owned: EQUIP; else BUY
             if (w == weapon) {
-                if (sword_lv >= 3) {
-                    n = copy_str(buf, weapon_name[w]);
-                    copy_str(buf + n, " EQUIPPED");
-                    shop_item(w, buf, -2);
-                } else shop_level(w, "UPGRADE TO LV", sword_lv, weapon_up[w]);
+                n = copy_str(buf, weapon_name[w]);
+                copy_str(buf + n, " EQUIPPED");
+                shop_item_at(W_ROW(w), buf, -2);
+                if (sword_lv < 3) {   // the drop-down line, right under it
+                    n = copy_str(buf, "UPGRADE TO LV");
+                    fmt_num(buf + n, sword_lv + 1);
+                    shop_item_at(W_ROW(w) + 1, buf, weapon_up[w][sword_lv - 1]);
+                }
             } else if (weapon_lv[w]) {   // owned before (v1.0, Caleb): equip it again for free
                 n = copy_str(buf, "EQUIP ");
                 n += copy_str(buf + n, weapon_name[w]);
                 n += copy_str(buf + n, " LV");
                 fmt_num(buf + n, weapon_lv[w]);
-                shop_item(w, buf, -2);
+                shop_item_at(W_ROW(w), buf, -2);
             } else {
                 n = copy_str(buf, "BUY ");
                 copy_str(buf + n, weapon_name[w]);
-                shop_item(w, buf, weapon_buy[w]);
+                shop_item_at(W_ROW(w), buf, weapon_buy[w]);
             }
         }
-        s32 w = shop_cursor;   // the bottom line: what the weapon under the cursor does
-        if (w == weapon) {
+        s32 w = w_of_slot(shop_cursor);   // the bottom line: what the weapon under the cursor does
+        if (w < 0 || w == weapon) {
             s32 d = sword_damage;
             n = copy_str(buf, "EQUIPPED  DAMAGE ");
             n += fmt_num(buf + n, d / 2);
@@ -1782,7 +1797,7 @@ static void draw_shop(void) {
         shop_centered(SHOP_INFO, what[shop_cursor]);
         info = 0;
     }
-    put_text(SHOP_L + 1, SHOP_T + 4 + 2 * shop_cursor, ">");
+    put_text(SHOP_L + 1, shop_page == PAGE_WEAPONS ? w_slot_row(shop_cursor) : SHOP_T + 4 + 2 * shop_cursor, ">");
     if (info) {
         n = copy_str(buf, "YOU HAVE ");   // dropped when the numbers alone fill the line
         n += copy_str(buf + n, "$");
@@ -1866,7 +1881,7 @@ static void update_shop(void) {
     }
     if (!HELD(KEY_A)) buy_hold = 0;
     if (HIT(KEY_UP) && shop_cursor > 0) { shop_cursor--; draw_shop(); }
-    if (HIT(KEY_DOWN) && shop_cursor < page_items[shop_page] - 1) { shop_cursor++; draw_shop(); }
+    if (HIT(KEY_DOWN) && shop_cursor < (shop_page == PAGE_WEAPONS ? w_slots() : page_items[shop_page]) - 1) { shop_cursor++; draw_shop(); }
     if (HIT(KEY_B) && shop_page != PAGE_MAIN && shop_page != PAGE_BLESS) {
         shop_page = PAGE_MAIN;
         shop_cursor = main_cursor;
@@ -1911,10 +1926,13 @@ static void update_shop(void) {
         s32 k = shop_cursor;
         if ((ok = day >= unlock_day[k] && coins >= seed_price[k])) { coins -= seed_price[k]; seeds[k]++; }
     } else if (shop_page == PAGE_WEAPONS) {
-        s32 w = shop_cursor;
-        if (w == weapon) {           // upgrade the weapon in hand
+        s32 w = w_of_slot(shop_cursor);
+        if (w < 0) {                 // the drop-down line: upgrade the weapon in hand
             s32 lv = sword_lv;
-            if ((ok = buy_level(&lv, weapon_up[w]))) set_sword_lv(lv);
+            if ((ok = buy_level(&lv, weapon_up[weapon]))) set_sword_lv(lv);
+            if (ok && sword_lv >= 3) shop_cursor = weapon;   // Lv.3: the line is gone; back on the weapon
+        } else if (w == weapon) {    // already equipped: nothing to do
+            return;
         } else if (weapon_lv[w]) {   // owned before: equip it for free, at its own level (Caleb, v1.0)
             take_weapon(w);
             ok = 1;
@@ -1922,6 +1940,7 @@ static void update_shop(void) {
             coins -= weapon_buy[w];
             take_weapon(w);
         }
+        if (ok && w >= 0) shop_cursor = w;   // the upgrade line moved: stay on the weapon just equipped
     } else if (shop_cursor == F_SICKLE) {
         ok = buy_level(&sickle_lv, sickle_price);
     } else if (shop_cursor == F_SCARECROW) {
