@@ -121,11 +121,12 @@ numbers v0.1.0-v0.3.3 in commit subjects; those numbers are history only and hav
 - [x] v0.9.2: a new title (Caleb's picks): the blood moon logo with a crow on the D, a red dusk with the field
       in silhouette, crow silhouettes flying left to right; the black text bars are gone
 
-## v1.0 — full release
-- [ ] Last touch-ups from Caleb's play
-- [ ] Cover art (`tools/make_cover.py`) and `tools/package.sh` for the R36 SD card
-- [ ] Balance pass from playtests
-- [ ] README for players
+## v1.0 — full release (2026-10-23)
+- [x] Owned weapons equip for free; the equipped one is underlined, with its upgrade on a drop-down line
+- [x] Cover art (`tools/make_cover.py`): box art, the R36 game list image, a portrait cover
+- [x] `tools/package.sh`: the R36 card files and `crowfield-art.zip` for other setups (`docs/INSTALL.md`)
+- [x] README for players
+- [x] Played on the R36 and on iPhone (Delta) by Caleb
 
 ## Old plans (replaced)
 - v0.4b field growth by day: replaced by the EXPANSION shop page (Caleb).
