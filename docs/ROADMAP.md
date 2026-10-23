@@ -113,6 +113,13 @@ numbers v0.1.0-v0.3.3 in commit subjects; those numbers are history only and hav
       the best run and the last 5 (day, crops, crows, how it ended). Saved in SRAM ("CFS1"); runs still start
       fresh; dev runs are not recorded. `test/stats.txt` (with a power cycle).
 
+## v0.9.1 — Caleb's notes on v0.9.0
+- [x] Window text never touches or leaves its box (`test/menu_check.py`, 91 states)
+- [x] Final night 3: no purple or lower crows; LAST TEN SECONDS, white crows only
+- [x] New song picks (eight songs), a grungy night 3, every song loops
+- [x] Dev mode RECORD RUN
+- [ ] A new title logo (proposals sent; Caleb picks)
+
 ## v1.0 — full release
 - [ ] Last touch-ups from Caleb's play
 - [ ] Cover art (`tools/make_cover.py`) and `tools/package.sh` for the R36 SD card

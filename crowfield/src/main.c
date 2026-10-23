@@ -1937,7 +1937,7 @@ static void update_shop(void) {
 
 // ---------- run: start and game over ----------
 static s32 game_over;
-static s32 run_saved, dev_run;   // this run is in the history already; this run came from dev mode (v0.9)
+static s32 run_saved, dev_run, dev_record;   // in the history already; a dev mode run; record it anyway (v0.9.1)
 
 static void new_run(void) {
     reset_farm();
@@ -1968,7 +1968,7 @@ static void new_run(void) {
     finale = finale_pending = shop_last = stat_crops = stat_kills = bless_pending = 0;
     blood_next = BLOOD_FIRST;
     game_over = 0;
-    run_saved = dev_run = 0;
+    run_saved = dev_run = dev_record = 0;
     start_day();
 }
 
@@ -1984,7 +1984,8 @@ static void check_game_over(void) {
 // Only this history is saved; every run still starts fresh. Battery-backed SRAM at 0x0E000000, one byte at a
 // time; the "SRAM_V113" tag tells emulators (and the R36) to keep a save file. Layout: magic, runs played,
 // the best run, the last 5 runs (newest first), a checksum. A run is two words: day | crops << 16 and
-// crows | ending << 16 (each capped at 65535). Dev mode runs are not recorded.
+// crows | ending << 16 | dev << 20 (each capped at 65535). A dev mode run is recorded only with RECORD RUN YES,
+// and the stats page labels it DEV.
 #define SRAM ((volatile u8 *)0x0E000000)
 __attribute__((used, aligned(4))) static const char save_tag[] = "SRAM_V113";
 #define STATS_MAGIC 0x31534643   // "CFS1"
@@ -2027,9 +2028,9 @@ static int run_better(u32 a1, u32 b1, u32 a2, u32 b2) {
     return (b1 & 0xFFFF) > (b2 & 0xFFFF);
 }
 static void record_run(s32 kind) {
-    if (run_saved || dev_run) return;
+    if (run_saved || (dev_run && !dev_record)) return;
     run_saved = 1;
-    u32 a = cap16(day) | cap16(stat_crops) << 16, b = cap16(stat_kills) | (u32)kind << 16;
+    u32 a = cap16(day) | cap16(stat_crops) << 16, b = cap16(stat_kills) | (u32)kind << 16 | (u32)dev_run << 20;
     for (s32 i = HISTORY - 1; i > 0; i--) { hist_a[i] = hist_a[i - 1]; hist_b[i] = hist_b[i - 1]; }
     hist_a[0] = a; hist_b[0] = b;
     if (runs_played == 0 || run_better(a, b, best_a, best_b)) { best_a = a; best_b = b; }
@@ -2071,10 +2072,12 @@ static void end_screen_again(void) { end_screen(end_kind); }
 // Up/Down pick a line, Left/Right change it (L/R: by 10 on DAY and SEEDS), A starts a fresh run on that day
 // with that gear, B closes. Unlimited money keeps coins at 9999; invincible makes pecks do nothing.
 enum { DEV_DAY, DEV_WEAPON, DEV_SWORD, DEV_SICKLE, DEV_SC_LV, DEV_SC_BAG, DEV_CANNONS, DEV_FIELD, DEV_SEEDS,
-       DEV_BLOODS, DEV_TONIGHT, DEV_MONEY, DEV_GOD, DEV_ITEMS };
+       DEV_BLOODS, DEV_TONIGHT, DEV_MONEY, DEV_GOD, DEV_RECORD, DEV_ITEMS };
 enum { TONIGHT_NORMAL, TONIGHT_BLOOD, TONIGHT_FINAL };
-static const s32 dev_min[DEV_ITEMS] = { 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0 };
-static const s32 dev_max[DEV_ITEMS] = { 99, WEAPONS - 1, 3, 3, 3, MAX_SCARECROWS, MAX_CANNONS, 3, 99, FINALE_AFTER, 2, 1, 1 };
+static const s32 dev_min[DEV_ITEMS] = { 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+static const s32 dev_max[DEV_ITEMS] = { 99, WEAPONS - 1, 3, 3, 3, MAX_SCARECROWS, MAX_CANNONS, 3, 99, FINALE_AFTER, 2, 1, 1, 1 };
+#define DEV_T 1
+#define DEV_ROWS 18
 static s32 dev_open, dev_cursor, dev_val[DEV_ITEMS];
 static s32 title_on;   // the title screen is showing (v0.9; below)
 static s32 title_choice, stats_open;   // with a history: 0 PLAY, 1 STATS; the STATS page is showing
@@ -2083,12 +2086,14 @@ static void draw_stats(void);
 
 static void draw_dev(void) {
     static const char *const label[DEV_ITEMS] = { "DAY", "WEAPON", "WEAPON LV", "SICKLE LV", "SCARE LV",
-        "SCARECROWS", "CANNONS", "FIELD STEP", "SEEDS EACH", "MOONS DONE", "TONIGHT", "MONEY", "INVINCIBLE" };
+        "SCARECROWS", "CANNONS", "FIELD STEP", "SEEDS EACH", "MOONS DONE", "TONIGHT", "MONEY", "INVINCIBLE",
+        "RECORD RUN" };
     static const char *const tonight[3] = { "NORMAL", "BLOOD", "FINAL" };
     static const char *const short_weapon[WEAPONS] = { "WOOD", "IRON", "SPEAR", "SCYTHE", "SLING" };
-    for (s32 r = SHOP_T; r < SHOP_T + SHOP_ROWS; r++) shop_line(r, "");
-    shop_centered(SHOP_T + 1, "DEV MODE");   // a blank row above it, like the shop titles
-    for (s32 k = 0; k < DEV_ITEMS; k++) {   // one line each, rows 4-16
+    // 14 lines need two more rows than the shop window: the dev window is rows 1..18 (title row 2, lines 3..16)
+    for (s32 r = DEV_T; r < DEV_T + DEV_ROWS; r++) shop_line(r, "");
+    shop_centered(DEV_T + 1, "DEV MODE");   // a blank row above it, like the shop titles
+    for (s32 k = 0; k < DEV_ITEMS; k++) {   // one line each, rows 3-16
         char buf[26];
         s32 n = copy_str(buf, k == dev_cursor ? "> " : "  ");
         n += copy_str(buf + n, label[k]);
@@ -2099,9 +2104,10 @@ static void draw_dev(void) {
         else if (k == DEV_WEAPON) n += copy_str(buf + n, short_weapon[dev_val[k]]);
         else if (k == DEV_MONEY) n += copy_str(buf + n, dev_val[k] ? "ENDLESS" : "NORMAL");
         else if (k == DEV_GOD) n += copy_str(buf + n, dev_val[k] ? "ON" : "OFF");
+        else if (k == DEV_RECORD) n += copy_str(buf + n, dev_val[k] ? "YES" : "NO");
         else n += fmt_num(buf + n, dev_val[k]);
         if (k == dev_cursor) copy_str(buf + n, ">");
-        shop_line(SHOP_T + 2 + k, buf);
+        shop_line(DEV_T + 2 + k, buf);
     }
     clear_row(19);
     put_text(1, 19, "L/R +-10   A START  B CLOSE");
@@ -2123,13 +2129,14 @@ static void open_dev(void) {
     dev_val[DEV_TONIGHT] = TONIGHT_NORMAL;
     dev_val[DEV_MONEY] = dev_money;
     dev_val[DEV_GOD] = dev_god;
+    dev_val[DEV_RECORD] = 0;   // a dev run goes into the stats only when this is YES (Caleb, v0.9.1)
     msg_timer = notice_timer = 0;
     draw_dev();
 }
 
 static void close_dev(void) {
     dev_open = 0;
-    for (s32 r = SHOP_T; r < SHOP_T + SHOP_ROWS; r++) clear_row(r);
+    for (s32 r = DEV_T; r < DEV_T + DEV_ROWS; r++) clear_row(r);
     clear_row(19);
     if (title_on && stats_open) draw_stats();
     else if (title_on) title_text();
@@ -2160,6 +2167,7 @@ static void dev_start(void) {
     blood_count = dev_val[DEV_BLOODS];
     dev_money = dev_val[DEV_MONEY];
     dev_god = dev_val[DEV_GOD];
+    dev_record = dev_val[DEV_RECORD];
     if (dev_val[DEV_TONIGHT] == TONIGHT_BLOOD) blood_next = day;
     else if (dev_val[DEV_TONIGHT] == TONIGHT_FINAL) { finale_pending = 1; blood_next = 99999; }
     else blood_next = day <= BLOOD_FIRST ? BLOOD_FIRST : day + 4;
@@ -2232,7 +2240,7 @@ static void stats_line(s32 row, const char *label, u32 a, u32 b) {
         n += copy_str(buf + n, num);
     }
     buf[n++] = ' ';
-    n += copy_str(buf + n, how[(b >> 16) & 3]);
+    n += copy_str(buf + n, how[(b >> 16) & 3]);   // (bit 20 marks a dev run)
     buf[n] = 0;
     shop_line(row, buf);
 }
@@ -2246,7 +2254,7 @@ static void draw_stats(void) {
     shop_line(SHOP_T + 3, " RUN DAY CROP CROW END");
     stats_line(SHOP_T + 5, "BEST", best_a, best_b);
     for (u32 i = 0; i < HISTORY && i < runs_played; i++) {
-        s32 n = fmt_cap(buf, runs_played - i, 9999);   // the run column is 4 wide
+        s32 n = hist_b[i] >> 20 & 1 ? copy_str(buf, "DEV") : fmt_cap(buf, runs_played - i, 9999);   // 4 wide
         buf[n] = 0;
         stats_line(SHOP_T + 7 + i, buf, hist_a[i], hist_b[i]);
     }

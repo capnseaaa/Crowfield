@@ -94,3 +94,52 @@
 1 1
 1 0
 1 0 h4_stats6.ppm
+# v0.9.1: a dev run with RECORD RUN YES is recorded, labeled DEV (bit 20 of the run's second word)
+1 2
+1 0
+1 770
+1 0
+1 128
+1 0
+1 128
+1 0
+1 128
+1 0
+1 128
+1 0
+1 128
+1 0
+1 128
+1 0
+1 128
+1 0
+1 128
+1 0
+1 128
+1 0
+1 128
+1 0
+1 128
+1 0
+1 128
+1 0
+1 128
+1 0
+1 16
+1 0
+1 0 h5_dev_record.ppm
+1 0 @$dev_cursor,$dev_val+52
+1 1
+1 0
+10 0
+1 0 !$spawning=0,$seeds=0,$coins=0,$day=7
+1 0 !$farm+44=2056,$farm+48=50529031,$farm+52=50529027,$farm+56=134217735,$farm+60=117440520,$farm+64=50529027,$farm+68=117637891,$farm+72=134742272,$farm+76=50790400,$farm+80=50529027,$farm+84=459523,$farm+88=17303552
+5 0
+1 0 @$game_over,$runs_played,$hist_a,$hist_b,$dev_run,$dev_record
+1 8
+1 0
+1 128
+1 0
+1 1
+1 0
+1 0 h6_stats_dev.ppm

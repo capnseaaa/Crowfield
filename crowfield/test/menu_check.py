@@ -5,7 +5,7 @@ It visits every window state (each shop page with the cursor on each line, the d
 pages, the end screens, dev mode with the cursor on each line, the stats page), with the biggest numbers a
 line can show (99999 coins, 999 of each crop and seed, 65535 crops and crows in a run). For each state it
 reads the text map (BG0, screenblock 26) straight from video memory and checks the window rows 2-17: the box
-is columns 2-27; columns 2 and 27 must hold only blank box cells, and nothing may be drawn outside them.
+is columns 2-27; columns 2 and 27, and the window's top and bottom rows, must hold only blank box cells, and nothing may be drawn outside them.
 Run from crowfield/test: python3 menu_check.py
 """
 import os
@@ -14,7 +14,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SB = 0x0600D000          # text screenblock 26
-ROWS = range(2, 18)      # the window: SHOP_T 2, SHOP_ROWS 16
+ROWS = range(1, 19)      # rows 1-18: the shop window is rows 2-17, the dev window (v0.9.1) rows 1-18
 BOX_L, BOX_R = 2, 27   # the window since v0.9.1 (it was 3-26)
 A, B, UP, DOWN, LEFT, RIGHT, L, R = 1, 2, 64, 128, 32, 16, 512, 256
 SPACE = 1                # font tile 1 is the space glyph (box background)
@@ -90,9 +90,9 @@ def script():
     L_ += ["1 0 !$shop_page=0"]
     press(L_, B)
     L_ += ["1 %d" % (L | R | B), "1 0"]
-    L_ += ["1 0 !$dev_val=99,$dev_val+4=3,$dev_val+8=3,$dev_val+12=3,$dev_val+16=3,$dev_val+20=8,$dev_val+24=2,$dev_val+28=3,$dev_val+32=99,$dev_val+36=5,$dev_val+40=2,$dev_val+44=1,$dev_val+48=1"]
+    L_ += ["1 0 !$dev_val=99,$dev_val+4=3,$dev_val+8=3,$dev_val+12=3,$dev_val+16=3,$dev_val+20=8,$dev_val+24=2,$dev_val+28=3,$dev_val+32=99,$dev_val+36=5,$dev_val+40=2,$dev_val+44=1,$dev_val+48=1,$dev_val+52=1"]
     press(L_, DOWN); press(L_, UP)
-    for c in range(13):
+    for c in range(14):
         check(L_, "DEV, cursor %d" % c)
         press(L_, DOWN)
     for w in range(5):   # each weapon name
@@ -137,17 +137,23 @@ def main():
     bad = 0
     for k, label in enumerate(checks):
         problems = []
+        grid = []
         for i, r in enumerate(ROWS):
             words = [int(p.split("=")[1]) & 0xFFFFFFFF for p in rows[k * len(ROWS) + i].split()]
             cells = []
             for w in words:
                 cells += [w & 0x3FF, (w >> 16) & 0x3FF]
             text = "".join("." if t == 0 else " " if t == SPACE else "#" for t in cells[:30])
+            grid.append((r, cells, text))
             if cells[BOX_L] not in (SPACE,) or cells[BOX_R] not in (SPACE,):
                 if any(cells[c] for c in range(BOX_L, BOX_R + 1)):   # a window row
                     problems.append("row %2d touches the edge: |%s|" % (r, text))
             if any(cells[c] for c in list(range(0, BOX_L)) + list(range(BOX_R + 1, 30))):
                 problems.append("row %2d outside the box:  |%s|" % (r, text))
+        win = [g for g in grid if any(g[1][c] for c in range(BOX_L, BOX_R + 1))]   # the window's rows
+        for r, cells, text in (win[0], win[-1]) if win else ():
+            if any(cells[c] not in (0, SPACE) for c in range(BOX_L, BOX_R + 1)):
+                problems.append("row %2d is the window's edge row: |%s|" % (r, text))
         if problems:
             bad += 1
             print("FAIL", label)

@@ -216,3 +216,8 @@ farmer is knocked out.
 - v0.9.1 (Caleb): the 3rd final night has no purple or lower crows (lineup gold 30, white 15; the 8 purple became
   gold). In its last 10 s "LAST TEN SECONDS" shows and every crow that comes is white. The blood moons now play
   the first final-nights tune; the final nights get a new, more epic one (Caleb picks from options).
+- v0.9.1 dev mode: a 14th line, RECORD RUN (NO by default). With YES the run goes into the stats like any other
+  (it can become the best run); the list labels it DEV. The dev window is rows 1-18 so no line touches its edge.
+- v0.9.1 music: title Harvest Waltz, day Pitchfork Polka, dusk shop Sunny Rows, blood moons the old final-nights
+  tune, the work day before the final nights Crow King, the last shop Dawn Must Come, final nights The Flock
+  Descends, night 3 a grungy version of it. Every song loops (checked over two full loops in a recording).
