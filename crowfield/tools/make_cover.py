@@ -7,7 +7,8 @@ moon, the CROWFIELD letters with a crow perched on the D, crow silhouettes, the 
 The scene is drawn at half size in the game's palette and doubled; the letters and the perched crow are drawn at
 third size and tripled, so the title spans the art. Every pixel stays sharp.
 
-Run: python3 tools/make_cover.py   (writes art/box_cover.png every time; not part of the ROM build)
+Also writes art/menu_cover.png, the 640x640 image for the R36 game list (see menu() below).
+Run: python3 tools/make_cover.py   (writes both every time; not part of the ROM build)
 """
 import math
 import os
@@ -42,7 +43,12 @@ def letters_1x(text):
     return ink, x - 1
 
 
-def draw_art():
+def draw_art(nw=None, nh=None, cx=None, horizon=None, moon_c=None, moon_r=None, sx=22, crows=None,
+             tagline=("GROW. DEFEND.", "SURVIVE."), tag_y=150):
+    """The scene at half (box) or quarter (menu) size: dusk, moon, field's edge, scarecrow, crows, tagline."""
+    NW, NH, CX, HORIZON = nw or globals()["NW"], nh or globals()["NH"], cx or globals()["CX"], horizon or globals()["HORIZON"]
+    MOON_C, MOON_R = moon_c or globals()["MOON_C"], moon_r or globals()["MOON_R"]
+    crows = crows or ((6, 12, 3, False), (98, 8, 4, False), (104, 92, 3, False), (36, 100, 4, False))
     img = Image.new("RGB", (NW, NH))
     n = len(mt.SKY) - 1
     for y in range(HORIZON):   # the dusk, dithered like the title's
@@ -86,7 +92,7 @@ def draw_art():
         if x % 14 < 2:
             for yy in range(y + 1, y + 9):
                 img.putpixel((x, yy), mt.SILHOUETTE)
-    sx = 22   # the scarecrow, left of the middle
+    # the scarecrow, left of the middle (x = sx)
     for yy in range(y - 30, y + 8):
         img.putpixel((sx, yy), mt.SILHOUETTE)
         img.putpixel((sx + 1, yy), mt.SILHOUETTE)
@@ -107,7 +113,7 @@ def draw_art():
             img.putpixel((xx, yy), mt.SILHOUETTE)
     # crow silhouettes: the game's crow sprite (sprites.png cell 3 or 4), all near black but the beak
     sheet = Image.open(os.path.join(mt.ART, "sprites.png"))
-    for (x0, y0, cell, flip) in ((6, 12, 3, False), (98, 8, 4, False), (104, 92, 3, False), (36, 100, 4, False)):
+    for (x0, y0, cell, flip) in crows:
         for yy in range(16):
             for xx in range(16):
                 i = sheet.getpixel((cell * 16 + xx, yy))
@@ -115,9 +121,9 @@ def draw_art():
                     px, py = x0 + (15 - xx if flip else xx), y0 + yy
                     if 0 <= px < NW and 0 <= py < NH:
                         img.putpixel((px, py), mt.BEAK if i == 11 else (16, 8, 12))
-    for k, line in enumerate(("GROW. DEFEND.", "SURVIVE.")):   # the tagline on the dark ground
+    for k, line in enumerate(tagline):   # the tagline on the dark ground
         _, tw = mt.small_mask(line)
-        mt.small_text(img, line, CX - tw // 2, 150 + 11 * k)
+        mt.small_text(img, line, CX - tw // 2, tag_y + 11 * k)
     return img
 
 
@@ -157,6 +163,27 @@ def main():
                 cover.putpixel((x, y), (round(255 * k + r * (1 - k)), round(255 * k + g * (1 - k)), round(255 * k + b * (1 - k))))
     path = os.path.join(mt.ART, "box_cover.png")
     cover.save(path)
+    print("wrote", os.path.relpath(path, os.path.dirname(mt.ART)))
+    menu()
+
+
+# ---- the R36 game list image (v0.9.3): art/menu_cover.png, 640x640, like Rootflow's on the card ----
+MENU, MS = 640, 4                     # drawn at 160x160, then 4x
+MENU_LOGO = 7                         # the letters and perched crow at 7x: they span most of the width
+
+
+def menu():
+    n = MENU // MS
+    mc = (80, 62)
+    art = draw_art(nw=n, nh=n, cx=80, horizon=124, moon_c=mc, moon_r=34, sx=22,
+                   crows=((6, 8, 3, False), (124, 6, 4, False), (136, 92, 3, False), (44, 96, 4, False)),
+                   tagline=("GROW. DEFEND. SURVIVE.",), tag_y=142)
+    img = art.resize((MENU, MENU), Image.NEAREST)
+    logo, base = draw_logo()
+    big = logo.resize((logo.width * MENU_LOGO, logo.height * MENU_LOGO), Image.NEAREST)
+    img.paste(big, (MENU // 2 - big.width // 2, mc[1] * MS - (base + 5) * MENU_LOGO), big)
+    path = os.path.join(mt.ART, "menu_cover.png")
+    img.save(path)
     print("wrote", os.path.relpath(path, os.path.dirname(mt.ART)))
 
 
