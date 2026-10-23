@@ -9,6 +9,7 @@
 
 #include "data.h"
 #include "sound.h"
+#include "music.h"
 
 typedef unsigned char  u8;
 typedef unsigned short u16;
@@ -29,6 +30,12 @@ typedef signed int     s32;
 #define REG_SNDCNT_H  REG16(0x04000082)
 #define REG_SNDCNT_X  REG16(0x04000084)
 #define REG_FIFO_A    0x040000A0
+#define REG_SND2CNT   REG16(0x04000068)
+#define REG_SND2FREQ  REG16(0x0400006C)
+#define REG_SND3SEL   REG16(0x04000070)
+#define REG_SND3CNT   REG16(0x04000072)
+#define REG_SND3FREQ  REG16(0x04000074)
+#define WAVE_RAM      ((volatile u16*)0x04000090)
 #define REG_DMA1SAD   REG32(0x040000BC)
 #define REG_DMA1DAD   REG32(0x040000C0)
 #define REG_DMA1CNT_H REG16(0x040000C6)
@@ -116,10 +123,13 @@ static u32 snd_count;                       // sounds started; tests read it
 
 static void sound_init(void) {
     REG_SNDCNT_X = 0x0080;   // master on
-    REG_SNDCNT_L = 0;        // PSG channels off
+    REG_SNDCNT_L = 0x6677;   // tone channels 2 (melody) and 3 (bass) on both sides, full volume (v0.9 music)
     REG_SNDCNT_H = 0x0B04 | 0x0002;   // DMA A 100%, left + right, timer 0, FIFO reset; PSG 100%
     REG_TM0CNT_L = (u16)(65536 - 1254);   // 1254 cycles per sample = 280896 per frame / MIX_LEN
     REG_TM0CNT_H = 0x0080;
+    REG_SND3SEL = 0x0040;    // the bass wave goes into the bank that is not playing (bank 1 selected)
+    for (u32 i = 0; i < 8; i++) WAVE_RAM[i] = bass_wave[2 * i] | (bass_wave[2 * i + 1] << 8);
+    REG_SND3SEL = 0x0000;
 }
 static void sound_vblank(void) {
     if (mix_playing == 0) {   // the DMA ran through both halves: restart at the first
@@ -164,6 +174,38 @@ static void play(u32 snd) {
     ch_pos[c] = 0;
     ch_snd[c] = snd;
     ch_age[c] = ++snd_count;
+}
+
+// ---------- music (v0.9): melody on tone channel 2, bass on channel 3; the clips keep DirectSound A ----------
+// Five songs (Caleb): title, day, dusk shop, blood moon, final nights; tools/make_music.py writes them.
+static s32 song = -1;
+static u32 voice_pos[2], voice_left[2];   // note index and frames left, per voice
+static void music_note(s32 v, u16 freq) {
+    if (v == 0) {
+        if (!freq) { REG_SND2CNT = 0; REG_SND2FREQ = 0x8000; return; }   // rest: silence
+        REG_SND2CNT = (9 << 12) | (5 << 8) | (2 << 6);                 // a pluck that fades, 50% duty
+        REG_SND2FREQ = freq | 0x8000;
+    } else {
+        if (!freq) { REG_SND3SEL = 0; return; }
+        REG_SND3SEL = 0x0080;                                          // on, 32-sample bank 0
+        REG_SND3CNT = 2 << 13;                                         // 50% volume
+        REG_SND3FREQ = freq | 0x8000;
+    }
+}
+static void music_play(s32 s) {   // -1: silence. The same song keeps playing.
+    if (s == song) return;
+    song = s;
+    for (s32 v = 0; v < 2; v++) { voice_pos[v] = 0; voice_left[v] = 0; music_note(v, 0); }
+}
+static void music_tick(void) {
+    if (song < 0) return;
+    for (s32 v = 0; v < 2; v++) {
+        if (voice_left[v]) { voice_left[v]--; continue; }
+        u32 i = voice_pos[v];
+        music_note(v, song_freq[song][v][i]);
+        voice_left[v] = song_len[song][v][i] * song_fps[song] - 1;
+        voice_pos[v] = i + 1 == song_count[song][v] ? 0 : i + 1;
+    }
 }
 
 // ---------- text (BG0) ----------
@@ -2087,6 +2129,13 @@ static void draw_title_crows(void) {
     }
 }
 
+// Which song fits what is on screen. The dev window keeps whatever played before it.
+static void pick_song(void) {
+    if (dev_open) return;
+    music_play(title_on ? SONG_TITLE : game_over ? -1 : shop_open ? SONG_DUSK :
+               finale ? SONG_FINAL : blood_on ? SONG_BLOOD : SONG_DAY);
+}
+
 int main(void) {
     REG_DISPCNT = 0x0080;   // forced blank while loading
 
@@ -2150,6 +2199,8 @@ int main(void) {
         sound_vblank();
         oam_flush();
         sound_mix();
+        pick_song();
+        music_tick();
 
         poll_keys();
         frame++;

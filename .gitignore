@@ -6,5 +6,6 @@ crowfield/test/harness
 crowfield/test/.resolved.txt
 crowfield/test/*.ppm
 crowfield/src/sound.h
+crowfield/src/music.h
 crowfield/test/*.wav
 crowfield/test/.days.txt

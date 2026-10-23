@@ -79,3 +79,10 @@ saves `.ppm` screenshots, prints memory (`@`), writes memory (`!`), and power-cy
   BG palette bank 3 (1 gold, 2 outline, 3 shadow).
 - Test hook: a script's first line `0 0 !0203FFF0=1413829460` writes "TEST" into unused EWRAM before boot;
   the game then skips the title and starts Day 1 at once, exactly as before v0.9.
+
+## Music (v0.9)
+- `tools/make_music.py` (run by build.sh) writes `src/music.h` from note text; `--wav DIR` writes previews.
+- Melody on tone channel 2 (square, plucked envelope), bass on channel 3 (32-sample sine wave, 50% volume).
+  The sound clips keep DirectSound A, so music never cuts them.
+- `pick_song()` runs every frame: title, end screen (quiet), shop (dusk), final nights, blood moon, else day.
+- Check: `HARNESS_WAV=/abs/rec.wav sh test/run.sh test/music.txt && python3 test/music_check.py /abs/rec.wav`.

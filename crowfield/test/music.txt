@@ -1,0 +1,18 @@
+# music (v0.9): the title song, START -> the day song, then the dusk shop, a blood moon, and a final night
+# (state poked for the recording). Record with HARNESS_WAV=/abs/path.wav; test/music_check.py checks the notes.
+1 0 @$song
+360 0
+1 0 @$song
+1 8
+1 0 !$spawning=0
+360 0
+1 0 @$song
+1 0 !$shop_open=1
+360 0
+1 0 @$song
+1 0 !$shop_open=0,$blood_on=1,$blood_timer=9999
+360 0
+1 0 @$song
+1 0 !$finale=1
+360 0
+1 0 @$song
