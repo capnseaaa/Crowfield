@@ -11,7 +11,7 @@ rm -rf release
 mkdir -p release/gba/downloaded_images
 cp crowfield.gba release/gba/crowfield.gba
 cp art/menu_cover.png release/gba/downloaded_images/crowfield.png   # square, like Rootflow's on the card
-DESC="Grow. Defend. Survive. Hungry crows come for your crops every day, stronger and in bigger numbers. Farm four crops, sell your harvest at dusk, and spend it on weapons, scarecrows, crow cannons and a bigger field. Survive five blood moons and the three final nights to save the farm."
+DESC="Grow. Defend. Survive. Every day, hungry crows swarm your farm, stronger and in bigger numbers. Plant corn, carrots, tomatoes and pumpkins, then fight back with swords, a spear, a scythe or a slingshot, and set up scarecrows and pumpkin cannons. Sell your harvest at dusk to upgrade. Survive five blood moons and three final nights to save the farm."
 cat > release/gamelist-entry.xml <<XML
 	<game>
 		<path>./crowfield.gba</path>
