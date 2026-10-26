@@ -1,0 +1,29 @@
+0 0 !0203FFF0=1413829460
+# controls (v1.0.1, Caleb): hold B to run (2 px a frame, walking is 1.25), R picks the next seed and L the
+# previous, L + R together change nothing, and holding B while walking into a scarecrow does not switch it.
+1 0 !$spawning=0
+30 0
+# walk left 20 frames from the start, then run left 20 frames (B held): 25 px, then 40 px
+1 0 @$px
+20 32
+1 0 @$px
+20 34
+1 0 @$px
+# seeds on day 12 (corn, carrot, tomato open): R -> carrot, R -> tomato, L -> carrot; L + R together: no change
+1 0 !$day=12
+1 256
+1 0 @$sel_seed
+1 256
+1 0 @$sel_seed
+1 512
+1 0 @$sel_seed
+1 768
+1 0 @$sel_seed
+# a scarecrow (metatile 15) at (6,4), poked into the field (word computed by a script from the starting field);
+# the farmer at (5,4) facing it. Holding B while pressing toward it for 40 frames: still on (byte 2 of the word
+# stays 15). Then holding B standing still: after 30 frames it switches off (16).
+1 0 !$farm+64=51315716,$px=1280,$py=960,$pdir=3
+40 18
+1 0 @$farm+64
+40 2
+1 0 @$farm+64

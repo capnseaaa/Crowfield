@@ -19,12 +19,12 @@ NextUI, muOS and EmulationStation setups.
 | Button | What it does |
 |---|---|
 | D-pad | Move |
-| R (hold) | Run |
+| B (hold) | Run (a tap of B still swings your weapon) |
 | A | Plant a seed on empty soil, harvest a ripe crop; load pumpkins into a crow cannon you stand next to |
 | A (hold) on soil, or SELECT | Place a scarecrow from your bag, or pick one up |
-| L | Pick the next seed (corn, carrot, tomato, pumpkin) |
+| R / L | Pick the next / previous seed (corn, carrot, tomato, pumpkin) |
 | B | Swing your weapon (the slingshot fires a stone) |
-| B (hold) facing a scarecrow | Switch it off or on |
+| B (hold) standing still, facing a scarecrow | Switch it off or on |
 | START | Start a run on the title screen |
 
 ## Found a bug, or want a feature?

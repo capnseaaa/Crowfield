@@ -224,3 +224,5 @@ farmer is knocked out.
 - v1.0 (Caleb): a weapon you owned before is equipped again for free ("EQUIP SPEAR LV2"). The weapon in hand reads
   "NAME EQUIPPED", with a drop-down line under it, "UPGRADE TO LVn = $x" (gone at Lv.3). On it the bottom line
   reads "CURRENT DMG: x". A thin line in the text's color underlines the whole equipped line.
+- v1.0.1 (Caleb): hold B to run (it was R; a tap of B still swings). R picks the next seed, L the previous one; not
+  while both are held (the dev mode combo). Holding B to switch a scarecrow only counts while standing still.

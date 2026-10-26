@@ -459,7 +459,7 @@ static void update_farmer(void) {
         weapon_out = 0;
         return;
     }
-    s32 speed = HELD(KEY_R) ? 32 : 20;
+    s32 speed = HELD(KEY_B) ? 32 : 20;   // hold B to run (Caleb, v1.0.1; it was R). A tap of B still swings.
     s32 dx = 0, dy = 0;
     if (HELD(KEY_LEFT))  { dx = -speed; pdir = DIR_LEFT; }
     if (HELD(KEY_RIGHT)) { dx = speed;  pdir = DIR_RIGHT; }
@@ -554,9 +554,12 @@ static void farm_tiles(void) {
 }
 
 // L: plant the next unlocked seed (Caleb). Shows its name and count.
+// R picks the next unlocked seed, L the previous one (Caleb, v1.0.1; L used to be the only way). Not while both
+// shoulders are held, so the dev mode combo (L + R + B) does not change the seed.
 static void seed_work(void) {
-    if (!HIT(KEY_L) || ko_timer) return;
-    do sel_seed = sel_seed + 1 < KINDS ? sel_seed + 1 : 0; while (day < unlock_day[sel_seed]);
+    s32 d = HIT(KEY_R) ? 1 : HIT(KEY_L) ? -1 : 0;
+    if (!d || ko_timer || (HELD(KEY_L) && HELD(KEY_R))) return;
+    do sel_seed = (sel_seed + d + KINDS) % KINDS; while (day < unlock_day[sel_seed]);
     char buf[24];
     s32 n = copy_str(buf, crop_name[sel_seed]);
     n += copy_str(buf + n, " SEEDS: ");
@@ -1305,7 +1308,8 @@ static void place_scarecrow(void) {
 static void scarecrow_work(void) {
     u8 t = tile_at(tx, ty);
     int facing = t == SCARECROW || t == SCARECROW_OFF;
-    if (!HELD(KEY_B) || !facing || ko_timer) sc_hold = 0;
+    // standing still only: holding B to run into a scarecrow must not switch it (v1.0.1)
+    if (!HELD(KEY_B) || !facing || ko_timer || (keys_now & (KEY_UP | KEY_DOWN | KEY_LEFT | KEY_RIGHT))) sc_hold = 0;
     else if (sc_hold < SWITCH_HOLD && ++sc_hold == SWITCH_HOLD) {
         set_tile(tx, ty, t == SCARECROW ? SCARECROW_OFF : SCARECROW);
         show_message(t == SCARECROW ? "SCARECROW OFF" : "SCARECROW ON");

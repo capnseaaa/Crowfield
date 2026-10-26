@@ -17,20 +17,24 @@
 1 0 @$crow_state+12,$coins,$msg_timer
 30 0
 1 0 !$crow_state=0,$crow_state+4=0,$crow_state+8=0
-# L cycles the seed: on day 12 corn, carrot, tomato are open (pumpkin from day 20), so L goes corn -> carrot
+# R cycles the seed forward (v1.0.1; was L): on day 12 corn, carrot, tomato are open (pumpkin from day 20), so R goes corn -> carrot
 # -> tomato -> corn
 1 0 !$day=12,$seeds+4=3,$seeds+8=2
 1 0 i0_corn.ppm
-1 512
+1 256
 1 0 i1_carrot.ppm
 1 0 @$sel_seed
-1 512
+1 256
 1 0 i2_tomato.ppm
 1 0 @$sel_seed
+1 256
+1 0 @$sel_seed
+# L goes back (v1.0.1): corn -> tomato -> carrot. Then plant a carrot on soil (9,3) = field index 54, from below, A
+1 512
+1 0
+1 0 @$sel_seed
 1 512
 1 0 @$sel_seed
-# plant a carrot on soil (9,3) = field index 54: L to carrot, face up from below, A
-1 512
 1 0 !$px=2304,$py=896,$pdir=1
 1 1
 2 0 @$sel_seed,$seeds+4,$crop_kind+52,$farm+52
